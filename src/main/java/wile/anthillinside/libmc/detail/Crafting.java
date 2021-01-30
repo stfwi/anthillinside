@@ -90,29 +90,35 @@ public class Crafting
     final int width = 3;
     final int height = 3;
     if(!recipe.canFit(width,height)) return Collections.emptyList();
-    List<ItemStack> used = new ArrayList<>();
-    Deque<ItemStack> preferred = new ArrayDeque<>();
-    InventoryRange source = new InventoryRange(item_inventory);
+    List<ItemStack> used = new ArrayList<>();   //NonNullList.withSize(width*height);
+    for(int i=width*height; i>0; --i) used.add(ItemStack.EMPTY);
+    IInventory check_inventory = Inventories.copyOf(item_inventory);
+    InventoryRange source = new InventoryRange(check_inventory);
+    final List<Ingredient> ingredients = recipe.getIngredients();
+    final List<ItemStack> preferred = new ArrayList<>(width*height);
     if(crafting_grid != null) {
       for(int i=0; i<crafting_grid.getSizeInventory(); ++i) {
         ItemStack stack = crafting_grid.getStackInSlot(i);
-        if(!stack.isEmpty() && source.contains(stack)) {
-          preferred.add(stack);
-        }
+        if(stack.isEmpty()) continue;
+        stack = stack.copy();
+        stack.setCount(1);
+        if(!source.extract(stack).isEmpty()) preferred.add(stack);
       }
     }
-    final List<Ingredient> ingredients = recipe.getIngredients();
-    final int num_ingredients = ingredients.size();
-    while(used.size() < num_ingredients) used.add(ItemStack.EMPTY);
-    for(int i=0; i<num_ingredients; ++i) {
+    for(int i=0; i<ingredients.size(); ++i) {
       final Ingredient ingredient = ingredients.get(i);
       if(ingredient == Ingredient.EMPTY) continue;
-      ItemStack selected_stack = (!preferred.isEmpty() && ingredient.test(preferred.peek())) ? preferred.remove() : ItemStack.EMPTY;
-      if(selected_stack.isEmpty()) selected_stack = source.stream().filter(ingredient).findFirst().orElse(ItemStack.EMPTY);
-      if(selected_stack.isEmpty()) return Collections.emptyList();
-      final ItemStack placed_stack = selected_stack.copy();
-      placed_stack.setCount(1);
-      used.set(i, placed_stack);
+      ItemStack stack = preferred.stream().filter(ingredient).findFirst().orElse(ItemStack.EMPTY);
+      if(!stack.isEmpty()) {
+        preferred.remove(stack);
+      } else {
+        stack = source.stream().filter(ingredient).findFirst().orElse(ItemStack.EMPTY);
+        if(stack.isEmpty()) return Collections.emptyList();
+        stack = stack.copy();
+        stack.setCount(1);
+        if(source.extract(stack).isEmpty()) return Collections.emptyList();
+      }
+      used.set(i, stack);
     }
     if(recipe instanceof ShapedRecipe) {
       List<ItemStack> placement = NonNullList.withSize(width*height, ItemStack.EMPTY);
@@ -124,7 +130,6 @@ public class Crafting
       }
       return placement;
     } else {
-      while(used.size() < (width*height)) used.add(ItemStack.EMPTY);
       return used;
     }
   }

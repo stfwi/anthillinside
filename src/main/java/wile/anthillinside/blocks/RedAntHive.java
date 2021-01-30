@@ -795,7 +795,6 @@ public class RedAntHive
         }
         ICraftingRecipe selected_recipe = null;
         List<ItemStack> selected_placement = Collections.emptyList();
-        // Try strict placement first
         for(ICraftingRecipe recipe:crafting_recipes) {
           final List<ItemStack> placement = Crafting.get3x3Placement(getWorld(), recipe, left_storage_slot_range_, grid_storage_slot_range_);
           if(placement.isEmpty()) continue;

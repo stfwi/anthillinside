@@ -12,6 +12,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.item.ItemEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.ItemStackHelper;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.CompoundNBT;
@@ -127,6 +128,14 @@ public class Inventories
 
   private static ItemStack checked(ItemStack stack)
   { return stack.isEmpty() ? ItemStack.EMPTY : stack; }
+
+  public static IInventory copyOf(IInventory src)
+  {
+    final int size = src.getSizeInventory();
+    Inventory dst = new Inventory(size);
+    for(int i=0; i<size; ++i) dst.setInventorySlotContents(i, src.getStackInSlot(i).copy());
+    return dst;
+  }
 
   //--------------------------------------------------------------------------------------------------------------------
 
