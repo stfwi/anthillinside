@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "item": "minecraft:redstone" },
+    { "item": "minecraft:sugar" }
+  ],
+  "result": {
+    "item": "anthillinside:red_sugar",
+    "count": 2
+  }
+}

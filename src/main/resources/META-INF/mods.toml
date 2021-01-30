@@ -1,0 +1,31 @@
+# @file mods.toml
+# @spec TOML v0.5.0 (https://github.com/toml-lang/toml)
+modLoader="javafml" # forge FML java
+loaderVersion="[33,)"
+#issueTrackerURL="https://github.com/stfwi/anthillinside/issues/"
+license="MIT"
+
+[[mods]]
+modId="anthillinside"
+version="${file.jarVersion}"
+displayName="Anthill Inside"
+description="Adds 'natural' automation with Redstone Ants. Pratchett Readers know the term."
+authors="wilechaote"
+credits=""
+#updateJSONURL="https://raw.githubusercontent.com/stfwi/anthillinside/1.16/meta/update.json"
+displayURL="https://github.com/stfwi/anthillinside/"
+logoFile="logo.png"
+
+[[dependencies.anthillinside]]
+  modId="forge"
+  mandatory=true
+  versionRange="[35.0.2,)"
+  ordering="NONE"
+  side="BOTH"
+
+[[dependencies.anthillinside]]
+  modId="minecraft"
+  mandatory=true
+  versionRange="[1.16.4,)"
+  ordering="NONE"
+  side="BOTH"

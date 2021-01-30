@@ -1,0 +1,19 @@
+{
+	"parent": "block/cube",
+	"textures": {
+		"particle": "anthillinside:block/trail_straight_texture",
+		"s": "anthillinside:block/trail_straight_texture"
+	},
+	"elements": [
+		{
+			"from": [0, 0, 0],
+			"to": [16, 16, 0.2],
+			"faces": {
+				"north": {"texture": "#s"},
+				"south": {"texture": "#s"},
+				"up": {"texture": "#s"},
+				"down": {"texture": "#s"}
+			}
+		}
+	]
+}
