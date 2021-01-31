@@ -312,16 +312,16 @@ public class Inventories
 
   public static class InventoryRange implements IInventory, Iterable<ItemStack>
   {
-    public final IInventory inventory;
-    public final int offset, size, num_rows;
+    protected final IInventory inventory_;
+    protected final int offset_, size_, num_rows;
     protected int max_stack_size_ = 64;
     protected BiPredicate<Integer, ItemStack> validator_ = (index, stack)->true;
 
     public InventoryRange(IInventory inventory, int offset, int size, int num_rows)
     {
-      this.inventory = inventory;
-      this.offset = MathHelper.clamp(offset, 0, inventory.getSizeInventory()-1);
-      this.size = MathHelper.clamp(size, 0, inventory.getSizeInventory()-this.offset);
+      this.inventory_ = inventory;
+      this.offset_ = MathHelper.clamp(offset, 0, inventory.getSizeInventory()-1);
+      this.size_ = MathHelper.clamp(size, 0, inventory.getSizeInventory()-this.offset_);
       this.num_rows = num_rows;
     }
 
@@ -330,6 +330,15 @@ public class Inventories
 
     public InventoryRange(IInventory inventory)
     { this(inventory, 0, inventory.getSizeInventory(), 1); }
+
+    public IInventory inventory()
+    { return inventory_; }
+
+    public int size()
+    { return size_; }
+
+    public int offset()
+    { return offset_; }
 
     public static InventoryRange fromPlayerHotbar(PlayerEntity player)
     { return new InventoryRange(player.inventory, 0, 9, 1); }
@@ -356,55 +365,55 @@ public class Inventories
 
     @Override
     public void clear()
-    { for(int i=0; i<size; ++i) setInventorySlotContents(i, ItemStack.EMPTY); }
+    { for(int i=0; i<size_; ++i) setInventorySlotContents(i, ItemStack.EMPTY); }
 
     @Override
     public int getSizeInventory()
-    { return size; }
+    { return size_; }
 
     @Override
     public boolean isEmpty()
-    { for(int i=0; i<size; ++i) if(!inventory.getStackInSlot(offset+i).isEmpty()){return false;} return true; }
+    { for(int i=0; i<size_; ++i) if(!inventory_.getStackInSlot(offset_+i).isEmpty()){return false;} return true; }
 
     @Override
     public ItemStack getStackInSlot(int index)
-    { return inventory.getStackInSlot(offset+index); }
+    { return inventory_.getStackInSlot(offset_+index); }
 
     @Override
     public ItemStack decrStackSize(int index, int count)
-    { return inventory.decrStackSize(offset+index, count); }
+    { return inventory_.decrStackSize(offset_+index, count); }
 
     @Override
     public ItemStack removeStackFromSlot(int index)
-    { return inventory.removeStackFromSlot(offset+index); }
+    { return inventory_.removeStackFromSlot(offset_+index); }
 
     @Override
     public void setInventorySlotContents(int index, ItemStack stack)
-    { inventory.setInventorySlotContents(offset+index, stack); }
+    { inventory_.setInventorySlotContents(offset_+index, stack); }
 
     @Override
     public int getInventoryStackLimit()
-    { return Math.min(max_stack_size_, inventory.getInventoryStackLimit()); }
+    { return Math.min(max_stack_size_, inventory_.getInventoryStackLimit()); }
 
     @Override
     public void markDirty()
-    { inventory.markDirty(); }
+    { inventory_.markDirty(); }
 
     @Override
     public boolean isUsableByPlayer(PlayerEntity player)
-    { return inventory.isUsableByPlayer(player); }
+    { return inventory_.isUsableByPlayer(player); }
 
     @Override
     public void openInventory(PlayerEntity player)
-    { inventory.openInventory(player); }
+    { inventory_.openInventory(player); }
 
     @Override
     public void closeInventory(PlayerEntity player)
-    { inventory.closeInventory(player); }
+    { inventory_.closeInventory(player); }
 
     @Override
     public boolean isItemValidForSlot(int index, ItemStack stack)
-    { return validator_.test(offset+index, stack) && inventory.isItemValidForSlot(offset+index, stack); }
+    { return validator_.test(offset_+index, stack) && inventory_.isItemValidForSlot(offset_+index, stack); }
 
     //------------------------------------------------------------------------------------------------------------------
 
@@ -412,17 +421,17 @@ public class Inventories
      * Iterates using a function (slot, stack) -> bool until the function matches (returns true).
      */
     public boolean iterate(BiPredicate<Integer,ItemStack> fn)
-    { for(int i=0; i<size; ++i) { if(fn.test(i, getStackInSlot(i))) { return true; } } return false; }
+    { for(int i=0; i<size_; ++i) { if(fn.test(i, getStackInSlot(i))) { return true; } } return false; }
 
     public boolean contains(ItemStack stack)
-    { for(int i=0; i<size; ++i) { if(areItemStacksIdentical(stack, getStackInSlot(i))) { return true; } } return false; }
+    { for(int i=0; i<size_; ++i) { if(areItemStacksIdentical(stack, getStackInSlot(i))) { return true; } } return false; }
 
     public int indexOf(ItemStack stack)
-    { for(int i=0; i<size; ++i) { if(areItemStacksIdentical(stack, getStackInSlot(i))) { return i; } } return -1; }
+    { for(int i=0; i<size_; ++i) { if(areItemStacksIdentical(stack, getStackInSlot(i))) { return i; } } return -1; }
 
     public <T> Optional<T> find(BiFunction<Integer,ItemStack, Optional<T>> fn)
     {
-      for(int i=0; i<size; ++i) {
+      for(int i=0; i<size_; ++i) {
         Optional<T> r = fn.apply(i,getStackInSlot(i));
         if(r.isPresent()) return r;
       }
@@ -432,7 +441,7 @@ public class Inventories
     public <T> List<T> collect(BiFunction<Integer,ItemStack, Optional<T>> fn)
     {
       List<T> data = new ArrayList<>();
-      for(int i=0; i<size; ++i) {
+      for(int i=0; i<size_; ++i) {
         fn.apply(i, getStackInSlot(i)).ifPresent(e->data.add(e));
       }
       return data;
@@ -453,11 +462,11 @@ public class Inventories
       { parent_ = range; }
 
       public boolean hasNext()
-      { return index < parent_.size; }
+      { return index < parent_.size_; }
 
       public ItemStack next()
       {
-        if(index >= parent_.size) throw new NoSuchElementException();
+        if(index >= parent_.size_) throw new NoSuchElementException();
         return parent_.getStackInSlot(index++);
       }
     }
@@ -470,7 +479,7 @@ public class Inventories
     public int stackMatchCount(final ItemStack ref_stack)
     {
       int n = 0; // ... std::accumulate() the old school way.
-      for(int i=0; i<size; ++i) {
+      for(int i=0; i<size_; ++i) {
         if(areItemStacksIdentical(ref_stack, getStackInSlot(i))) ++n;
       }
       return n;
@@ -479,7 +488,7 @@ public class Inventories
     public int totalMatchingItemCount(final ItemStack ref_stack)
     {
       int n = 0;
-      for(int i=0; i<size; ++i) {
+      for(int i=0; i<size_; ++i) {
         ItemStack stack = getStackInSlot(i);
         if(areItemStacksIdentical(ref_stack, stack)) n += stack.getCount();
       }
@@ -489,22 +498,22 @@ public class Inventories
     //------------------------------------------------------------------------------------------------------------------
 
     /**
-     * Moves as much items from the stack to the slots in range [offset, end_slot] of the inventory,
-     * filling up existing stacks first, then (player inventory only) checks appropriate empty slots next
+     * Moves as much items from the stack to the slots in range [offset_, end_slot] of the inventory_,
+     * filling up existing stacks first, then (player inventory_ only) checks appropriate empty slots next
      * to stacks that have that item already, and last uses any empty slot that can be found.
      * Returns the stack that is still remaining in the referenced `stack`.
      */
     public ItemStack insert(final ItemStack input_stack, boolean only_fillup, int limit, boolean reverse, boolean force_group_stacks)
     {
       final ItemStack mvstack = input_stack.copy();
-      //final int end_slot = offset + size;
+      //final int end_slot = offset_ + size;
       if(mvstack.isEmpty()) return checked(mvstack);
       int limit_left = (limit>0) ? (Math.min(limit, mvstack.getMaxStackSize())) : (mvstack.getMaxStackSize());
-      boolean matches[] = new boolean[size];
-      boolean empties[] = new boolean[size];
+      boolean matches[] = new boolean[size_];
+      boolean empties[] = new boolean[size_];
       int num_matches = 0;
-      for(int i=0; i < size; ++i) {
-        final int sno = reverse ? (size-1-i) : (i);
+      for(int i=0; i < size_; ++i) {
+        final int sno = reverse ? (size_-1-i) : (i);
         final ItemStack stack = getStackInSlot(sno);
         if(stack.isEmpty()) {
           empties[sno] = true;
@@ -514,8 +523,8 @@ public class Inventories
         }
       }
       // first iteration: fillup existing stacks
-      for(int i=0; i<size; ++i) {
-        final int sno = reverse ? (size-1-i) : (i);
+      for(int i=0; i<size_; ++i) {
+        final int sno = reverse ? (size_-1-i) : (i);
         if((empties[sno]) || (!matches[sno])) continue;
         final ItemStack stack = getStackInSlot(sno);
         int nmax = Math.min(limit_left, stack.getMaxStackSize() - stack.getCount());
@@ -531,15 +540,15 @@ public class Inventories
         }
       }
       if(only_fillup) return checked(mvstack);
-      if((num_matches>0) && ((force_group_stacks) || (inventory instanceof PlayerInventory))) {
+      if((num_matches>0) && ((force_group_stacks) || (inventory_ instanceof PlayerInventory))) {
         // second iteration: use appropriate empty slots,
         // a) between
         {
           int insert_start = -1;
           int insert_end = -1;
           int i = 1;
-          for(;i<size-1; ++i) {
-            final int sno = reverse ? (size-1-i) : (i);
+          for(;i<size_-1; ++i) {
+            final int sno = reverse ? (size_-1-i) : (i);
             if(insert_start < 0) {
               if(matches[sno]) insert_start = sno;
             } else if(matches[sno]) {
@@ -547,7 +556,7 @@ public class Inventories
             }
           }
           for(i=insert_start;i < insert_end; ++i) {
-            final int sno = reverse ? (size-1-i) : (i);
+            final int sno = reverse ? (size_-1-i) : (i);
             if((!empties[sno]) || (!isItemValidForSlot(sno, mvstack))) continue;
             int nmax = Math.min(limit_left, mvstack.getCount());
             ItemStack moved = mvstack.copy();
@@ -559,8 +568,8 @@ public class Inventories
         }
         // b) before/after
         {
-          for(int i=1; i<size-1; ++i) {
-            final int sno = reverse ? (size-1-i) : (i);
+          for(int i=1; i<size_-1; ++i) {
+            final int sno = reverse ? (size_-1-i) : (i);
             if(!matches[sno]) continue;
             int ii = (empties[sno-1]) ? (sno-1) : (empties[sno+1] ? (sno+1) : -1);
             if((ii >= 0) && (isItemValidForSlot(ii, mvstack))) {
@@ -575,8 +584,8 @@ public class Inventories
         }
       }
       // third iteration: use any empty slots
-      for(int i=0; i<size; ++i) {
-        final int sno = reverse ? (size-1-i) : (i);
+      for(int i=0; i<size_; ++i) {
+        final int sno = reverse ? (size_-1-i) : (i);
         if((!empties[sno]) || (!isItemValidForSlot(sno, mvstack))) continue;
         int nmax = Math.min(limit_left, mvstack.getCount());
         ItemStack placed = mvstack.copy();
@@ -591,10 +600,29 @@ public class Inventories
     public ItemStack insert(final ItemStack stack_to_move)
     { return insert(stack_to_move, false, 0, false, true); }
 
+    public ItemStack insert(final int index, final ItemStack stack_to_move)
+    {
+      if(stack_to_move.isEmpty()) return stack_to_move;
+      final ItemStack stack = getStackInSlot(index);
+      final int limit = Math.min(getInventoryStackLimit(), stack.getMaxStackSize());
+      if(stack.isEmpty()) {
+        setInventorySlotContents(index, stack_to_move.copy());
+        return ItemStack.EMPTY;
+      } else if((stack.getCount() >= limit) || !areItemStacksIdentical(stack, stack_to_move)) {
+        return stack_to_move;
+      } else {
+        final int amount = Math.min(limit-stack.getCount(), stack_to_move.getCount());
+        ItemStack remaining = stack_to_move.copy();
+        remaining.shrink(amount);
+        stack.grow(amount);
+        return remaining.isEmpty() ? ItemStack.EMPTY : remaining;
+      }
+    }
+
     //------------------------------------------------------------------------------------------------------------------
 
     /**
-     * Extracts maximum amount of items from the inventory.
+     * Extracts maximum amount of items from the inventory_.
      * The first non-empty stack defines the item.
      */
     public ItemStack extract(int amount)
@@ -603,9 +631,9 @@ public class Inventories
     public ItemStack extract(int amount, boolean random)
     {
       ItemStack out_stack = ItemStack.EMPTY;
-      int offset = random ? (int)(Math.random()*size) : 0;
-      for(int k=0; k<size; ++k) {
-        int i = (offset+k) % size;
+      int offset = random ? (int)(Math.random()*size_) : 0;
+      for(int k=0; k<size_; ++k) {
+        int i = (offset+k) % size_;
         final ItemStack stack = getStackInSlot(i);
         if(stack.isEmpty()) continue;
         if(out_stack.isEmpty()) {
@@ -636,14 +664,14 @@ public class Inventories
     }
 
     /**
-     * Moves as much items from the slots in range [offset, end_slot] of the inventory into a new stack.
-     * Implicitly shrinks the inventory stacks and the `request_stack`.
+     * Moves as much items from the slots in range [offset_, end_slot] of the inventory_ into a new stack.
+     * Implicitly shrinks the inventory_ stacks and the `request_stack`.
      */
     public ItemStack extract(final ItemStack request_stack)
     {
       if(request_stack.isEmpty()) return ItemStack.EMPTY;
       List<ItemStack> matches = new ArrayList<>();
-      for(int i=0; i<size; ++i) {
+      for(int i=0; i<size_; ++i) {
         final ItemStack stack = getStackInSlot(i);
         if((!stack.isEmpty()) && (areItemStacksIdentical(stack, request_stack))) {
           if(stack.hasTag()) {
@@ -671,7 +699,7 @@ public class Inventories
     //------------------------------------------------------------------------------------------------------------------
 
     /**
-     * Moves items from this inventory range to another. Returns true if something was moved
+     * Moves items from this inventory_ range to another. Returns true if something was moved
      * (if the inventories should be marked dirty).
      */
     public boolean move(int index, final InventoryRange target_range, boolean all_identical_stacks, boolean only_fillup, boolean reverse, boolean force_group_stacks)
@@ -687,7 +715,7 @@ public class Inventories
         setInventorySlotContents(index, ItemStack.EMPTY);
         final ItemStack ref_stack = remaining.copy();
         ref_stack.setCount(ref_stack.getMaxStackSize());
-        for(int i=size; (i>0) && (!remaining.isEmpty()); --i) {
+        for(int i=size_; (i>0) && (!remaining.isEmpty()); --i) {
           remaining = target_range.insert(remaining, only_fillup, 0, reverse, force_group_stacks);
           if(!remaining.isEmpty()) break;
           remaining = this.extract(ref_stack);
@@ -709,7 +737,7 @@ public class Inventories
     public boolean move(final InventoryRange target_range, boolean only_fillup, boolean reverse, boolean force_group_stacks)
     {
       boolean changed = false;
-      for(int i=0; i<size; ++i) changed |= move(i, target_range, false, only_fillup, reverse, force_group_stacks);
+      for(int i=0; i<size_; ++i) changed |= move(i, target_range, false, only_fillup, reverse, force_group_stacks);
       return changed;
     }
 

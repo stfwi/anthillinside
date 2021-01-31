@@ -39,6 +39,18 @@ public class Containers
     { slot_change_action_.accept(oldStack, newStack);} // no crafting trigger
 
     @Override
+    public void putStack(ItemStack stack)
+    {
+      if(stack.isItemEqual(getStack())) {
+        super.putStack(stack);
+      } else {
+        final ItemStack before = getStack().copy();
+        super.putStack(stack); // whatever this does else next to setting inventory.
+        slot_change_action_.accept(before, getStack());
+      }
+    }
+
+    @Override
     public boolean isItemValid(ItemStack stack)
     { return enabled && this.inventory.isItemValidForSlot(this.getSlotIndex(), stack); }
 

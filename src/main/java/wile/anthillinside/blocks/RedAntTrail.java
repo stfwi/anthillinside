@@ -12,12 +12,14 @@ import net.minecraft.entity.item.ItemEntity;
 import net.minecraft.entity.merchant.villager.VillagerEntity;
 import net.minecraft.entity.monster.MonsterEntity;
 import net.minecraft.entity.passive.AnimalEntity;
+import net.minecraft.pathfinding.PathType;
 import net.minecraft.state.BooleanProperty;
 import net.minecraft.util.Direction.Axis;
 import net.minecraft.util.math.shapes.IBooleanFunction;
 import net.minecraft.util.math.shapes.VoxelShape;
 import net.minecraft.util.math.shapes.VoxelShapes;
 import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.world.IBlockReader;
 import net.minecraft.world.IWorld;
 import net.minecraft.world.IWorldReader;
 import net.minecraft.world.World;
@@ -95,7 +97,12 @@ public class RedAntTrail
     @Override
     @Nullable
     public BlockState getStateForPlacement(BlockItemUseContext context)
-    { return updatedState(super.getStateForPlacement(context), context.getWorld(), context.getPos()); }
+    {
+      BlockState state = super.getStateForPlacement(context);
+      if(state == null) return state;
+      if((!state.get(UP)) && (context.getFace().getAxis().isVertical()) && (!Block.hasSolidSideOnTop(context.getWorld(), context.getPos().down()))) return null;
+      return updatedState(state, context.getWorld(), context.getPos());
+    }
 
     @Override
     public void onBlockPlacedBy(World world, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack)
@@ -158,6 +165,10 @@ public class RedAntTrail
     @Override
     public boolean shouldCheckWeakPower(BlockState state, IWorldReader world, BlockPos pos, Direction side)
     { return false; }
+
+    @Override
+    public boolean allowsMovement(BlockState state, IBlockReader world, BlockPos pos, PathType type)
+    { return (!state.get(UP)) || super.allowsMovement(state, world, pos, type); }
 
     //------------------------------------------------------------------------------------------------------
 
@@ -298,6 +309,9 @@ public class RedAntTrail
       }
       if(entity instanceof MonsterEntity) {
         entity.attackEntityFrom(DamageSource.CACTUS, 2f);
+      } else if(entity instanceof PlayerEntity) {
+        if(world.getRandom().nextDouble() > 1e-1) return;
+        entity.attackEntityFrom(DamageSource.CACTUS, 0.1f);
       } else {
         entity.attackEntityFrom(DamageSource.CACTUS, 0.1f);
         if(entity instanceof VillagerEntity) {
