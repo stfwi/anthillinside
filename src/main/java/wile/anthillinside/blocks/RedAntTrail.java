@@ -266,8 +266,11 @@ public class RedAntTrail
           if(!up) {
             if((progress > 0.7) && front) check_insertion_front = true;
           } else {
-            if((dp.y < 0.3) && (progress < 0.6)) {
+            if(front && (dp.y < 0.3) && (progress < 0.6)) {
               y_speed = 0.0;
+            } else if((progress > 0.7) && (world.getBlockState(pos.up().offset(block_facing)).isIn(this))) {
+              motion = motion.scale(1.2);
+              y_speed = 0.14;
             } else {
               y_speed = 0.1;
             }
@@ -296,7 +299,10 @@ public class RedAntTrail
         }
       }
       if(state.get(WATERLOGGED)) motion.add(0,-0.1,0);
-      entity.setMotion(entity.getMotion().scale(0.5).add(motion));
+      motion = entity.getMotion().scale(0.5).add(motion);
+
+System.out.printf("m: %+6.1f,%+6.1f,%+6.1f", motion.scale(100).x, motion.scale(100).y, motion.scale(100).z);
+      entity.setMotion(motion);
     }
 
     public void itchEntity(BlockState state, World world, BlockPos pos, Entity entity)

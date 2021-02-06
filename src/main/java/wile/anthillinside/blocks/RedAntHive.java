@@ -905,8 +905,19 @@ public class RedAntHive
             if(t <= 0) return false;
             if((!allowed_fuel.isEmpty()) && (!allowed_fuel.contains(stack.getItem()))) return false;
             while((stack.getCount() > 0) && (fuel_left_ < fuel_time_needed)) {
-              stack.shrink(1);
-              fuel_left_ += t;
+              final ItemStack consumed = stack.split(1);
+              Tuple<Integer,ItemStack> bt_and_rem = Crafting.consumeFuel(getWorld(), consumed);
+              fuel_left_ += bt_and_rem.getA();
+              if(!bt_and_rem.getB().isEmpty()) {
+                final ItemStack container_item = bt_and_rem.getB();
+                if(stack.isEmpty()) {
+                  stack = container_item;
+                } else {
+                  if(!right_storage_slot_range_.insert(container_item).isEmpty()) {
+                    cache_slot_range_.insert(container_item);
+                  }
+                }
+              }
             }
             if(stack.isEmpty()) stack = ItemStack.EMPTY;
             input_slots.setInventorySlotContents(slot, stack);

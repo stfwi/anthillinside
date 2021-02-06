@@ -1,10 +1,11 @@
 {
   "homepage": "https://www.curseforge.com/minecraft/mc-mods/engineers-tools/",
   "1.16.5": {
+    "1.0.0": "[R] Initial release.\n[F] Fixed Furnace Processing missing fuel container item insertion.\n[F] Tooltip typo fixed.",
     "1.0.0-b1": "[U] Initial concept implementation."
   },
   "promos": {
-    "1.16.5-recommended": "",
-    "1.16.5-latest": "1.0.0-b1"
+    "1.16.5-recommended": "1.0.0",
+    "1.16.5-latest": "1.0.0"
   }
 }
