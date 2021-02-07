@@ -14,6 +14,7 @@ import net.minecraft.nbt.CompoundNBT;
 import net.minecraft.util.Direction;
 import net.minecraft.util.Direction.Axis;
 import net.minecraft.util.SharedConstants;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.shapes.IBooleanFunction;
 import net.minecraft.util.math.shapes.VoxelShape;
 import net.minecraft.util.math.shapes.VoxelShapes;
@@ -35,12 +36,15 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 public class Auxiliaries
@@ -353,6 +357,63 @@ public class Auxiliaries
       for(AxisAlignedBB aabb: aabbs) shape = VoxelShapes.combine(shape, VoxelShapes.create(aabb), IBooleanFunction.OR);
     }
     return shape;
+  }
+
+  public static final class BlockPosRange implements Iterable<BlockPos>
+  {
+    private final int x0, x1, y0, y1, z0, z1;
+
+    public BlockPosRange(int x0, int y0, int z0, int x1, int y1, int z1)
+    { this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; this.z0 = z0; this.z1 = z1; }
+
+    public static final BlockPosRange of(AxisAlignedBB range)
+    {
+      return new BlockPosRange(
+        (int)Math.floor(range.minX),
+        (int)Math.floor(range.minY),
+        (int)Math.floor(range.minZ),
+        (int)Math.floor(range.maxX-.0625),
+        (int)Math.floor(range.maxY-.0625),
+        (int)Math.floor(range.maxZ-.0625)
+      );
+    }
+
+    public static final class BlockRangeIterator implements Iterator<BlockPos>
+    {
+      private final BlockPosRange range_;
+      private int x,y,z;
+
+      public BlockRangeIterator(BlockPosRange range)
+      { range_ = range; x=range.x0; y=range.y0; z=range.z0; }
+
+      @Override
+      public boolean hasNext()
+      { return (z <= range_.z1); }
+
+      @Override
+      public BlockPos next()
+      {
+        if(!hasNext()) throw new NoSuchElementException();
+        final BlockPos pos = new BlockPos(x,y,z);
+        ++x;
+        if(x > range_.x1) {
+          x = range_.x0;
+          ++y;
+          if(y > range_.y1) {
+            y = range_.y0;
+            ++z;
+          }
+        }
+        return pos;
+      }
+    }
+
+    @Override
+    public BlockRangeIterator iterator()
+    { return new BlockRangeIterator(this); }
+
+    public Stream<BlockPos> stream()
+    { return java.util.stream.StreamSupport.stream(spliterator(), false); }
   }
 
   // -------------------------------------------------------------------------------------------------------------------

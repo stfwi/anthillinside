@@ -16,10 +16,12 @@ import net.minecraft.item.crafting.AbstractCookingRecipe;
 import net.minecraft.item.crafting.ICraftingRecipe;
 import net.minecraft.item.crafting.IRecipeType;
 import net.minecraft.item.crafting.Ingredient;
+import net.minecraft.state.IntegerProperty;
 import net.minecraft.util.math.shapes.ISelectionContext;
 import net.minecraft.util.math.shapes.VoxelShape;
 import net.minecraft.util.math.shapes.VoxelShapes;
 import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.util.math.vector.Vector3i;
 import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraft.world.IBlockReader;
 import net.minecraft.world.IWorld;
@@ -56,10 +58,7 @@ import wile.anthillinside.ModAnthillInside;
 import wile.anthillinside.ModContent;
 import wile.anthillinside.blocks.RedAntTrail.RedAntTrailBlock;
 import wile.anthillinside.libmc.blocks.StandardBlocks;
-import wile.anthillinside.libmc.detail.Crafting;
-import wile.anthillinside.libmc.detail.Inventories;
-import wile.anthillinside.libmc.detail.Networking;
-import wile.anthillinside.libmc.detail.TooltipDisplay;
+import wile.anthillinside.libmc.detail.*;
 import wile.anthillinside.libmc.ui.Containers;
 import wile.anthillinside.libmc.ui.Containers.StorageSlot;
 import wile.anthillinside.libmc.ui.Guis;
@@ -71,6 +70,7 @@ import wile.anthillinside.libmc.util.IntegralBitSet;
 import javax.annotation.Nullable;
 import java.util.*;
 import java.util.function.BiPredicate;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 
@@ -84,6 +84,15 @@ public class RedAntHive
   private static int normal_processing_speed_ant_count_percent = 100;
   private static final HashMap<Item, Object> processing_command_item_mapping = new HashMap<>();
 
+  private static class ProcessingHandler
+  {
+    public final Item item;
+    public final Function<RedAntHiveTileEntity, Boolean> handler;
+    public final Function<RedAntHiveTileEntity, Boolean> passthrough_handler;
+    public ProcessingHandler(Item item, Function<RedAntHiveTileEntity, Boolean> handler, Function<RedAntHiveTileEntity, Boolean> passthrough_handler)
+    { this.item = item; this.handler = handler; this.passthrough_handler = passthrough_handler; }
+  }
+
   public static void on_config(int ore_minining_spawn_probability_percent, int ant_speed_scaler_percent, int sugar_time_s, int growth_latency_s)
   {
     hive_drop_probability_percent = MathHelper.clamp(ore_minining_spawn_probability_percent, 1, 99);
@@ -95,8 +104,9 @@ public class RedAntHive
     processing_command_item_mapping.put(Items.FURNACE, IRecipeType.SMELTING);
     processing_command_item_mapping.put(Items.BLAST_FURNACE, IRecipeType.BLASTING);
     processing_command_item_mapping.put(Items.SMOKER, IRecipeType.SMOKING);
-    processing_command_item_mapping.put(Items.HOPPER, Items.HOPPER);
-    processing_command_item_mapping.put(Items.COMPOSTER, Items.COMPOSTER);
+    processing_command_item_mapping.put(Items.HOPPER, new ProcessingHandler(Items.HOPPER, (te)->te.processHopper(), (te)->false));
+    processing_command_item_mapping.put(Items.COMPOSTER, new ProcessingHandler(Items.COMPOSTER, (te)->te.processComposter(), (te)->te.itemPassThroughComposter()));
+    processing_command_item_mapping.put(Items.SHEARS, new ProcessingHandler(Items.SHEARS, (te)->te.processShears(), (te)->te.processHopper()));
   }
 
   //--------------------------------------------------------------------------------------------------------------------
@@ -118,10 +128,12 @@ public class RedAntHive
 
   public static class RedAntHiveBlock extends StandardBlocks.DirectedWaterLoggable
   {
+    public static final IntegerProperty VARIANT = IntegerProperty.create("variant", 0, 2);
+
     public RedAntHiveBlock(long config, Block.Properties builder, AxisAlignedBB[] aabbs)
     {
       super(config, builder, aabbs);
-      setDefaultState(super.getDefaultState().with(FACING,Direction.DOWN));
+      setDefaultState(super.getDefaultState().with(FACING, Direction.DOWN).with(VARIANT, 0));
     }
 
     @Override
@@ -130,15 +142,54 @@ public class RedAntHive
 
     @Override
     protected void fillStateContainer(StateContainer.Builder<Block, BlockState> builder)
-    { super.fillStateContainer(builder); }
+    { super.fillStateContainer(builder.add(VARIANT)); }
 
     @Override
     @Nullable
+    @SuppressWarnings("deprecation")
     public BlockState getStateForPlacement(BlockItemUseContext context)
     {
       BlockState state = super.getStateForPlacement(context);
       if(state == null) return null;
       if(!context.getPlayer().isSneaking()) state = state.with(FACING, Direction.DOWN);
+      double[] variant_votes = new double[VARIANT.getAllowedValues().size()];
+      int reference_weight=0;
+      final World world = context.getWorld();
+      final BlockPos placement_pos = context.getPos();
+      for(int x=-1; x<=1; ++x) {
+        for(int y=-1; y<=1; ++y) {
+          for(int z=-1; z<=1; ++z) {
+            if(x==0 && y==0 && z==0) continue;
+            Vector3i dirv = new Vector3i(x,y,z);
+            BlockPos adj_pos = placement_pos.add(dirv);
+            final double adj_scaler = ((Math.abs(x)+Math.abs(y)+Math.abs(z))==1) ? 1.3 : 1.0;
+            final double weight = ((x==0)?1.7:1) * ((y==0)?1.7:1) * ((z==0)?1.7:1) * adj_scaler;
+            final BlockState adj_state = world.getBlockState(adj_pos);
+            if(!adj_state.isOpaqueCube(world, adj_pos)) continue;
+            reference_weight += weight;
+            final String name = adj_state.getBlock().getRegistryName().getPath();
+            if(name.contains("sand")) {
+              variant_votes[2] += weight;
+            } else if(name.contains("dirt") || name.contains("grass")) {
+              variant_votes[1] += weight;
+            } else {
+              variant_votes[0] += weight;
+            }
+          }
+        }
+      }
+      int best_variant = 0;
+      double max_vote = variant_votes[0];
+      for(int i=0; i<variant_votes.length; ++i) {
+        if(variant_votes[i] > max_vote) {
+          best_variant = i;
+          max_vote = variant_votes[i];
+        }
+      }
+      max_vote /= Math.max(1.0, reference_weight);
+      if(max_vote >= 0.2) {
+        state = state.with(VARIANT, best_variant);
+      }
       return state;
     }
 
@@ -682,8 +733,8 @@ public class RedAntHive
       }
       // Item entities
       {
-        final Vector3d aabb_extension = Vector3d.copy(input_facing.getDirectionVec()).scale(0.5);
-        final AxisAlignedBB aabb = (new AxisAlignedBB(getPos().offset(input_facing))).expand(aabb_extension);
+        final Vector3d dvec = Vector3d.copy(input_facing.getDirectionVec());
+        final AxisAlignedBB aabb = (new AxisAlignedBB(getPos())).grow(0.3).offset(dvec.scale(0.3)).expand(dvec.scale(1.0));
         final List<ItemEntity> items = getWorld().getEntitiesWithinAABB(ItemEntity.class, aabb, (e)->e.isAlive() && (!e.getItem().isEmpty()));
         for(ItemEntity ie:items) {
           final ItemStack stack = ie.getItem().copy();
@@ -739,10 +790,8 @@ public class RedAntHive
           } else if((cat == IRecipeType.SMELTING) || (cat == IRecipeType.BLASTING) || (cat == IRecipeType.SMOKING)) {
             processFurnace((IRecipeType)cat, is_done);
           }
-        } else if(cat == Items.HOPPER) {
-          return processHopper();
-        } else if(cat == Items.COMPOSTER) {
-          return processComposter();
+        } else if(cat instanceof ProcessingHandler) {
+          return ((ProcessingHandler)cat).handler.apply(this);
         }
       }
       return true;
@@ -756,8 +805,8 @@ public class RedAntHive
         return itemPassThroughCrafting((IRecipeType)type);
       } else if((type == IRecipeType.SMELTING) || (type == IRecipeType.BLASTING) || (type == IRecipeType.SMOKING)) {
         return itemPassThroughFurnace((IRecipeType)type);
-      } else if((type == Items.COMPOSTER)) {
-        return itemPassThroughComposter();
+      } else if(type instanceof ProcessingHandler) {
+        return ((ProcessingHandler)type).passthrough_handler.apply(this);
       } else {
         return false;
       }
@@ -1006,6 +1055,24 @@ public class RedAntHive
         ItemStack stack = left_storage_slot_range_.getStackInSlot(i);
         if(stack.isEmpty() || (stack.getItem()==RED_SUGAR_ITEM)) continue;
         if(left_storage_slot_range_.move(i, right_storage_slot_range_)) return true;
+      }
+      return false;
+    }
+
+    private boolean processShears()
+    {
+      final Direction input_facing = getBlockState().get(RedAntHiveBlock.FACING).getOpposite();
+      boolean snipped = ToolActions.shearPlant(getWorld(), getPos().offset(input_facing));
+      if(!snipped) {
+        AxisAlignedBB aabb = new AxisAlignedBB(getPos().offset(input_facing));
+        snipped = ToolActions.shearEntities(getWorld(), aabb, 1);
+      }
+      if(snipped) {
+        progress_ = 0;
+        max_progress_ = 120;
+      } else {
+        progress_ = -40;
+        max_progress_ = 0;
       }
       return false;
     }
@@ -1333,6 +1400,27 @@ public class RedAntHive
       });
     }
 
+    private void update()
+    {
+      final RedAntHiveContainer container = (RedAntHiveContainer)getContainer();
+      state_flags_.value(container.field(0));
+      final ItemStack cmdstack = container.command_slot.getStack();
+      final boolean show_process = (!cmdstack.isEmpty()) && (cmdstack.getItem()!=Items.HOPPER) && (cmdstack.getItem()!=Items.SHEARS);
+      grid_background_.visible = (show_process && (cmdstack.getItem()!=Items.COMPOSTER)) || (!container.grid_storage_slot_range_.isEmpty());
+      container.grid_slots.forEach(slot->{slot.enabled=grid_background_.visible;});
+      progress_bar_.visible = show_process;
+      progress_bar_.active = progress_bar_.visible;
+      result_background_.visible = progress_bar_.visible;
+      if(progress_bar_.visible) progress_bar_.setMaxProgress(container.field(1)).setProgress(container.field(2));
+      powered_indicator_.visible = state_flags_.powered();
+      sugar_indicator_.visible = state_flags_.sugared();
+      norecipe_indicator_.visible = state_flags_.norecipe();
+      noingredients_indicator_.visible = state_flags_.noingr();
+      nofuel_indicator_.visible = state_flags_.nofuel();
+      left_filter_enable_.checked(state_flags_.filteredinsert());
+      passthrough_enable_.checked(!state_flags_.nopassthrough());
+    }
+
     @Override
     public void init()
     {
@@ -1411,29 +1499,12 @@ public class RedAntHive
           ()->(getContainer().ant_slot_range_.isEmpty() ? new TranslationTextComponent(prefix + "antslots") : EMPTY_TOOLTIP )
         )
       ).delay(400);
+      update();
     }
 
+    @Override
     public void tick()
-    {
-      super.tick();
-      final RedAntHiveContainer container = (RedAntHiveContainer)getContainer();
-      state_flags_.value(container.field(0));
-      final ItemStack cmdstack = container.command_slot.getStack();
-      final boolean show_process = !cmdstack.isEmpty() && (cmdstack.getItem()!=Items.HOPPER);
-      grid_background_.visible = (show_process && (cmdstack.getItem()!=Items.COMPOSTER)) || (!container.grid_storage_slot_range_.isEmpty());
-      container.grid_slots.forEach(slot->{slot.enabled=grid_background_.visible;});
-      progress_bar_.visible = show_process;
-      progress_bar_.active = progress_bar_.visible;
-      result_background_.visible = progress_bar_.visible;
-      if(progress_bar_.visible) progress_bar_.setMaxProgress(container.field(1)).setProgress(container.field(2));
-      powered_indicator_.visible = state_flags_.powered();
-      sugar_indicator_.visible = state_flags_.sugared();
-      norecipe_indicator_.visible = state_flags_.norecipe();
-      noingredients_indicator_.visible = state_flags_.noingr();
-      nofuel_indicator_.visible = state_flags_.nofuel();
-      left_filter_enable_.checked(state_flags_.filteredinsert());
-      passthrough_enable_.checked(!state_flags_.nopassthrough());
-    }
+    { super.tick(); update(); }
 
     @Override
     public void render(MatrixStack mx, int mouseX, int mouseY, float partialTicks)

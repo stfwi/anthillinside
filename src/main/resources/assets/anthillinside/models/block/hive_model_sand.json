@@ -1,0 +1,9 @@
+{
+  "parent": "anthillinside:block/hive_model",
+  "textures": {
+		"o": "anthillinside:block/hive_texture_sand_out",
+		"i": "anthillinside:block/hive_texture_sand_in",
+    "s": "anthillinside:block/hive_texture_sand",
+		"particle": "anthillinside:block/hive_texture_sand"
+  }
+}
