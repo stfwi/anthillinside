@@ -4,6 +4,10 @@
 ----
 ## Version history
 
+    - v1.0.1      [A] Added shearing and animal feeding.
+                  [A] Added No-Ants indicator in the GUI.
+                  [A] Added No-Ingredients indicator for composting.
+
     - v1.0.1-b1   [M] Slightly increased item collection range to Hopper Minecart range.
                   [A] Ant Hive color variants added (normal, sand covered, dirt covered).
 

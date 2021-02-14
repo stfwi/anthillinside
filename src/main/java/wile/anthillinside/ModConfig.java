@@ -221,7 +221,8 @@ public class ModConfig
       COMMON.hive_drop_chance_percent.get(),
       COMMON.hive_processing_speed_percent.get(),
       COMMON.hive_sugar_boost_time_s.get(),
-      COMMON.hive_growth_period_s.get()
+      COMMON.hive_growth_period_s.get(),
+      1200,16, 3
     );
   }
 

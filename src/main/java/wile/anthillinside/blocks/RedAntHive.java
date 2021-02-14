@@ -11,6 +11,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.matrix.MatrixStack;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.item.ItemEntity;
+import net.minecraft.entity.passive.AnimalEntity;
 import net.minecraft.inventory.container.ClickType;
 import net.minecraft.item.crafting.AbstractCookingRecipe;
 import net.minecraft.item.crafting.ICraftingRecipe;
@@ -55,6 +56,7 @@ import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
 import wile.anthillinside.ModAnthillInside;
+import wile.anthillinside.ModConfig;
 import wile.anthillinside.ModContent;
 import wile.anthillinside.blocks.RedAntTrail.RedAntTrailBlock;
 import wile.anthillinside.libmc.blocks.StandardBlocks;
@@ -82,6 +84,9 @@ public class RedAntHive
   private static int sugar_boost_time_s = 5;
   private static int hive_growth_latency_s = 120;
   private static int normal_processing_speed_ant_count_percent = 100;
+  private static int animal_feeding_cooldown_s = 600;
+  private static int animal_feeding_entity_limit = 16;
+  private static int animal_feeding_xz_radius = 3;
   private static final HashMap<Item, Object> processing_command_item_mapping = new HashMap<>();
 
   private static class ProcessingHandler
@@ -93,12 +98,16 @@ public class RedAntHive
     { this.item = item; this.handler = handler; this.passthrough_handler = passthrough_handler; }
   }
 
-  public static void on_config(int ore_minining_spawn_probability_percent, int ant_speed_scaler_percent, int sugar_time_s, int growth_latency_s)
-  {
+  public static void on_config(int ore_minining_spawn_probability_percent, int ant_speed_scaler_percent, int sugar_time_s,
+                               int growth_latency_s, int feeding_cooldown_s, int feeding_entity_limit, int feeding_xz_radius
+  ){
     hive_drop_probability_percent = MathHelper.clamp(ore_minining_spawn_probability_percent, 1, 99);
     normal_processing_speed_ant_count_percent = MathHelper.clamp(ant_speed_scaler_percent, 10, 190);
     sugar_boost_time_s = MathHelper.clamp(sugar_time_s, 1, 60);
     hive_growth_latency_s = MathHelper.clamp(growth_latency_s, 10, 600);
+    animal_feeding_cooldown_s = MathHelper.clamp(feeding_cooldown_s, 20, 24000);
+    animal_feeding_entity_limit = MathHelper.clamp(feeding_entity_limit, 3, 64);
+    animal_feeding_xz_radius = MathHelper.clamp(feeding_xz_radius,1, 5);
     processing_command_item_mapping.clear();
     processing_command_item_mapping.put(Items.CRAFTING_TABLE, IRecipeType.CRAFTING);
     processing_command_item_mapping.put(Items.FURNACE, IRecipeType.SMELTING);
@@ -107,6 +116,23 @@ public class RedAntHive
     processing_command_item_mapping.put(Items.HOPPER, new ProcessingHandler(Items.HOPPER, (te)->te.processHopper(), (te)->false));
     processing_command_item_mapping.put(Items.COMPOSTER, new ProcessingHandler(Items.COMPOSTER, (te)->te.processComposter(), (te)->te.itemPassThroughComposter()));
     processing_command_item_mapping.put(Items.SHEARS, new ProcessingHandler(Items.SHEARS, (te)->te.processShears(), (te)->te.processHopper()));
+    processing_command_item_mapping.put(Items.WHEAT, new ProcessingHandler(Items.WHEAT, (te)->te.processAnimalFood(Items.WHEAT), (te)->te.itemPassThroughExcept(Items.WHEAT)));
+    processing_command_item_mapping.put(Items.WHEAT_SEEDS, new ProcessingHandler(Items.WHEAT_SEEDS, (te)->te.processAnimalFood(Items.WHEAT_SEEDS), (te)->te.itemPassThroughExcept(Items.WHEAT_SEEDS)));
+    processing_command_item_mapping.put(Items.CARROT, new ProcessingHandler(Items.CARROT, (te)->te.processAnimalFood(Items.CARROT), (te)->te.itemPassThroughExcept(Items.CARROT)));
+    ModConfig.log("Hive:" +
+      "drop-probability:" + hive_drop_probability_percent + "%" +
+      "ant-speed-scaler:" + normal_processing_speed_ant_count_percent + "%" +
+      "growth-time:" + hive_growth_latency_s + "s" +
+      "sugar-time:" + sugar_boost_time_s + "s"
+    );
+    ModConfig.log("Animals:" +
+      "feed-cooldown:" + animal_feeding_cooldown_s + "s" +
+      "entity-limit:" + animal_feeding_entity_limit +
+      "xz-radius:" + animal_feeding_xz_radius + "blk"
+    );
+    ModConfig.log(
+      "Ctrl-Items:" + processing_command_item_mapping.keySet().stream().map(e->e.getRegistryName().getPath()).collect(Collectors.joining(","))
+    );
   }
 
   //--------------------------------------------------------------------------------------------------------------------
@@ -333,6 +359,7 @@ public class RedAntHive
       public static final long mask_noingr        = (((long)1)<<4);
       public static final long mask_nopassthrough = (((long)1)<<5);
       public static final long mask_filteredinsert= (((long)1)<<6);
+      public static final long mask_noants        = (((long)1)<<7);
 
       public StateFlags(int v)             { super(v); }
       public boolean powered()             { return bit(0); }
@@ -342,6 +369,7 @@ public class RedAntHive
       public boolean noingr()              { return bit(4); }
       public boolean nopassthrough()       { return bit(5); }
       public boolean filteredinsert()      { return bit(6); }
+      public boolean noants()              { return bit(7); }
       public void powered(boolean v)       { bit(0, v); }
       public void sugared(boolean v)       { bit(1, v); }
       public void nofuel(boolean v)        { bit(2, v); }
@@ -349,6 +377,7 @@ public class RedAntHive
       public void noingr(boolean v)        { bit(4, v); }
       public void nopassthrough(boolean v) { bit(5, v); }
       public void filteredinsert(boolean v){ bit(6, v); }
+      public void noants(boolean v)        { bit(7, v); }
     }
 
     public static final int NUM_OF_FIELDS            =  3;
@@ -366,6 +395,7 @@ public class RedAntHive
     private int fuel_left_ = 0;
     private int tick_timer_ = 0;
     private int slow_timer_ = 0; // performance timer for slow tasks
+    private final Map<UUID,Long> entity_handling_cooldowns_ = new HashMap<>(); // not in nbt
 
     public static final BiPredicate<Integer, ItemStack> main_inventory_validator() {
       return (index, stack) -> {
@@ -628,10 +658,33 @@ public class RedAntHive
       markDirty();
     }
 
+    private boolean entityCooldownExpired(UUID uuid)
+    {
+      final long t = entity_handling_cooldowns_.getOrDefault(uuid,0L);
+      if(t <= getWorld().getGameTime()) {
+        entity_handling_cooldowns_.remove(uuid);
+        return true;
+      } else {
+        return false;
+      }
+    }
+
+    private void entityCooldown(UUID uuid, int time)
+    {
+      final long t = getWorld().getGameTime();
+      entity_handling_cooldowns_.put(uuid, t+time);
+      if(entity_handling_cooldowns_.size() < 128) return;
+      entity_handling_cooldowns_.keySet().forEach((k)->{
+        if(entity_handling_cooldowns_.getOrDefault(k, 0L) >= t) return;
+        entity_handling_cooldowns_.remove(k);
+      });
+    }
+
     private boolean checkColony()
     {
       final int max_ants = ant_storage_slot_range_.size() * ant_storage_slot_range_.getInventoryStackLimit();
       ant_count_ = ant_storage_slot_range_.stream().filter(e->e.getItem()==ANTS_ITEM).mapToInt(ItemStack::getCount).sum();
+      state_flags_.noants(ant_count_ == 0);
       sugar_ticks_ = Math.max(sugar_ticks_ - TICK_INTERVAL, 0);
       can_use_sugar_ = (sugar_ticks_ <= 0) && ((ant_count_ < max_ants) || (isProcessing()));
       if(can_use_sugar_) {
@@ -763,6 +816,7 @@ public class RedAntHive
         cache_slot_range_.move(left_storage_slot_range_);
         if(!getResultSlot().isEmpty()) {
           setResultSlot(ItemStack.EMPTY);
+          entity_handling_cooldowns_.clear();
           return true; // rslot changed
         } else {
           return false; // no changes
@@ -810,6 +864,19 @@ public class RedAntHive
       } else {
         return false;
       }
+    }
+
+    private boolean itemPassThroughExcept(Item except)
+    { return itemPassThroughExcept(Collections.singletonList(except)); }
+
+    private boolean itemPassThroughExcept(List<Item> except)
+    {
+      for(int i=0; i<left_storage_slot_range_.size(); ++i) {
+        ItemStack stack = left_storage_slot_range_.getStackInSlot(i);
+        if(stack.isEmpty() || (stack.getItem()==RED_SUGAR_ITEM) || (except.contains(stack.getItem()))) continue;
+        if(left_storage_slot_range_.move(i, right_storage_slot_range_)) return true;
+      }
+      return false;
     }
 
     private boolean processCrafting(IRecipeType<?> recipe_type, boolean is_done)
@@ -1025,6 +1092,7 @@ public class RedAntHive
           if(!right_storage_slot_range_.insert(bonemeal).isEmpty()) cache_slot_range_.insert(bonemeal);
         }
         if(processed > 0) {
+          state_flags_.noingr(false);
           progress_ = 0;
           max_progress_ = 20 + (processed*10);
           setResultSlot(bonemeal);
@@ -1033,6 +1101,7 @@ public class RedAntHive
       }
       setResultSlot(ItemStack.EMPTY);
       progress_ = -40;
+      state_flags_.noingr(true);
       return false;
     }
 
@@ -1051,12 +1120,7 @@ public class RedAntHive
     {
       progress_ = 0;
       max_progress_ = TICK_INTERVAL;
-      for(int i=0; i<left_storage_slot_range_.size(); ++i) {
-        ItemStack stack = left_storage_slot_range_.getStackInSlot(i);
-        if(stack.isEmpty() || (stack.getItem()==RED_SUGAR_ITEM)) continue;
-        if(left_storage_slot_range_.move(i, right_storage_slot_range_)) return true;
-      }
-      return false;
+      return itemPassThroughExcept(Collections.emptyList());
     }
 
     private boolean processShears()
@@ -1073,6 +1137,43 @@ public class RedAntHive
       } else {
         progress_ = -40;
         max_progress_ = 0;
+      }
+      return false;
+    }
+
+    private boolean processAnimalFood(Item food)
+    {
+      progress_ = 0;
+      max_progress_ = 100;
+      final ItemStack kibble = new ItemStack(food, 2);
+      if(left_storage_slot_range_.stream().filter(s->s.isItemEqual(kibble)).mapToInt(ItemStack::getCount).sum() <= 0) return false;
+      final Direction facing = getBlockState().get(RedAntHiveBlock.FACING).getOpposite();
+      final int y_size = 2;
+      AxisAlignedBB aabb = new AxisAlignedBB(-animal_feeding_xz_radius, 0, -animal_feeding_xz_radius, animal_feeding_xz_radius+1, y_size, animal_feeding_xz_radius+1);
+      if(facing == Direction.UP) {
+        aabb = aabb.offset(getPos().up());
+      } else if(facing == Direction.DOWN) {
+        aabb = aabb.offset(getPos().down(y_size));
+      } else {
+        aabb = aabb.offset(getPos().offset(facing, animal_feeding_xz_radius+1));
+      }
+      List<AnimalEntity> animals = getWorld().getEntitiesWithinAABB(AnimalEntity.class, aabb, a->(a.isAlive()));
+      if(animals.size() >= animal_feeding_entity_limit) { max_progress_ = 400; return false; }
+      animals = animals.stream().filter(a->(!a.isChild()) && (a.isBreedingItem(kibble)) && (a.canFallInLove()) && (!a.isInLove()) && entityCooldownExpired(a.getUniqueID())).collect(Collectors.toList());
+      if(animals.size() >= 2) {
+        for(int i=0; i<animals.size()-1; ++i) {
+          for(int j=i+1; j<animals.size(); ++j) {
+            if(animals.get(i).getClass() == animals.get(j).getClass()) {
+              left_storage_slot_range_.extract(kibble);
+              animals.get(i).setInLove((PlayerEntity)null);
+              animals.get(j).setInLove((PlayerEntity)null);
+              entityCooldown(animals.get(i).getUniqueID(), 20*animal_feeding_cooldown_s);
+              entityCooldown(animals.get(j).getUniqueID(), 20*animal_feeding_cooldown_s);
+              max_progress_ = 20*30;
+              return false;
+            }
+          }
+        }
       }
       return false;
     }
@@ -1369,6 +1470,7 @@ public class RedAntHive
     protected final Guis.BackgroundImage norecipe_indicator_;
     protected final Guis.BackgroundImage noingredients_indicator_;
     protected final Guis.BackgroundImage nofuel_indicator_;
+    protected final Guis.BackgroundImage noants_indicator_;
     protected final Guis.HorizontalProgressBar progress_bar_;
     protected final Guis.CheckBox left_filter_enable_;
     protected final Guis.CheckBox passthrough_enable_;
@@ -1376,6 +1478,9 @@ public class RedAntHive
     protected final PlayerEntity player_;
     protected final RedAntHiveTileEntity.StateFlags state_flags_ = new RedAntHiveTileEntity.StateFlags(0);
     protected final ITextComponent EMPTY_TOOLTIP = new StringTextComponent("");
+    protected final List<Item> command_items_with_process_bar = new ArrayList<>();
+    protected final List<Item> command_items_grid_visible = new ArrayList<>();
+    protected final List<Item> command_items_result_visible = new ArrayList<>();
 
     public RedAntHiveGui(RedAntHiveContainer container, PlayerInventory player_inventory, ITextComponent title)
     {
@@ -1389,6 +1494,7 @@ public class RedAntHive
       progress_bar_      = new HorizontalProgressBar(background_image, 40,8, new Coord2d(180,0), new Coord2d(180,8));
       powered_indicator_ = new Guis.BackgroundImage(background_image, 9,8, new Coord2d(181,35));
       sugar_indicator_   = new Guis.BackgroundImage(background_image, 12,12, new Coord2d(230,19));
+      noants_indicator_  = new Guis.BackgroundImage(background_image, 16,16, new Coord2d(228,32));
       norecipe_indicator_ = new Guis.BackgroundImage(background_image, 16,16, new Coord2d(196,17));
       noingredients_indicator_ = new Guis.BackgroundImage(background_image, 16,16, new Coord2d(212,17));
       nofuel_indicator_ = new Guis.BackgroundImage(background_image, 16,16, new Coord2d(180,17));
@@ -1398,6 +1504,23 @@ public class RedAntHive
       passthrough_enable_ = (new Guis.CheckBox(background_image, 11,6, new Coord2d(189,46), new Coord2d(189,53))).onclick((box)->{
         container.onGuiAction(box.checked() ? "pass-through-on" : "pass-through-off");
       });
+      command_items_with_process_bar.add(Items.CRAFTING_TABLE);
+      command_items_with_process_bar.add(Items.FURNACE);
+      command_items_with_process_bar.add(Items.BLAST_FURNACE);
+      command_items_with_process_bar.add(Items.SMOKER);
+      command_items_with_process_bar.add(Items.COMPOSTER);
+      command_items_with_process_bar.add(Items.WHEAT);
+      command_items_with_process_bar.add(Items.WHEAT_SEEDS);
+      command_items_with_process_bar.add(Items.CARROT);
+      command_items_result_visible.add(Items.CRAFTING_TABLE);
+      command_items_result_visible.add(Items.FURNACE);
+      command_items_result_visible.add(Items.BLAST_FURNACE);
+      command_items_result_visible.add(Items.SMOKER);
+      command_items_result_visible.add(Items.COMPOSTER);
+      command_items_grid_visible.add(Items.CRAFTING_TABLE);
+      command_items_grid_visible.add(Items.FURNACE);
+      command_items_grid_visible.add(Items.BLAST_FURNACE);
+      command_items_grid_visible.add(Items.SMOKER);
     }
 
     private void update()
@@ -1405,18 +1528,19 @@ public class RedAntHive
       final RedAntHiveContainer container = (RedAntHiveContainer)getContainer();
       state_flags_.value(container.field(0));
       final ItemStack cmdstack = container.command_slot.getStack();
-      final boolean show_process = (!cmdstack.isEmpty()) && (cmdstack.getItem()!=Items.HOPPER) && (cmdstack.getItem()!=Items.SHEARS);
-      grid_background_.visible = (show_process && (cmdstack.getItem()!=Items.COMPOSTER)) || (!container.grid_storage_slot_range_.isEmpty());
+      final boolean show_process = (!cmdstack.isEmpty()) && (command_items_with_process_bar.contains(cmdstack.getItem()));
+      grid_background_.visible = (show_process && (command_items_grid_visible.contains(cmdstack.getItem())) || (!container.grid_storage_slot_range_.isEmpty()));
       container.grid_slots.forEach(slot->{slot.enabled=grid_background_.visible;});
       progress_bar_.visible = show_process;
       progress_bar_.active = progress_bar_.visible;
-      result_background_.visible = progress_bar_.visible;
+      result_background_.visible = show_process && (command_items_result_visible.contains(cmdstack.getItem()));
       if(progress_bar_.visible) progress_bar_.setMaxProgress(container.field(1)).setProgress(container.field(2));
       powered_indicator_.visible = state_flags_.powered();
       sugar_indicator_.visible = state_flags_.sugared();
-      norecipe_indicator_.visible = state_flags_.norecipe();
-      noingredients_indicator_.visible = state_flags_.noingr();
-      nofuel_indicator_.visible = state_flags_.nofuel();
+      noants_indicator_.visible = state_flags_.noants();
+      norecipe_indicator_.visible = state_flags_.norecipe() && (!noants_indicator_.visible);
+      noingredients_indicator_.visible = state_flags_.noingr() && (!noants_indicator_.visible);
+      nofuel_indicator_.visible = state_flags_.nofuel() && (!noants_indicator_.visible);
       left_filter_enable_.checked(state_flags_.filteredinsert());
       passthrough_enable_.checked(!state_flags_.nopassthrough());
     }
@@ -1433,6 +1557,7 @@ public class RedAntHive
       norecipe_indicator_.init(this, new Coord2d(92,50)).hide();
       noingredients_indicator_.init(this, new Coord2d(92,50)).hide();
       nofuel_indicator_.init(this, new Coord2d(92,50)).hide();
+      noants_indicator_.init(this, new Coord2d(92,50)).hide();
       addButton(progress_bar_.init(this, new Coord2d(69, 38)));
       addButton(left_filter_enable_.init(this, new Coord2d(20, 126)));
       addButton(passthrough_enable_.init(this, new Coord2d(28, 126)));
@@ -1465,6 +1590,10 @@ public class RedAntHive
         new TooltipDisplay.TipRange(
           nofuel_indicator_.x, nofuel_indicator_.y, nofuel_indicator_.getWidth(), nofuel_indicator_.getHeight(),
           ()->(nofuel_indicator_.visible ? new TranslationTextComponent(prefix + "nofuel") : EMPTY_TOOLTIP)
+        ),
+        new TooltipDisplay.TipRange(
+          noants_indicator_.x, noants_indicator_.y, noants_indicator_.getWidth(), noants_indicator_.getHeight(),
+          ()->(noants_indicator_.visible ? new TranslationTextComponent(prefix + "noants") : EMPTY_TOOLTIP)
         ),
         new TooltipDisplay.TipRange(
           x0+12, y0+22, 8,8,
@@ -1551,6 +1680,7 @@ public class RedAntHive
         powered_indicator_.draw(mx,this);
         sugar_indicator_.draw(mx,this);
         norecipe_indicator_.draw(mx,this);
+        noants_indicator_.draw(mx,this);
         noingredients_indicator_.draw(mx,this);
         nofuel_indicator_.draw(mx,this);
       }
