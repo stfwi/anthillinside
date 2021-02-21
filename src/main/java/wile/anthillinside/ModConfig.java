@@ -51,6 +51,8 @@ public class ModConfig
     public final ForgeConfigSpec.IntValue hive_processing_speed_percent;
     public final ForgeConfigSpec.IntValue hive_sugar_boost_time_s;
     public final ForgeConfigSpec.IntValue hive_growth_period_s;
+    public final ForgeConfigSpec.IntValue hive_animal_feeding_speed_percent;
+    public final ForgeConfigSpec.IntValue hive_farming_speed_percent;
 
     CommonConfig(ForgeConfigSpec.Builder builder)
     {
@@ -116,6 +118,14 @@ public class ModConfig
           .translation(MODID + ".config.hive_growth_period_s")
           .comment("Sets how long it takes (seconds, in average) to generate one new ant in a hive.")
           .defineInRange("hive_growth_period_s", 120, 60, 600);
+        hive_animal_feeding_speed_percent = builder
+          .translation(MODID + ".config.hive_animal_feeding_speed_percent")
+          .comment("Tunes the internal delay between animals are fed. The value 0 disables animal feeding.")
+          .defineInRange("hive_animal_feeding_speed_percent", 100, 0, 150);
+        hive_farming_speed_percent = builder
+          .translation(MODID + ".config.hive_farming_speed_percent")
+          .comment("Tunes the internal delay between harvesting crops. The value 0 disables harvesting.")
+          .defineInRange("hive_farming_speed_percent", 100, 0, 150);
         builder.pop();
       }
     }
@@ -222,7 +232,8 @@ public class ModConfig
       COMMON.hive_processing_speed_percent.get(),
       COMMON.hive_sugar_boost_time_s.get(),
       COMMON.hive_growth_period_s.get(),
-      1200,16, 3
+      COMMON.hive_animal_feeding_speed_percent.get(),16, 3,
+      COMMON.hive_farming_speed_percent.get()
     );
   }
 

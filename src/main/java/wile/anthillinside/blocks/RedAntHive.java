@@ -48,6 +48,7 @@ import net.minecraft.util.*;
 import net.minecraft.util.math.*;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.ITextComponent;
+import net.minecraft.world.server.ServerWorld;
 import net.minecraftforge.fml.network.NetworkHooks;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -84,9 +85,10 @@ public class RedAntHive
   private static int sugar_boost_time_s = 5;
   private static int hive_growth_latency_s = 120;
   private static int normal_processing_speed_ant_count_percent = 100;
-  private static int animal_feeding_cooldown_s = 600;
+  private static int animal_feeding_speed_percent = 100;
   private static int animal_feeding_entity_limit = 16;
   private static int animal_feeding_xz_radius = 3;
+  private static int farming_speed_percent = 100;
   private static final HashMap<Item, Object> processing_command_item_mapping = new HashMap<>();
 
   private static class ProcessingHandler
@@ -99,15 +101,17 @@ public class RedAntHive
   }
 
   public static void on_config(int ore_minining_spawn_probability_percent, int ant_speed_scaler_percent, int sugar_time_s,
-                               int growth_latency_s, int feeding_cooldown_s, int feeding_entity_limit, int feeding_xz_radius
+                               int growth_latency_s, int feeding_speed_factor_percent, int feeding_entity_limit, int feeding_xz_radius,
+                               int farming_speed_factor_percent
   ){
     hive_drop_probability_percent = MathHelper.clamp(ore_minining_spawn_probability_percent, 1, 99);
     normal_processing_speed_ant_count_percent = MathHelper.clamp(ant_speed_scaler_percent, 10, 190);
     sugar_boost_time_s = MathHelper.clamp(sugar_time_s, 1, 60);
     hive_growth_latency_s = MathHelper.clamp(growth_latency_s, 10, 600);
-    animal_feeding_cooldown_s = MathHelper.clamp(feeding_cooldown_s, 20, 24000);
+    animal_feeding_speed_percent = MathHelper.clamp(feeding_speed_factor_percent, 0, 200);
     animal_feeding_entity_limit = MathHelper.clamp(feeding_entity_limit, 3, 64);
     animal_feeding_xz_radius = MathHelper.clamp(feeding_xz_radius,1, 5);
+    farming_speed_percent = (farming_speed_factor_percent < 10) ? (0) : Math.min(farming_speed_factor_percent, 200);
     processing_command_item_mapping.clear();
     processing_command_item_mapping.put(Items.CRAFTING_TABLE, IRecipeType.CRAFTING);
     processing_command_item_mapping.put(Items.FURNACE, IRecipeType.SMELTING);
@@ -116,9 +120,17 @@ public class RedAntHive
     processing_command_item_mapping.put(Items.HOPPER, new ProcessingHandler(Items.HOPPER, (te)->te.processHopper(), (te)->false));
     processing_command_item_mapping.put(Items.COMPOSTER, new ProcessingHandler(Items.COMPOSTER, (te)->te.processComposter(), (te)->te.itemPassThroughComposter()));
     processing_command_item_mapping.put(Items.SHEARS, new ProcessingHandler(Items.SHEARS, (te)->te.processShears(), (te)->te.processHopper()));
-    processing_command_item_mapping.put(Items.WHEAT, new ProcessingHandler(Items.WHEAT, (te)->te.processAnimalFood(Items.WHEAT), (te)->te.itemPassThroughExcept(Items.WHEAT)));
-    processing_command_item_mapping.put(Items.WHEAT_SEEDS, new ProcessingHandler(Items.WHEAT_SEEDS, (te)->te.processAnimalFood(Items.WHEAT_SEEDS), (te)->te.itemPassThroughExcept(Items.WHEAT_SEEDS)));
-    processing_command_item_mapping.put(Items.CARROT, new ProcessingHandler(Items.CARROT, (te)->te.processAnimalFood(Items.CARROT), (te)->te.itemPassThroughExcept(Items.CARROT)));
+    if(animal_feeding_speed_percent > 0) {
+      processing_command_item_mapping.put(Items.WHEAT, new ProcessingHandler(Items.WHEAT, (te)->te.processAnimalFood(Items.WHEAT), (te)->te.itemPassThroughExcept(Items.WHEAT)));
+      processing_command_item_mapping.put(Items.WHEAT_SEEDS, new ProcessingHandler(Items.WHEAT_SEEDS, (te)->te.processAnimalFood(Items.WHEAT_SEEDS), (te)->te.itemPassThroughExcept(Items.WHEAT_SEEDS)));
+      processing_command_item_mapping.put(Items.CARROT, new ProcessingHandler(Items.CARROT, (te)->te.processAnimalFood(Items.CARROT), (te)->te.itemPassThroughExcept(Items.CARROT)));
+    }
+    if(farming_speed_percent > 0) {
+      processing_command_item_mapping.put(Items.STONE_HOE, new ProcessingHandler(Items.STONE_HOE, (te)->te.processFarming(Items.STONE_HOE), (te)->te.itemPassThroughExcept(Items.BONE_MEAL)));
+      processing_command_item_mapping.put(Items.IRON_HOE, new ProcessingHandler(Items.IRON_HOE, (te)->te.processFarming(Items.IRON_HOE), (te)->te.itemPassThroughExcept(Items.BONE_MEAL)));
+      processing_command_item_mapping.put(Items.DIAMOND_HOE, new ProcessingHandler(Items.DIAMOND_HOE, (te)->te.processFarming(Items.DIAMOND_HOE), (te)->te.itemPassThroughExcept(Items.BONE_MEAL)));
+      processing_command_item_mapping.put(Items.NETHERITE_HOE, new ProcessingHandler(Items.NETHERITE_HOE, (te)->te.processFarming(Items.NETHERITE_HOE), (te)->te.itemPassThroughExcept(Items.BONE_MEAL)));
+    }
     ModConfig.log("Hive:" +
       "drop-probability:" + hive_drop_probability_percent + "%" +
       "ant-speed-scaler:" + normal_processing_speed_ant_count_percent + "%" +
@@ -126,9 +138,12 @@ public class RedAntHive
       "sugar-time:" + sugar_boost_time_s + "s"
     );
     ModConfig.log("Animals:" +
-      "feed-cooldown:" + animal_feeding_cooldown_s + "s" +
+      "feeding-speed:" + animal_feeding_speed_percent + "%" +
       "entity-limit:" + animal_feeding_entity_limit +
       "xz-radius:" + animal_feeding_xz_radius + "blk"
+    );
+    ModConfig.log("Crop farming:" +
+      "havesting-speed:" + farming_speed_percent + "%"
     );
     ModConfig.log(
       "Ctrl-Items:" + processing_command_item_mapping.keySet().stream().map(e->e.getRegistryName().getPath()).collect(Collectors.joining(","))
@@ -392,6 +407,7 @@ public class RedAntHive
     private double ant_speed_ = 0;
     private double progress_ = 0;
     private int max_progress_ = 0;
+    private int universal_task_index_ = 0;
     private int fuel_left_ = 0;
     private int tick_timer_ = 0;
     private int slow_timer_ = 0; // performance timer for slow tasks
@@ -656,6 +672,20 @@ public class RedAntHive
         }
       }
       markDirty();
+    }
+
+    private AxisAlignedBB workingRange(int xz_radius, int y_height, int y_offset)
+    {
+      final Direction facing = getBlockState().get(RedAntHiveBlock.FACING).getOpposite();
+      AxisAlignedBB aabb = new AxisAlignedBB(-xz_radius, y_offset, -xz_radius, xz_radius+1, y_offset+y_height, xz_radius+1);
+      if(facing == Direction.UP) {
+        aabb = aabb.offset(getPos().up());
+      } else if(facing == Direction.DOWN) {
+        aabb = aabb.offset(getPos().down(y_height));
+      } else {
+        aabb = aabb.offset(getPos().offset(facing, xz_radius+1));
+      }
+      return aabb;
     }
 
     private boolean entityCooldownExpired(UUID uuid)
@@ -1143,22 +1173,14 @@ public class RedAntHive
 
     private boolean processAnimalFood(Item food)
     {
+      if(animal_feeding_speed_percent <= 0) { progress_ = -40; max_progress_ = 0; return false; }
       progress_ = 0;
-      max_progress_ = 100;
+      max_progress_ = 200 * 100/animal_feeding_speed_percent;
       final ItemStack kibble = new ItemStack(food, 2);
       if(left_storage_slot_range_.stream().filter(s->s.isItemEqual(kibble)).mapToInt(ItemStack::getCount).sum() <= 0) return false;
-      final Direction facing = getBlockState().get(RedAntHiveBlock.FACING).getOpposite();
-      final int y_size = 2;
-      AxisAlignedBB aabb = new AxisAlignedBB(-animal_feeding_xz_radius, 0, -animal_feeding_xz_radius, animal_feeding_xz_radius+1, y_size, animal_feeding_xz_radius+1);
-      if(facing == Direction.UP) {
-        aabb = aabb.offset(getPos().up());
-      } else if(facing == Direction.DOWN) {
-        aabb = aabb.offset(getPos().down(y_size));
-      } else {
-        aabb = aabb.offset(getPos().offset(facing, animal_feeding_xz_radius+1));
-      }
+      final AxisAlignedBB aabb = workingRange(animal_feeding_xz_radius, 2, 0);
       List<AnimalEntity> animals = getWorld().getEntitiesWithinAABB(AnimalEntity.class, aabb, a->(a.isAlive()));
-      if(animals.size() >= animal_feeding_entity_limit) { max_progress_ = 400; return false; }
+      if(animals.size() >= animal_feeding_entity_limit) { max_progress_ = 600; return false; }
       animals = animals.stream().filter(a->(!a.isChild()) && (a.isBreedingItem(kibble)) && (a.canFallInLove()) && (!a.isInLove()) && entityCooldownExpired(a.getUniqueID())).collect(Collectors.toList());
       if(animals.size() >= 2) {
         for(int i=0; i<animals.size()-1; ++i) {
@@ -1167,15 +1189,40 @@ public class RedAntHive
               left_storage_slot_range_.extract(kibble);
               animals.get(i).setInLove((PlayerEntity)null);
               animals.get(j).setInLove((PlayerEntity)null);
-              entityCooldown(animals.get(i).getUniqueID(), 20*animal_feeding_cooldown_s);
-              entityCooldown(animals.get(j).getUniqueID(), 20*animal_feeding_cooldown_s);
-              max_progress_ = 20*30;
+              final int cooldown = 20*600* 100/animal_feeding_speed_percent;
+              entityCooldown(animals.get(i).getUniqueID(), cooldown);
+              entityCooldown(animals.get(j).getUniqueID(), cooldown);
+              max_progress_ = 600;
               return false;
             }
           }
         }
       }
       return false;
+    }
+
+    private boolean processFarming(Item hoe)
+    {
+      if(farming_speed_percent <= 0) { progress_ = -40; max_progress_ = 0; return false; }
+      progress_ = 0;
+      max_progress_ = 300 * 100/farming_speed_percent;
+      boolean dirty = false;
+      final int range_ref = MathHelper.clamp(((hoe instanceof TieredItem) ? (((TieredItem)hoe).getTier().getHarvestLevel()):0), 0, 4);
+      final int range_rad = range_ref+1;
+      final Auxiliaries.BlockPosRange range = Auxiliaries.BlockPosRange.of(workingRange(range_rad, 1, 0));
+      final int[] step_sizes = {5,13,31,47,71};
+      final int step_size = step_sizes[range_ref];
+      final int volume = range.getVolume();
+      final int max_count = (range_ref/2) + 1;
+      for(int i=0; i<max_count; ++i) {
+        universal_task_index_ = (universal_task_index_ + step_size) % volume;
+        final BlockPos pos = range.byXZYIndex(universal_task_index_);
+        final Optional<List<ItemStack>> drops = ToolActions.harvestCrop((ServerWorld)getWorld(), pos, true, ItemStack.EMPTY);
+        if(!drops.isPresent()) continue;
+        if(!drops.get().isEmpty()) getWorld().playSound(null, pos, SoundEvents.ITEM_CROP_PLANT, SoundCategory.BLOCKS, 0.6f, 1.4f);
+        for(ItemStack stack:drops.get()) right_storage_slot_range_.insert(stack); // skip/void excess
+      }
+      return dirty;
     }
 
   }
@@ -1512,6 +1559,10 @@ public class RedAntHive
       command_items_with_process_bar.add(Items.WHEAT);
       command_items_with_process_bar.add(Items.WHEAT_SEEDS);
       command_items_with_process_bar.add(Items.CARROT);
+      command_items_with_process_bar.add(Items.STONE_HOE);
+      command_items_with_process_bar.add(Items.IRON_HOE);
+      command_items_with_process_bar.add(Items.DIAMOND_HOE);
+      command_items_with_process_bar.add(Items.NETHERITE_HOE);
       command_items_result_visible.add(Items.CRAFTING_TABLE);
       command_items_result_visible.add(Items.FURNACE);
       command_items_result_visible.add(Items.BLAST_FURNACE);

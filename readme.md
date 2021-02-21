@@ -4,6 +4,9 @@
 ----
 ## Version history
 
+    - v1.0.2      [F] Fixed vertical placement issue (thx geometricaldude).
+                  [A] Added crop farming (experimental).
+
     - v1.0.1      [A] Added shearing and animal feeding.
                   [A] Added No-Ants indicator in the GUI.
                   [A] Added No-Ingredients indicator for composting.

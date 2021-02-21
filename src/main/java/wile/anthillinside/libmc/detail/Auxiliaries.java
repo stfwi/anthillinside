@@ -364,7 +364,11 @@ public class Auxiliaries
     private final int x0, x1, y0, y1, z0, z1;
 
     public BlockPosRange(int x0, int y0, int z0, int x1, int y1, int z1)
-    { this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; this.z0 = z0; this.z1 = z1; }
+    {
+      this.x0 = Math.min(x0,x1); this.x1 = Math.max(x0,x1);
+      this.y0 = Math.min(y0,y1); this.y1 = Math.max(y0,y1);
+      this.z0 = Math.min(z0,z1); this.z1 = Math.max(z0,z1);
+    }
 
     public static final BlockPosRange of(AxisAlignedBB range)
     {
@@ -376,6 +380,46 @@ public class Auxiliaries
         (int)Math.floor(range.maxY-.0625),
         (int)Math.floor(range.maxZ-.0625)
       );
+    }
+
+    public int getXSize()
+    { return x1-x0+1; }
+
+    public int getYSize()
+    { return y1-y0+1; }
+
+    public int getZSize()
+    { return z1-z0+1; }
+
+    public int getArea()
+    { return getXSize() * getZSize(); }
+
+    public int getHeight()
+    { return getYSize(); }
+
+    public int getVolume()
+    { return getXSize() * getYSize() * getZSize(); }
+
+    public BlockPos byXZYIndex(int xyz_index)
+    {
+      final int xsz=getXSize(), ysz=getYSize(), zsz=getZSize();
+      xyz_index = xyz_index % (xsz*ysz*zsz);
+      final int y = xyz_index / (xsz*zsz);
+      xyz_index -= y * (xsz*zsz);
+      final int z = xyz_index / xsz;
+      xyz_index -= z * xsz;
+      final int x = xyz_index;
+      return new BlockPos(x0+x, y0+y, z0+z);
+    }
+
+    public BlockPos byXZIndex(int xz_index, int y_offset)
+    {
+      final int xsz=getXSize(), zsz=getZSize();
+      xz_index = xz_index % (xsz*zsz);
+      final int z = xz_index / xsz;
+      xz_index -= z * xsz;
+      final int x = xz_index;
+      return new BlockPos(x0+x, y0+y_offset, z0+z);
     }
 
     public static final class BlockRangeIterator implements Iterator<BlockPos>

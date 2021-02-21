@@ -147,7 +147,13 @@ public class RedAntTrail
     @Override
     @SuppressWarnings("deprecation")
     public boolean isValidPosition(BlockState state, IWorldReader world, BlockPos pos)
-    { return Block.doesSideFillSquare(world.getBlockState(pos.down()).getShape(world, pos.down()), Direction.UP); }
+    {
+      if(Block.doesSideFillSquare(world.getBlockState(pos.down()).getShape(world, pos.down()), Direction.UP)) return true;
+      if(!state.get(UP)) return false;
+      Direction facing = state.get(HORIZONTAL_FACING);
+      if(!Block.doesSideFillSquare(world.getBlockState(pos.offset(facing)).getShape(world, pos.offset(facing)), facing.getOpposite())) return false;
+      return true;
+    }
 
     @Override
     public ActionResultType onBlockActivated(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockRayTraceResult rtr)
