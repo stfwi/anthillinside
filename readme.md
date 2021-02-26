@@ -4,6 +4,8 @@
 ----
 ## Version history
 
+    - v1.0.3      [F] Fixed Trail Redstone connectivity.
+
     - v1.0.2      [F] Fixed vertical placement issue (thx geometricaldude).
                   [A] Added crop farming (experimental).
 

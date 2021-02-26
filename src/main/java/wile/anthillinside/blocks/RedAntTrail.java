@@ -199,6 +199,10 @@ public class RedAntTrail
     { return false; }
 
     @Override
+    public boolean canConnectRedstone(BlockState state, IBlockReader world, BlockPos pos, @Nullable Direction side)
+    { return true; }
+
+    @Override
     public boolean allowsMovement(BlockState state, IBlockReader world, BlockPos pos, PathType type)
     { return (!state.get(UP)) || super.allowsMovement(state, world, pos, type); }
 
