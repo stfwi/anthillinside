@@ -192,7 +192,7 @@ public class RedAntTrail
     @Override
     @SuppressWarnings("deprecation")
     public void neighborChanged(BlockState state, World world, BlockPos pos, Block block, BlockPos fromPos, boolean unused)
-    { updatedState(state, world, pos); }
+    { world.setBlockState(pos, updatedState(state, world, pos), 2); }
 
     @Override
     public boolean shouldCheckWeakPower(BlockState state, IWorldReader world, BlockPos pos, Direction side)
