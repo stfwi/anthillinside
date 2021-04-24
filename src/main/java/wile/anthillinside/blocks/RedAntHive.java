@@ -72,6 +72,7 @@ import wile.anthillinside.libmc.util.IntegralBitSet;
 
 import javax.annotation.Nullable;
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -89,14 +90,15 @@ public class RedAntHive
   private static int animal_feeding_entity_limit = 16;
   private static int animal_feeding_xz_radius = 3;
   private static int farming_speed_percent = 100;
+  private static int brewing_fuel_efficiency_percent = 75;
   private static final HashMap<Item, Object> processing_command_item_mapping = new HashMap<>();
 
   private static class ProcessingHandler
   {
     public final Item item;
-    public final Function<RedAntHiveTileEntity, Boolean> handler;
+    public final BiFunction<RedAntHiveTileEntity, Boolean, Boolean> handler;
     public final Function<RedAntHiveTileEntity, Boolean> passthrough_handler;
-    public ProcessingHandler(Item item, Function<RedAntHiveTileEntity, Boolean> handler, Function<RedAntHiveTileEntity, Boolean> passthrough_handler)
+    public ProcessingHandler(Item item, BiFunction<RedAntHiveTileEntity, Boolean, Boolean> handler, Function<RedAntHiveTileEntity, Boolean> passthrough_handler)
     { this.item = item; this.handler = handler; this.passthrough_handler = passthrough_handler; }
   }
 
@@ -117,19 +119,20 @@ public class RedAntHive
     processing_command_item_mapping.put(Items.FURNACE, IRecipeType.SMELTING);
     processing_command_item_mapping.put(Items.BLAST_FURNACE, IRecipeType.BLASTING);
     processing_command_item_mapping.put(Items.SMOKER, IRecipeType.SMOKING);
-    processing_command_item_mapping.put(Items.HOPPER, new ProcessingHandler(Items.HOPPER, (te)->te.processHopper(), (te)->false));
-    processing_command_item_mapping.put(Items.COMPOSTER, new ProcessingHandler(Items.COMPOSTER, (te)->te.processComposter(), (te)->te.itemPassThroughComposter()));
-    processing_command_item_mapping.put(Items.SHEARS, new ProcessingHandler(Items.SHEARS, (te)->te.processShears(), (te)->te.processHopper()));
+    processing_command_item_mapping.put(Items.HOPPER, new ProcessingHandler(Items.HOPPER, (te,done)->te.processHopper(), (te)->false));
+    processing_command_item_mapping.put(Items.COMPOSTER, new ProcessingHandler(Items.COMPOSTER, (te,done)->te.processComposter(), (te)->te.itemPassThroughComposter()));
+    processing_command_item_mapping.put(Items.SHEARS, new ProcessingHandler(Items.SHEARS, (te,done)->te.processShears(), (te)->te.processHopper()));
+    processing_command_item_mapping.put(Items.BREWING_STAND, new ProcessingHandler(Items.BREWING_STAND, (te,done)->te.processBrewing(done), (te)->te.itemPassThroughBrewing()));
     if(animal_feeding_speed_percent > 0) {
-      processing_command_item_mapping.put(Items.WHEAT, new ProcessingHandler(Items.WHEAT, (te)->te.processAnimalFood(Items.WHEAT), (te)->te.itemPassThroughExcept(Items.WHEAT)));
-      processing_command_item_mapping.put(Items.WHEAT_SEEDS, new ProcessingHandler(Items.WHEAT_SEEDS, (te)->te.processAnimalFood(Items.WHEAT_SEEDS), (te)->te.itemPassThroughExcept(Items.WHEAT_SEEDS)));
-      processing_command_item_mapping.put(Items.CARROT, new ProcessingHandler(Items.CARROT, (te)->te.processAnimalFood(Items.CARROT), (te)->te.itemPassThroughExcept(Items.CARROT)));
+      processing_command_item_mapping.put(Items.WHEAT, new ProcessingHandler(Items.WHEAT, (te,done)->te.processAnimalFood(Items.WHEAT), (te)->te.itemPassThroughExcept(Items.WHEAT)));
+      processing_command_item_mapping.put(Items.WHEAT_SEEDS, new ProcessingHandler(Items.WHEAT_SEEDS, (te,done)->te.processAnimalFood(Items.WHEAT_SEEDS), (te)->te.itemPassThroughExcept(Items.WHEAT_SEEDS)));
+      processing_command_item_mapping.put(Items.CARROT, new ProcessingHandler(Items.CARROT, (te,done)->te.processAnimalFood(Items.CARROT), (te)->te.itemPassThroughExcept(Items.CARROT)));
     }
     if(farming_speed_percent > 0) {
-      processing_command_item_mapping.put(Items.STONE_HOE, new ProcessingHandler(Items.STONE_HOE, (te)->te.processFarming(Items.STONE_HOE), (te)->te.itemPassThroughExcept(Items.BONE_MEAL)));
-      processing_command_item_mapping.put(Items.IRON_HOE, new ProcessingHandler(Items.IRON_HOE, (te)->te.processFarming(Items.IRON_HOE), (te)->te.itemPassThroughExcept(Items.BONE_MEAL)));
-      processing_command_item_mapping.put(Items.DIAMOND_HOE, new ProcessingHandler(Items.DIAMOND_HOE, (te)->te.processFarming(Items.DIAMOND_HOE), (te)->te.itemPassThroughExcept(Items.BONE_MEAL)));
-      processing_command_item_mapping.put(Items.NETHERITE_HOE, new ProcessingHandler(Items.NETHERITE_HOE, (te)->te.processFarming(Items.NETHERITE_HOE), (te)->te.itemPassThroughExcept(Items.BONE_MEAL)));
+      processing_command_item_mapping.put(Items.STONE_HOE, new ProcessingHandler(Items.STONE_HOE, (te,done)->te.processFarming(Items.STONE_HOE), (te)->te.itemPassThroughExcept(Items.BONE_MEAL)));
+      processing_command_item_mapping.put(Items.IRON_HOE, new ProcessingHandler(Items.IRON_HOE, (te,done)->te.processFarming(Items.IRON_HOE), (te)->te.itemPassThroughExcept(Items.BONE_MEAL)));
+      processing_command_item_mapping.put(Items.DIAMOND_HOE, new ProcessingHandler(Items.DIAMOND_HOE, (te,done)->te.processFarming(Items.DIAMOND_HOE), (te)->te.itemPassThroughExcept(Items.BONE_MEAL)));
+      processing_command_item_mapping.put(Items.NETHERITE_HOE, new ProcessingHandler(Items.NETHERITE_HOE, (te,done)->te.processFarming(Items.NETHERITE_HOE), (te)->te.itemPassThroughExcept(Items.BONE_MEAL)));
     }
     ModConfig.log("Hive:" +
       "drop-probability:" + hive_drop_probability_percent + "%" +
@@ -842,6 +845,7 @@ public class RedAntHive
         max_progress_ = 0;
         progress_ = 0;
         last_recipe_ = "";
+        fuel_left_ = 0;
         state_flags_.mask(StateFlags.mask_nofuel|StateFlags.mask_norecipe|StateFlags.mask_noingr, 0);
         cache_slot_range_.move(left_storage_slot_range_);
         if(!getResultSlot().isEmpty()) {
@@ -875,7 +879,7 @@ public class RedAntHive
             processFurnace((IRecipeType)cat, is_done);
           }
         } else if(cat instanceof ProcessingHandler) {
-          return ((ProcessingHandler)cat).handler.apply(this);
+          return ((ProcessingHandler)cat).handler.apply(this, is_done);
         }
       }
       return true;
@@ -1225,6 +1229,95 @@ public class RedAntHive
       return dirty;
     }
 
+    private boolean processBrewing(boolean is_done)
+    {
+      last_recipe_ = "";
+      progress_ = -40;
+      if(is_done) {
+        if(!getResultSlot().isEmpty()) {
+          cache_slot_range_.setInventorySlotContents(0, getResultSlot()); // replace input potion with result
+          cache_slot_range_.setInventorySlotContents(1, ItemStack.EMPTY); // consume ingredient
+          setResultSlot(ItemStack.EMPTY);
+        }
+        cache_slot_range_.move(right_storage_slot_range_);
+        if(cache_slot_range_.isEmpty()) progress_ = 0;
+        state_flags_.nofuel(false);
+        state_flags_.noingr(false);
+        return true;
+      } else {
+        final Inventories.InventoryRange input_slots = left_storage_slot_range_;
+        Crafting.BrewingOutput brewing_output = Crafting.BrewingOutput.find(world, input_slots, input_slots);
+        if(brewing_output.item.isEmpty()) {
+          // No ingredients or potions.
+          state_flags_.noingr(true);
+          return false;
+        }
+        final int fuel_time_needed = (int)Math.ceil((1.0+ant_speed_) * brewing_output.brewTime);
+        // Collect fuel
+        {
+          final int initial_fuel_left = fuel_left_;
+          final boolean enough_fuel = input_slots.iterate((slot,stack)->{
+            if(fuel_left_ >= fuel_time_needed) return true;
+            if((slot == brewing_output.ingredientSlot) || (slot == brewing_output.potionSlot) || (stack.isEmpty())) return false;
+            int t = Crafting.getBrewingFuelBurntime(world, stack) * brewing_fuel_efficiency_percent / 100;
+            if(t <= 0) return false;
+            while((stack.getCount() > 0) && (fuel_left_ < fuel_time_needed)) {
+              final ItemStack consumed = stack.split(1);
+              Tuple<Integer,ItemStack> bt_and_rem = Crafting.consumeBrewingFuel(getWorld(), consumed);
+              fuel_left_ += bt_and_rem.getA();
+              if(!bt_and_rem.getB().isEmpty()) {
+                final ItemStack container_item = bt_and_rem.getB();
+                if(stack.isEmpty()) {
+                  stack = container_item;
+                } else {
+                  if(!right_storage_slot_range_.insert(container_item).isEmpty()) {
+                    cache_slot_range_.insert(container_item);
+                  }
+                }
+              }
+            }
+            if(stack.isEmpty()) stack = ItemStack.EMPTY;
+            input_slots.setInventorySlotContents(slot, stack);
+            return false;
+          });
+          if(!enough_fuel) {
+            // Fuel insufficient
+            state_flags_.nofuel(true);
+            return (fuel_left_ != initial_fuel_left);
+          }
+        }
+        // Start processing.
+        {
+          if(fuel_left_ < fuel_time_needed) return true;
+          state_flags_.nofuel(false);
+          state_flags_.norecipe(false);
+          setResultSlot(brewing_output.item);
+          fuel_left_ -= fuel_time_needed;
+          max_progress_ = brewing_output.brewTime;
+          last_recipe_ = "";
+          progress_ = 0;
+          cache_slot_range_.setInventorySlotContents(0, input_slots.getStackInSlot(brewing_output.potionSlot).split(1));
+          cache_slot_range_.setInventorySlotContents(1, input_slots.getStackInSlot(brewing_output.ingredientSlot).split(1));
+          return true;
+        }
+      }
+    }
+
+    private boolean itemPassThroughBrewing()
+    {
+      if(!cache_slot_range_.isEmpty()) return false;
+      for(int i=0; i<left_storage_slot_range_.size(); ++i) {
+        final ItemStack stack = left_storage_slot_range_.getStackInSlot(i);
+        if(stack.isEmpty() || (stack.getItem()==RED_SUGAR_ITEM) ||
+          (Crafting.isBrewingFuel(world, stack)) ||
+          (Crafting.isBrewingIngredient(world, stack)) ||
+          (Crafting.isBrewingInput(world, stack))
+        ) continue;
+        if(left_storage_slot_range_.move(i, right_storage_slot_range_)) return true;
+      }
+      return false;
+    }
+
   }
 
   //--------------------------------------------------------------------------------------------------------------------
@@ -1556,6 +1649,7 @@ public class RedAntHive
       command_items_with_process_bar.add(Items.BLAST_FURNACE);
       command_items_with_process_bar.add(Items.SMOKER);
       command_items_with_process_bar.add(Items.COMPOSTER);
+      command_items_with_process_bar.add(Items.BREWING_STAND);
       command_items_with_process_bar.add(Items.WHEAT);
       command_items_with_process_bar.add(Items.WHEAT_SEEDS);
       command_items_with_process_bar.add(Items.CARROT);
@@ -1568,6 +1662,7 @@ public class RedAntHive
       command_items_result_visible.add(Items.BLAST_FURNACE);
       command_items_result_visible.add(Items.SMOKER);
       command_items_result_visible.add(Items.COMPOSTER);
+      command_items_result_visible.add(Items.BREWING_STAND);
       command_items_grid_visible.add(Items.CRAFTING_TABLE);
       command_items_grid_visible.add(Items.FURNACE);
       command_items_grid_visible.add(Items.BLAST_FURNACE);

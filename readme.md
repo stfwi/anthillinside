@@ -4,6 +4,8 @@
 ----
 ## Version history
 
+    - v1.0.5      [A] Potion brewing added.
+
     - v1.0.4      [F] Fixed Trail Redstone update for notify-only conditions.
 
     - v1.0.3      [F] Fixed Trail Redstone connectivity.
