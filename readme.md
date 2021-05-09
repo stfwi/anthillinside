@@ -4,7 +4,10 @@
 ----
 ## Version history
 
-    - v1.0.5      [A] Potion brewing added.
+    - v1.0.6-b1   [A] Hive: Item Disenchanting (Grind Stone) added.
+                  [A] Trail: Item sorting with item frames added.
+
+    - v1.0.5      [A] Hive: Potion brewing added.
 
     - v1.0.4      [F] Fixed Trail Redstone update for notify-only conditions.
 

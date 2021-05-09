@@ -109,6 +109,9 @@ public class Auxiliaries
   public static final void logError(final String msg)
   { logger.error(msg); }
 
+  public static final void logDebug(final String msg)
+  { logger.info(msg); }
+
   // -------------------------------------------------------------------------------------------------------------------
   // Localization, text formatting
   // -------------------------------------------------------------------------------------------------------------------

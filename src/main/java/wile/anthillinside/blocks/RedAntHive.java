@@ -123,6 +123,7 @@ public class RedAntHive
     processing_command_item_mapping.put(Items.COMPOSTER, new ProcessingHandler(Items.COMPOSTER, (te,done)->te.processComposter(), (te)->te.itemPassThroughComposter()));
     processing_command_item_mapping.put(Items.SHEARS, new ProcessingHandler(Items.SHEARS, (te,done)->te.processShears(), (te)->te.processHopper()));
     processing_command_item_mapping.put(Items.BREWING_STAND, new ProcessingHandler(Items.BREWING_STAND, (te,done)->te.processBrewing(done), (te)->te.itemPassThroughBrewing()));
+    processing_command_item_mapping.put(Items.GRINDSTONE, new ProcessingHandler(Items.GRINDSTONE, (te,done)->te.processGrindstone(done), (te)->te.itemPassThroughGrindstone()));
     if(animal_feeding_speed_percent > 0) {
       processing_command_item_mapping.put(Items.WHEAT, new ProcessingHandler(Items.WHEAT, (te,done)->te.processAnimalFood(Items.WHEAT), (te)->te.itemPassThroughExcept(Items.WHEAT)));
       processing_command_item_mapping.put(Items.WHEAT_SEEDS, new ProcessingHandler(Items.WHEAT_SEEDS, (te,done)->te.processAnimalFood(Items.WHEAT_SEEDS), (te)->te.itemPassThroughExcept(Items.WHEAT_SEEDS)));
@@ -1294,7 +1295,6 @@ public class RedAntHive
           setResultSlot(brewing_output.item);
           fuel_left_ -= fuel_time_needed;
           max_progress_ = brewing_output.brewTime;
-          last_recipe_ = "";
           progress_ = 0;
           cache_slot_range_.setInventorySlotContents(0, input_slots.getStackInSlot(brewing_output.potionSlot).split(1));
           cache_slot_range_.setInventorySlotContents(1, input_slots.getStackInSlot(brewing_output.ingredientSlot).split(1));
@@ -1306,6 +1306,7 @@ public class RedAntHive
     private boolean itemPassThroughBrewing()
     {
       if(!cache_slot_range_.isEmpty()) return false;
+      boolean changed = false;
       for(int i=0; i<left_storage_slot_range_.size(); ++i) {
         final ItemStack stack = left_storage_slot_range_.getStackInSlot(i);
         if(stack.isEmpty() || (stack.getItem()==RED_SUGAR_ITEM) ||
@@ -1313,11 +1314,114 @@ public class RedAntHive
           (Crafting.isBrewingIngredient(world, stack)) ||
           (Crafting.isBrewingInput(world, stack))
         ) continue;
-        if(left_storage_slot_range_.move(i, right_storage_slot_range_)) return true;
+        if(left_storage_slot_range_.move(i, right_storage_slot_range_)) {
+          if(left_storage_slot_range_.getStackInSlot(i).isEmpty()) return true;
+          changed = true;
+        }
       }
-      return false;
+      return changed;
     }
 
+    private boolean processGrindstone(boolean is_done)
+    {
+      last_recipe_ = "";
+      progress_ = -40;
+      fuel_left_ = 0;
+      if(is_done) {
+        if(!getResultSlot().isEmpty()) {
+          ItemStack input_stack = cache_slot_range_.getStackInSlot(0);
+          cache_slot_range_.setInventorySlotContents(0, getResultSlot()); // replace input potion with result
+          setResultSlot(ItemStack.EMPTY);
+          List<ItemStack> enchanted_books = Crafting.removeEnchantmentsOnItem(world, input_stack, (e, l)->true)
+            .entrySet().stream()
+            .filter(e->!e.getKey().isCurse())
+            .sorted(Comparator.comparingInt(e->e.getValue()))
+            .map(e->Crafting.getEnchantmentBook(world, e.getKey(), e.getValue()))
+            .filter(e->!e.isEmpty())
+            .limit(cache_slot_range_.size()-1)
+            .collect(Collectors.toList());
+          for(int i=0; i<cache_slot_range_.size(); ++i) {
+            if(cache_slot_range_.getStackInSlot(i).getItem()!=Items.BOOK) continue;
+            if(enchanted_books.isEmpty()) break;
+            cache_slot_range_.setInventorySlotContents(i, enchanted_books.remove(0));
+          }
+        }
+        cache_slot_range_.move(right_storage_slot_range_);
+        if(cache_slot_range_.isEmpty()) progress_ = 0;
+        state_flags_.nofuel(false);
+        state_flags_.noingr(false);
+        return true;
+      } else {
+        final Inventories.InventoryRange input_slots = left_storage_slot_range_;
+        int input_slot = -1;
+        ItemStack input_stack = ItemStack.EMPTY;
+        ItemStack output_stack = ItemStack.EMPTY;
+        List<ItemStack> secondary_output_stacks = new ArrayList<>();
+        int additional_processing_time = 0;
+        // Check disenchanting
+        {
+          final Optional<Tuple<Integer,ItemStack>> match = input_slots.find((slot,stack)->{
+            return Crafting.getEnchantmentsOnItem(world, stack).isEmpty() ? Optional.empty() : Optional.of(new Tuple<>(slot,stack));
+          });
+          if(match.isPresent()) {
+            input_slot = match.get().getA();
+            input_stack = match.get().getB();
+            output_stack = input_stack.copy();
+            List<ItemStack> enchanted_books = Crafting.removeEnchantmentsOnItem(world, output_stack, (e, l)->true)
+              .entrySet().stream()
+              .filter(e->!e.getKey().isCurse())
+              .sorted(Comparator.comparingInt(e->e.getValue()))
+              .map(e->Crafting.getEnchantmentBook(world, e.getKey(), e.getValue()))
+              .filter(e->!e.isEmpty())
+              .limit(cache_slot_range_.size()-1)
+              .collect(Collectors.toList());
+            //.forEach(stack->{ not accepted due to not final `additional_processing_time`})
+            for(ItemStack enchanted_book:enchanted_books) {
+              if(input_slots.extract(new ItemStack(Items.BOOK,1)).isEmpty()) break;
+              secondary_output_stacks.add(new ItemStack(Items.BOOK));
+              additional_processing_time += (Crafting.getEnchantmentRepairCost(world, Crafting.getEnchantmentsOnItem(world, enchanted_book))+1) * 160;
+            }
+          }
+        }
+        if((input_slot<0) || (input_stack.isEmpty())) {
+          // No ingredients or potions.
+          state_flags_.noingr(true);
+          return false;
+        }
+        // Start processing.
+        {
+          state_flags_.nofuel(false);
+          state_flags_.norecipe(false);
+          setResultSlot(output_stack);
+          max_progress_ = 60 + additional_processing_time;
+          progress_ = 0;
+          cache_slot_range_.setInventorySlotContents(0, input_slots.getStackInSlot(input_slot).split(1));
+          for(int i=0; i<secondary_output_stacks.size(); ++i) {
+            if(i >= (cache_slot_range_.size()-1)) break;
+            cache_slot_range_.setInventorySlotContents(1+i, secondary_output_stacks.get(i));
+          }
+          return true;
+        }
+      }
+    }
+
+    private boolean itemPassThroughGrindstone()
+    {
+      if(!cache_slot_range_.isEmpty()) return false;
+      boolean changed = false;
+      for(int i=0; i<left_storage_slot_range_.size(); ++i) {
+        final ItemStack stack = left_storage_slot_range_.getStackInSlot(i);
+        if(stack.isEmpty() || (stack.getItem()==RED_SUGAR_ITEM) ||
+          (stack.getItem()==Items.BOOK) ||
+          (!Crafting.getEnchantmentsOnItem(world, stack).isEmpty())
+        ) continue;
+        if(left_storage_slot_range_.move(i, right_storage_slot_range_)) {
+          if(left_storage_slot_range_.getStackInSlot(i).isEmpty()) return true;
+          changed = true;
+        }
+      }
+      return changed;
+    }
   }
 
   //--------------------------------------------------------------------------------------------------------------------
@@ -1657,12 +1761,14 @@ public class RedAntHive
       command_items_with_process_bar.add(Items.IRON_HOE);
       command_items_with_process_bar.add(Items.DIAMOND_HOE);
       command_items_with_process_bar.add(Items.NETHERITE_HOE);
+      command_items_with_process_bar.add(Items.GRINDSTONE);
       command_items_result_visible.add(Items.CRAFTING_TABLE);
       command_items_result_visible.add(Items.FURNACE);
       command_items_result_visible.add(Items.BLAST_FURNACE);
       command_items_result_visible.add(Items.SMOKER);
       command_items_result_visible.add(Items.COMPOSTER);
       command_items_result_visible.add(Items.BREWING_STAND);
+      command_items_result_visible.add(Items.GRINDSTONE);
       command_items_grid_visible.add(Items.CRAFTING_TABLE);
       command_items_grid_visible.add(Items.FURNACE);
       command_items_grid_visible.add(Items.BLAST_FURNACE);

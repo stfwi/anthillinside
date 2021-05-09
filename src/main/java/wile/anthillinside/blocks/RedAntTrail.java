@@ -10,6 +10,7 @@ import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ai.brain.schedule.Activity;
 import net.minecraft.entity.item.ItemEntity;
+import net.minecraft.entity.item.ItemFrameEntity;
 import net.minecraft.entity.merchant.villager.VillagerEntity;
 import net.minecraft.entity.monster.MonsterEntity;
 import net.minecraft.entity.passive.AnimalEntity;
@@ -41,10 +42,7 @@ import wile.anthillinside.libmc.detail.Auxiliaries;
 import wile.anthillinside.libmc.detail.Inventories;
 
 import javax.annotation.Nullable;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 
 public class RedAntTrail
@@ -253,9 +251,31 @@ public class RedAntTrail
       if((!up) && (dp.y > 0)) speed *= 0.2;
       boolean outgoing = false, check_insertion_front = false, check_insertion_up = false;
       final boolean front = state.get(FRONT);
+      boolean right = state.get(RIGHT);
+      boolean left = state.get(LEFT);
       final Direction block_facing = state.get(HORIZONTAL_FACING);
+      final Optional<Direction> sorting_diversion = (left || right || (!front && !up)) ? Optional.empty() : itemFrameDiversion(world, pos, entity.getItem());
       Vector3d motion = Vector3d.copy(block_facing.getDirectionVec());
-      if(state.get(RIGHT)) {
+      if(sorting_diversion.isPresent()) {
+        final Direction sorting_direction = sorting_diversion.get();
+        if((sorting_direction != block_facing) && (sorting_direction != block_facing.getOpposite()) && (sorting_direction != Direction.UP)) {
+          if(sorting_direction == Direction.DOWN) {
+            // check insertion
+            if(!world.isRemote()) {
+              if(tryInsertItemEntity(world, pos, Direction.DOWN, entity)) {
+                entity.setMotion(entity.getMotion().scale(0.7));
+                return;
+              }
+            }
+          } else {
+            motion = Vector3d.copy(sorting_direction.getDirectionVec());
+            right = false;
+            left = false;
+            outgoing = true;
+          }
+        }
+      }
+      if(right) {
         final Direction facing_right = block_facing.rotateY();
         final BlockState right_state = world.getBlockState(pos.offset(facing_right));
         if(right_state.isIn(this)) {
@@ -265,7 +285,7 @@ public class RedAntTrail
             outgoing = true;
           }
         }
-      } else if(state.get(LEFT)) {
+      } else if(left) {
         final Direction facing_left  = block_facing.rotateYCCW();
         final BlockState left_state = world.getBlockState(pos.offset(facing_left));
         if(left_state.isIn(this)) {
@@ -320,18 +340,7 @@ public class RedAntTrail
       if((check_insertion_front || check_insertion_up) && (!world.isRemote())) {
         if(!entity.getItem().isEmpty()){
           final Direction insertion_facing = check_insertion_up ? Direction.UP : block_facing;
-          final IItemHandler ih = Inventories.itemhandler(world, pos.offset(insertion_facing), insertion_facing.getOpposite());
-          if(ih != null) {
-            ItemStack stack = entity.getItem().copy();
-            final ItemStack remaining = Inventories.insert(ih, stack, false);
-            if(remaining.getCount() < stack.getCount()) {
-              if(stack.isEmpty()) {
-                entity.remove();
-              } else {
-                entity.setItem(remaining);
-              }
-            }
-          }
+          tryInsertItemEntity(world, pos, insertion_facing, entity);
         }
       }
       if(state.get(WATERLOGGED)) motion.add(0,-0.1,0);
@@ -359,6 +368,33 @@ public class RedAntTrail
         } else if(entity instanceof AnimalEntity) {
           ((AnimalEntity)entity).getBrain().switchTo(Activity.PANIC);
         }
+      }
+    }
+
+    private Optional<Direction> itemFrameDiversion(World world, BlockPos pos, ItemStack match_stack)
+    {
+      List<ItemFrameEntity> frames = world.getEntitiesWithinAABB(ItemFrameEntity.class, new AxisAlignedBB(pos));
+      if(frames.isEmpty()) return Optional.empty();
+      for(ItemFrameEntity frame:frames) {
+        if(!frame.getDisplayedItem().isItemEqualIgnoreDurability(match_stack)) continue;
+        return Optional.of(frame.getHorizontalFacing());
+      }
+      return Optional.empty();
+    }
+
+    private boolean tryInsertItemEntity(World world, BlockPos pos, Direction insertion_facing, ItemEntity entity)
+    {
+      final IItemHandler ih = Inventories.itemhandler(world, pos.offset(insertion_facing), insertion_facing.getOpposite());
+      if(ih == null) return false;
+      ItemStack stack = entity.getItem().copy();
+      final ItemStack remaining = Inventories.insert(ih, stack, false);
+      if(remaining.getCount() >= stack.getCount()) return false;
+      if(stack.isEmpty()) {
+        entity.remove();
+        return true;
+      } else {
+        entity.setItem(remaining);
+        return false;
       }
     }
   }

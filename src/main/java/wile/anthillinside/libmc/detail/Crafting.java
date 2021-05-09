@@ -9,17 +9,22 @@
 package wile.anthillinside.libmc.detail;
 
 import net.minecraft.block.ComposterBlock;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.EnchantmentData;
+import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.CraftingInventory;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.container.Container;
+import net.minecraft.item.EnchantedBookItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.item.crafting.*;
 import net.minecraft.util.NonNullList;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.Tuple;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
 import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.common.brewing.BrewingRecipeRegistry;
@@ -27,6 +32,7 @@ import wile.anthillinside.libmc.detail.Inventories.InventoryRange;
 
 import javax.annotation.Nullable;
 import java.util.*;
+import java.util.function.BiPredicate;
 
 
 public class Crafting
@@ -243,7 +249,6 @@ public class Crafting
     return new Tuple<>(burntime, stack.isEmpty() ? ItemStack.EMPTY : stack);
   }
 
-
   public static final class BrewingOutput
   {
     public static final int DEFAULT_BREWING_TIME = 400;
@@ -288,4 +293,71 @@ public class Crafting
   { return ComposterBlock.CHANCES.getOrDefault(stack.getItem(),0); }
 
   // -------------------------------------------------------------------------------------------------------------------
+
+  /**
+   * Returns the enchtments bound to the given stack.
+   */
+  public static final Map<Enchantment, Integer> getEnchantmentsOnItem(World world, ItemStack stack)
+  { return (stack.isEmpty() || (stack.getTag()==null)) ? Collections.emptyMap() : EnchantmentHelper.getEnchantments(stack); }
+
+  /**
+   * Returns an enchanted book with the given enchantment, emtpy stack if not applicable.
+   */
+  public static final ItemStack getEnchantmentBook(World world, Enchantment enchantment, int level)
+  { return ((!enchantment.isAllowedOnBooks()) || (level <= 0)) ? ItemStack.EMPTY : EnchantedBookItem.getEnchantedItemStack(new EnchantmentData(enchantment, level)); }
+
+  /**
+   * Returns the accumulated repair cost for the given enchantments.
+   */
+  public static final int getEnchantmentRepairCost(World world, Map<Enchantment, Integer> enchantments)
+  {
+    int repair_cost = 0;
+    for(Map.Entry e:enchantments.entrySet()) repair_cost = repair_cost * 2 + 1; // @see: RepairContainer.getNewRepairCost()
+    return repair_cost;
+  }
+
+  /**
+   * Trys to add an enchtment to the given stack, returns boolean success.
+   */
+  public static final boolean addEnchantmentOnItem(World world, ItemStack stack, Enchantment enchantment, int level)
+  {
+    if(stack.isEmpty() || (level <= 0) || (!stack.isEnchantable()) || (level >= enchantment.getMaxLevel())) return false;
+    final Map<Enchantment, Integer> on_item = getEnchantmentsOnItem(world, stack);
+    if(on_item.keySet().stream().anyMatch(ench-> ench.isCompatibleWith(enchantment))) return false;
+    final ItemStack book = EnchantedBookItem.getEnchantedItemStack(new EnchantmentData(enchantment, level));
+    if((!(stack.isBookEnchantable(book) && enchantment.isAllowedOnBooks())) && (!stack.canApplyAtEnchantingTable(enchantment)) && (!enchantment.canApply(stack))) return false;
+    final int existing_level = on_item.getOrDefault(enchantment, 0);
+    if(existing_level == 0) {
+      on_item.put(enchantment, level);
+    } else {
+      level = MathHelper.clamp(level+existing_level, 1, enchantment.getMaxLevel());
+      on_item.put(enchantment, level);
+    }
+    EnchantmentHelper.setEnchantments(on_item, stack);
+    stack.setRepairCost(getEnchantmentRepairCost(world, on_item));
+    return true;
+  }
+
+  /**
+   * Removes enchantments from a stack, returns the removed enchantments.
+   */
+  public static final Map<Enchantment, Integer> removeEnchantmentsOnItem(World world, ItemStack stack, BiPredicate<Enchantment,Integer> filter)
+  {
+    if(stack.isEmpty()) return Collections.emptyMap();
+    final Map<Enchantment, Integer> on_item = getEnchantmentsOnItem(world, stack);
+    final Map<Enchantment, Integer> removed = new HashMap<>();
+    for(Map.Entry<Enchantment, Integer> e:on_item.entrySet()) {
+      if(filter.test(e.getKey(), e.getValue())) {
+        removed.put(e.getKey(), e.getValue());
+      }
+    }
+    for(Enchantment e:removed.keySet()) {
+      on_item.remove(e);
+    }
+    EnchantmentHelper.setEnchantments(on_item, stack);
+    stack.setRepairCost(getEnchantmentRepairCost(world, on_item));
+    return removed;
+  }
+
+
 }
