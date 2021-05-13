@@ -4,6 +4,12 @@
 ----
 ## Version history
 
+    - v1.0.6-b2   [M] Hive: Adaptive animal feeding cool-down (the more animals already seen,
+                      the slower the breeding speed).
+                  [M] Trail: Itching damage for animals tuned down.
+                  [M] Hive: Redstone pulse on input/output side added for sending off minecarts
+                      after loading/unloading.
+
     - v1.0.6-b1   [A] Hive: Item Disenchanting (Grind Stone) added.
                   [A] Trail: Item sorting with item frames added.
 

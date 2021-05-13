@@ -351,7 +351,7 @@ public class RedAntTrail
     public void itchEntity(BlockState state, World world, BlockPos pos, Entity entity)
     {
       if((world.getRandom().nextDouble() > 8e-3) || (!entity.isAlive()) || (!entity.isOnGround())
-         || (world.isRemote()) || (entity.isSneaking()) || (!entity.isNonBoss())
+         || (world.isRemote()) || (entity.isSneaking()) || (!entity.isNonBoss()) || (entity.isWet()) || (entity.isAirBorne)
          || (!(entity instanceof LivingEntity))
       ) {
         return;
@@ -362,7 +362,7 @@ public class RedAntTrail
         if(world.getRandom().nextDouble() > 1e-1) return;
         entity.attackEntityFrom(DamageSource.CACTUS, 0.1f);
       } else {
-        entity.attackEntityFrom(DamageSource.CACTUS, 0.1f);
+        entity.attackEntityFrom(DamageSource.CACTUS, 0.0f);
         if(entity instanceof VillagerEntity) {
           ((VillagerEntity)entity).getBrain().switchTo(Activity.PANIC);
         } else if(entity instanceof AnimalEntity) {

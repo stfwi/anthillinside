@@ -31,6 +31,8 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import org.apache.logging.log4j.Logger;
 import org.lwjgl.glfw.GLFW;
+import wile.anthillinside.ModConfig;
+
 import javax.annotation.Nullable;
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -110,7 +112,7 @@ public class Auxiliaries
   { logger.error(msg); }
 
   public static final void logDebug(final String msg)
-  { logger.info(msg); }
+  { if(ModConfig.withDebugLogging()) logger.info(msg); }
 
   // -------------------------------------------------------------------------------------------------------------------
   // Localization, text formatting

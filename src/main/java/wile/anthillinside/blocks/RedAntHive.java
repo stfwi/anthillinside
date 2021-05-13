@@ -317,6 +317,26 @@ public class RedAntHive
     public boolean canConnectRedstone(BlockState state, IBlockReader world, BlockPos pos, @Nullable Direction side)
     { return true; }
 
+    @Override
+    @SuppressWarnings("deprecation")
+    public boolean canProvidePower(BlockState state)
+    { return true; }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public int getWeakPower(BlockState state, IBlockReader world, BlockPos pos, Direction side)
+    {
+      final TileEntity te = world.getTileEntity(pos);
+      return (te instanceof RedAntHiveTileEntity) ? (((RedAntHiveTileEntity)te).getRedstonePower(state, side, false)) : 0;
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public int getStrongPower(BlockState state, IBlockReader world, BlockPos pos, Direction side)
+    {
+      final TileEntity te = world.getTileEntity(pos);
+      return (te instanceof RedAntHiveTileEntity) ? (((RedAntHiveTileEntity)te).getRedstonePower(state, side, true)) : 0;
+    }
   }
 
   //--------------------------------------------------------------------------------------------------------------------
@@ -415,6 +435,8 @@ public class RedAntHive
     private int fuel_left_ = 0;
     private int tick_timer_ = 0;
     private int slow_timer_ = 0; // performance timer for slow tasks
+    private int input_side_redstone_pulse_time_left_ = 0;
+    private int output_side_redstone_pulse_time_left_ = 0;
     private final Map<UUID,Long> entity_handling_cooldowns_ = new HashMap<>(); // not in nbt
 
     public static final BiPredicate<Integer, ItemStack> main_inventory_validator() {
@@ -502,7 +524,7 @@ public class RedAntHive
     public int comparatorValue()
     { return 0; }
 
-    // TileEntity ------------------------------------------------------------------------------
+    // TileEntity --------------------------------------------------------------------------------------------
 
     @Override
     public void read(BlockState state, CompoundNBT nbt)
@@ -523,7 +545,7 @@ public class RedAntHive
       return super.getCapability(capability, facing);
     }
 
-    // INamable ----------------------------------------------------------------------------------------------
+    // INamable ---------------------------------------------------------------------------------------------
 
     @Override
     public ITextComponent getName()
@@ -592,6 +614,14 @@ public class RedAntHive
     }
 
     // TE specific ------------------------------------------------------------------------------------------
+
+    public int getRedstonePower(BlockState state, Direction redstone_side, boolean strong)
+    {
+      if(strong) return 0;
+      if((input_side_redstone_pulse_time_left_  > 0) && (redstone_side == state.get(RedAntHiveBlock.FACING))) return 15;
+      if((output_side_redstone_pulse_time_left_ > 0) && (redstone_side == state.get(RedAntHiveBlock.FACING).getOpposite())) return 15;
+      return 0;
+    }
 
     protected StateFlags getStateFlags()
     { return state_flags_; }
@@ -743,6 +773,12 @@ public class RedAntHive
 
     private boolean checkItemOutput()
     {
+      if(output_side_redstone_pulse_time_left_ > 0) {
+        if((output_side_redstone_pulse_time_left_ -= TICK_INTERVAL) <= 0) {
+          output_side_redstone_pulse_time_left_ = 0;
+          world.neighborChanged(getPos().offset(getBlockState().get(RedAntHiveBlock.FACING)), getBlockState().getBlock(), getPos());
+        }
+      }
       if(state_flags_.powered()) return false;
       if(getOutputControlSlot().isEmpty()) return false;
       final int outstack_size = 1 + (ant_count_/96);
@@ -761,6 +797,14 @@ public class RedAntHive
             stack.setCount(n_inserted);
             right_storage_slot_range_.extract(stack);
             return true; // TE dirty.
+          }
+          if(right_storage_slot_range_.isEmpty()) {
+            if((Inventories.itemhandler(getWorld(), output_position, output_facing.getOpposite(), false) == null)) {
+              // Inventory entity eg minecart.
+              boolean notify = output_side_redstone_pulse_time_left_<= 0;
+              output_side_redstone_pulse_time_left_ = 15;
+              if(notify) world.neighborChanged(getPos().offset(output_facing), getBlockState().getBlock(), getPos());
+            }
           }
         } else {
           final BlockState trail_state = getWorld().getBlockState(output_position);
@@ -788,11 +832,17 @@ public class RedAntHive
 
     private boolean checkItemInput()
     {
+      final Direction input_facing = getBlockState().get(RedAntHiveBlock.FACING).getOpposite();
+      if(input_side_redstone_pulse_time_left_ > 0) {
+        if((input_side_redstone_pulse_time_left_ -= TICK_INTERVAL) <= 0) {
+          input_side_redstone_pulse_time_left_ = 0;
+          world.neighborChanged(getPos().offset(input_facing), getBlockState().getBlock(), getPos());
+        }
+      }
       if(getInputControlSlot().getItem() != Items.HOPPER) return false;
       final int instack_size = 1 + (ant_count_/96);
       final boolean filtered = state_flags_.filteredinsert();
       boolean dirty = false;
-      final Direction input_facing = getBlockState().get(RedAntHiveBlock.FACING).getOpposite();
       // Item handler
       {
         final IItemHandler ih = Inventories.itemhandler(getWorld(), getPos().offset(input_facing), input_facing.getOpposite(), true);
@@ -814,6 +864,16 @@ public class RedAntHive
                 insertLeft(fetched);
                 return true;
               }
+            }
+          }
+          if((Inventories.itemhandler(getWorld(), getPos().offset(input_facing), input_facing.getOpposite(), false) == null)) {
+            // Nothing inserted from inventory entity eg minecart.
+            boolean all_empty = true;
+            for(int i=0; (all_empty) && (i<ih.getSlots()); ++i) all_empty = ih.getStackInSlot(i).isEmpty();
+            if(all_empty) {
+              boolean notify = input_side_redstone_pulse_time_left_ <= 0;
+              input_side_redstone_pulse_time_left_ = 15;
+              if(notify) world.neighborChanged(getPos().offset(input_facing), getBlockState().getBlock(), getPos());
             }
           }
         }
@@ -1185,7 +1245,9 @@ public class RedAntHive
       if(left_storage_slot_range_.stream().filter(s->s.isItemEqual(kibble)).mapToInt(ItemStack::getCount).sum() <= 0) return false;
       final AxisAlignedBB aabb = workingRange(animal_feeding_xz_radius, 2, 0);
       List<AnimalEntity> animals = getWorld().getEntitiesWithinAABB(AnimalEntity.class, aabb, a->(a.isAlive()));
-      if(animals.size() >= animal_feeding_entity_limit) { max_progress_ = 600; return false; }
+      final double progress_delay = 1.0/MathHelper.clamp(1.0-(Math.max(animals.size()*animals.size(), 1.0)/Math.max(animal_feeding_entity_limit*animal_feeding_entity_limit, 16.0)), 0.05,1.0);
+      Auxiliaries.logDebug("" + getPos() + ": animals:" + animals.size() + "/" + animal_feeding_entity_limit + " feeding delay rate:" + progress_delay);
+      if(animals.size() >= animal_feeding_entity_limit) { max_progress_ = (int)(600*progress_delay); return false; }
       animals = animals.stream().filter(a->(!a.isChild()) && (a.isBreedingItem(kibble)) && (a.canFallInLove()) && (!a.isInLove()) && entityCooldownExpired(a.getUniqueID())).collect(Collectors.toList());
       if(animals.size() >= 2) {
         for(int i=0; i<animals.size()-1; ++i) {
@@ -1194,15 +1256,16 @@ public class RedAntHive
               left_storage_slot_range_.extract(kibble);
               animals.get(i).setInLove((PlayerEntity)null);
               animals.get(j).setInLove((PlayerEntity)null);
-              final int cooldown = 20*600* 100/animal_feeding_speed_percent;
+              final int cooldown = (int)(20*600* 100/animal_feeding_speed_percent / progress_delay);
               entityCooldown(animals.get(i).getUniqueID(), cooldown);
               entityCooldown(animals.get(j).getUniqueID(), cooldown);
-              max_progress_ = 600;
+              max_progress_ = (int)(600 * progress_delay);
               return false;
             }
           }
         }
       }
+      max_progress_ = (int)(max_progress_ * progress_delay);
       return false;
     }
 

@@ -147,6 +147,9 @@ public class ModConfig
   public static boolean withoutRecipes()
   { return false; }
 
+  public static boolean withDebugLogging()
+  { return with_experimental_features_ && with_config_logging_; }
+
   //--------------------------------------------------------------------------------------------------------------------
   // Cache
   //--------------------------------------------------------------------------------------------------------------------
