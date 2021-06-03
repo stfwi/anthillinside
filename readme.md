@@ -4,6 +4,9 @@
 ----
 ## Version history
 
+    - v1.0.6      [A] Bonemeal fertilizing non-experimental.
+                  [F] Fixed Potion insertion bug.
+
     - v1.0.6-b2   [M] Hive: Adaptive animal feeding cool-down (the more animals already seen,
                       the slower the breeding speed).
                   [M] Trail: Itching damage for animals tuned down.

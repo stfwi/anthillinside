@@ -237,11 +237,13 @@ public class Inventories
         final int limit = Math.min(slot_limit, stack.getMaxStackSize());
         if(stack.getCount() >= limit) {
           stack = stack.copy();
-          if(simulate) {
-            stack.shrink(limit);
-          } else {
-            inv_.setInventorySlotContents(slot, stack.split(limit));
+          final ItemStack ins = stack.split(limit);
+          if(!simulate) {
+            inv_.setInventorySlotContents(slot, ins);
             inv_.markDirty();
+          }
+          if(stack.isEmpty()) {
+            stack = ItemStack.EMPTY;
           }
           return stack;
         } else {

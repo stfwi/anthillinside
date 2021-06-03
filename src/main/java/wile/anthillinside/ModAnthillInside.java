@@ -10,9 +10,11 @@ import net.minecraft.entity.EntityType;
 import net.minecraft.block.Block;
 import net.minecraft.inventory.container.ContainerType;
 import net.minecraft.item.ItemGroup;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.tileentity.TileEntityType;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.server.ServerWorld;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegistryEvent;
@@ -78,7 +80,10 @@ public class ModAnthillInside
 
     @SubscribeEvent
     public static void onItemRegistry(final RegistryEvent.Register<Item> event)
-    { ModContent.allItems().forEach(e->event.getRegistry().register(e)); }
+    {
+      ModContent.allItems().forEach(e->event.getRegistry().register(e));
+      ItemTags.createOptional(new ResourceLocation(MODID, "fertilizers"));
+    }
 
     @SubscribeEvent
     public static void onTileEntityRegistry(final RegistryEvent.Register<TileEntityType<?>> event)

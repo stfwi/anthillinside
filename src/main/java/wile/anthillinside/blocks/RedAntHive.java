@@ -18,6 +18,8 @@ import net.minecraft.item.crafting.ICraftingRecipe;
 import net.minecraft.item.crafting.IRecipeType;
 import net.minecraft.item.crafting.Ingredient;
 import net.minecraft.state.IntegerProperty;
+import net.minecraft.tags.ITag;
+import net.minecraft.tags.TagCollectionManager;
 import net.minecraft.util.math.shapes.ISelectionContext;
 import net.minecraft.util.math.shapes.VoxelShape;
 import net.minecraft.util.math.shapes.VoxelShapes;
@@ -787,15 +789,15 @@ public class RedAntHive
       final BlockPos output_position = getPos().offset(output_facing);
       if(control_item == Items.HOPPER) {
         if(Inventories.insertionPossible(getWorld(), output_position, output_facing.getOpposite(), true)) {
-          for(ItemStack ostack:right_storage_slot_range_) {
+          for(int slot=0; slot<right_storage_slot_range_.size(); ++slot) {
+            ItemStack ostack = right_storage_slot_range_.getStackInSlot(slot);
             if(ostack.isEmpty()) continue;
             final ItemStack stack = ostack.copy();
             if(stack.getCount() > outstack_size) stack.setCount(outstack_size);
             final ItemStack remaining = Inventories.insert(getWorld(), output_position, output_facing.getOpposite(), stack, false, true);
             if(remaining.getCount() == stack.getCount()) continue;
             final int n_inserted = stack.getCount() - remaining.getCount();
-            stack.setCount(n_inserted);
-            right_storage_slot_range_.extract(stack);
+            right_storage_slot_range_.getStackInSlot(slot).shrink(n_inserted);
             return true; // TE dirty.
           }
           if(right_storage_slot_range_.isEmpty()) {
@@ -1282,13 +1284,29 @@ public class RedAntHive
       final int step_size = step_sizes[range_ref];
       final int volume = range.getVolume();
       final int max_count = (range_ref/2) + 1;
-      for(int i=0; i<max_count; ++i) {
-        universal_task_index_ = (universal_task_index_ + step_size) % volume;
-        final BlockPos pos = range.byXZYIndex(universal_task_index_);
-        final Optional<List<ItemStack>> drops = ToolActions.harvestCrop((ServerWorld)getWorld(), pos, true, ItemStack.EMPTY);
-        if(!drops.isPresent()) continue;
-        if(!drops.get().isEmpty()) getWorld().playSound(null, pos, SoundEvents.ITEM_CROP_PLANT, SoundCategory.BLOCKS, 0.6f, 1.4f);
-        for(ItemStack stack:drops.get()) right_storage_slot_range_.insert(stack); // skip/void excess
+      final int max_search_count = 5;
+      final ITag<Item> fertilizers = TagCollectionManager.getManager().getItemTags().get(new ResourceLocation(ModAnthillInside.MODID, "fertilizers"));
+      int fertilizer_slot = -1;
+      if(fertilizers!=null) {
+        fertilizer_slot = (left_storage_slot_range_.find((slot,stack)->stack.getItem().isIn(fertilizers) ? Optional.of(slot) : Optional.empty()).orElse(-1));
+      }
+      if(fertilizer_slot < 0) {
+        fertilizer_slot = (left_storage_slot_range_.find((slot,stack)->stack.getItem() == Items.BONE_MEAL ? Optional.of(slot) : Optional.empty()).orElse(-1));
+      }
+      final ItemStack fertilizer = (fertilizer_slot>=0) ? left_storage_slot_range_.getStackInSlot(fertilizer_slot).copy() : ItemStack.EMPTY;
+      for(int search_count = max_search_count; search_count > 0; --search_count) {
+        for(int i=0; i<max_count; ++i) {
+          universal_task_index_ = (universal_task_index_ + step_size) % volume;
+          final BlockPos pos = range.byXZYIndex(universal_task_index_);
+          final Optional<List<ItemStack>> drops = ToolActions.harvestCrop((ServerWorld)getWorld(), pos, true, fertilizer);
+          if(!drops.isPresent()) continue;
+          if(!drops.get().isEmpty()) getWorld().playSound(null, pos, SoundEvents.ITEM_CROP_PLANT, SoundCategory.BLOCKS, 0.6f, 1.4f);
+          for(ItemStack stack:drops.get()) right_storage_slot_range_.insert(stack); // skip/void excess
+          search_count = 0;
+        }
+      }
+      if(fertilizer_slot >= 0) {
+        left_storage_slot_range_.setInventorySlotContents(fertilizer_slot, fertilizer.isEmpty() ? ItemStack.EMPTY : fertilizer);
       }
       return dirty;
     }
