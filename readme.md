@@ -4,6 +4,8 @@
 ----
 ## Version history
 
+    ~ v1.0.7-b1   [F]
+
     - v1.0.6      [A] Bonemeal fertilizing non-experimental.
                   [F] Fixed Potion insertion bug.
 
