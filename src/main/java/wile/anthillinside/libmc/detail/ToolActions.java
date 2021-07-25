@@ -30,19 +30,19 @@ public class ToolActions
 {
   public static boolean shearEntity(LivingEntity entity)
   {
-    if((entity.world.isRemote()) || (!(entity instanceof net.minecraftforge.common.IForgeShearable))) return false;
+    if((entity.level.isClientSide()) || (!(entity instanceof net.minecraftforge.common.IForgeShearable))) return false;
     net.minecraftforge.common.IForgeShearable target = (net.minecraftforge.common.IForgeShearable)entity;
-    final BlockPos pos = new BlockPos(entity.getPosition());
+    final BlockPos pos = new BlockPos(entity.blockPosition());
     final ItemStack tool = new ItemStack(Items.SHEARS);
-    if(target.isShearable(tool, entity.world, pos)) {
-      List<ItemStack> drops = target.onSheared(null, tool, entity.world, pos, 1);
+    if(target.isShearable(tool, entity.level, pos)) {
+      List<ItemStack> drops = target.onSheared(null, tool, entity.level, pos, 1);
       Random rand = new java.util.Random();
       drops.forEach(d -> {
-        ItemEntity ent = entity.entityDropItem(d, 1f);
+        ItemEntity ent = entity.spawnAtLocation(d, 1f);
         if(ent == null) return;
-        ent.setMotion(ent.getMotion().add((double)((rand.nextFloat() - rand.nextFloat()) * 0.05f), (double)(rand.nextFloat() * 0.05f), (double)((rand.nextFloat() - rand.nextFloat()) * 0.05f)));
+        ent.setDeltaMovement(ent.getDeltaMovement().add((double)((rand.nextFloat() - rand.nextFloat()) * 0.05f), (double)(rand.nextFloat() * 0.05f), (double)((rand.nextFloat() - rand.nextFloat()) * 0.05f)));
       });
-      entity.world.playSound(null, pos, SoundEvents.ENTITY_SHEEP_SHEAR, SoundCategory.BLOCKS, 0.8f, 1.1f);
+      entity.level.playSound(null, pos, SoundEvents.SHEEP_SHEAR, SoundCategory.BLOCKS, 0.8f, 1.1f);
     }
     return true;
   }
@@ -50,7 +50,7 @@ public class ToolActions
   public static boolean shearEntities(World world, AxisAlignedBB range, int max_count)
   {
     if(max_count <= 0) return false;
-    List<LivingEntity> entities = world.getEntitiesWithinAABB(LivingEntity.class, range, e->(e instanceof net.minecraftforge.common.IForgeShearable));
+    List<LivingEntity> entities = world.getEntitiesOfClass(LivingEntity.class, range, e->(e instanceof net.minecraftforge.common.IForgeShearable));
     boolean snipped = false;
     for(LivingEntity e:entities) {
       if(!shearEntity(e)) continue;
@@ -65,16 +65,16 @@ public class ToolActions
     final BlockState state = world.getBlockState(pos);
     final Block block = state.getBlock();
     // replace with tag?
-    if((!block.isIn(BlockTags.LEAVES)) && (block != Blocks.COBWEB) && (block != Blocks.GRASS) & (block != Blocks.TALL_GRASS)
+    if((!block.is(BlockTags.LEAVES)) && (block != Blocks.COBWEB) && (block != Blocks.GRASS) & (block != Blocks.TALL_GRASS)
       && (block != Blocks.FERN) && (block != Blocks.DEAD_BUSH) && (block != Blocks.VINE) && (block != Blocks.TRIPWIRE)
-      && (!block.isIn(BlockTags.WOOL))
+      && (!block.is(BlockTags.WOOL))
     ) return false;
     ItemEntity ie = new ItemEntity(world, pos.getX()+.5, pos.getY()+.5, pos.getZ()+.5, new ItemStack(block.asItem()));
-    ie.setDefaultPickupDelay();
-    world.addEntity(ie);
-    world.setBlockState(pos, Blocks.AIR.getDefaultState(), 1|2|8);
-    if(!world.isRemote()) {
-      world.playSound(null, pos, SoundEvents.ENTITY_SHEEP_SHEAR, SoundCategory.BLOCKS, 0.8f, 1.1f);
+    ie.setDefaultPickUpDelay();
+    world.addFreshEntity(ie);
+    world.setBlock(pos, Blocks.AIR.defaultBlockState(), 1|2|8);
+    if(!world.isClientSide()) {
+      world.playSound(null, pos, SoundEvents.SHEEP_SHEAR, SoundCategory.BLOCKS, 0.8f, 1.1f);
     }
     return true;
   }
@@ -86,36 +86,36 @@ public class ToolActions
     if(!(block instanceof CropsBlock)) return Optional.empty();
     final CropsBlock crop = (CropsBlock)block;
     if(!crop.isMaxAge(state)) {
-      if((!bonemeal.isEmpty()) && (crop.canUseBonemeal(world, world.getRandom(), pos, state))) {
+      if((!bonemeal.isEmpty()) && (crop.isBonemealSuccess(world, world.getRandom(), pos, state))) {
         bonemeal.shrink(1);
-        crop.grow(world, world.getRandom(), pos, state);
+        crop.performBonemeal(world, world.getRandom(), pos, state);
       }
       return Optional.of(Collections.emptyList());
     } else {
       final List<ItemStack> drops = state.getDrops(
         (new LootContext.Builder(world))
-          .withParameter(LootParameters.field_237457_g_, Vector3d.copyCentered(pos))
+          .withParameter(LootParameters.ORIGIN, Vector3d.atCenterOf(pos))
           .withParameter(LootParameters.BLOCK_STATE, state)
-          .withNullableParameter(LootParameters.BLOCK_ENTITY, world.getTileEntity(pos))
-          .withNullableParameter(LootParameters.THIS_ENTITY, null)
+          .withOptionalParameter(LootParameters.BLOCK_ENTITY, world.getBlockEntity(pos))
+          .withOptionalParameter(LootParameters.THIS_ENTITY, null)
           .withParameter(LootParameters.TOOL, ItemStack.EMPTY)
       );
       if(!try_replant) {
         world.removeBlock(pos, false);
       } else {
-        final ItemStack seed = crop.getItem(world, pos, state);
+        final ItemStack seed = crop.getCloneItemStack(world, pos, state);
         if(!seed.isEmpty()) {
           boolean fetched_seed = false;
           for(ItemStack stack:drops) {
-            if(stack.isItemEqual(seed)) {
+            if(stack.sameItem(seed)) {
               stack.shrink(1);
               fetched_seed = true;
               break;
             }
           }
           if(fetched_seed) {
-            int initval = crop.getDefaultState().get(crop.getAgeProperty());
-            world.setBlockState(pos, crop.withAge(initval),1|2);
+            int initval = crop.defaultBlockState().getValue(crop.getAgeProperty());
+            world.setBlock(pos, crop.getStateForAge(initval),1|2);
           }
         }
       }

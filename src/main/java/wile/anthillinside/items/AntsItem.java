@@ -17,19 +17,19 @@ public class AntsItem extends BaseBlockItem
   public AntsItem(Block trail, Item.Properties properties)
   { super(trail, properties.setNoRepair()); }
 
-  public String getTranslationKey()
-  { return getDefaultTranslationKey(); }
+  public String getDescriptionId()
+  { return getOrCreateDescriptionId(); }
 
   @Override
-  public int getItemEnchantability()
+  public int getEnchantmentValue()
   { return 0; }
 
   @Override
-  public boolean getIsRepairable(ItemStack toRepair, ItemStack repair)
+  public boolean isValidRepairItem(ItemStack toRepair, ItemStack repair)
   { return false; }
 
   @Override
-  public boolean isDamageable()
+  public boolean canBeDepleted()
   { return false; }
 
   @Override

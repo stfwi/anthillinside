@@ -50,14 +50,14 @@ public class Guis
       super.init(minecraft, width, height);
       this.minecraft = minecraft;
       this.itemRenderer = minecraft.getItemRenderer();
-      this.font = minecraft.fontRenderer;
+      this.font = minecraft.font;
       this.width = width;
       this.height = height;
       java.util.function.Consumer<Widget> remove = (b) -> { buttons.remove(b); children.remove(b); };
       if((!canHaveDisturbingButtonsFromOtherMods()) || (!net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.client.event.GuiScreenEvent.InitGuiEvent.Pre(this, this.buttons, this::addButton, remove)))) {
         this.buttons.clear();
         this.children.clear();
-        this.setListener((IGuiEventListener)null);
+        this.setFocused((IGuiEventListener)null);
         this.init();
       }
       if(canHaveDisturbingButtonsFromOtherMods()) {
@@ -70,23 +70,23 @@ public class Guis
     {
       final ItemRenderer ir = itemRenderer;
       final int main_zl = getBlitOffset();
-      final float zl = ir.zLevel;
+      final float zl = ir.blitOffset;
       final int x0 = getGuiLeft();
       final int y0 = getGuiTop();
-      ir.zLevel = -80;
+      ir.blitOffset = -80;
       RenderSystem.enableRescaleNormal();
-      ir.renderItemIntoGUI(stack, x0+x, y0+y);
+      ir.renderGuiItem(stack, x0+x, y0+y);
       RenderSystem.disableRescaleNormal();
       RenderSystem.disableLighting();
       RenderSystem.disableColorMaterial();
       RenderSystem.enableAlphaTest();
       RenderSystem.defaultAlphaFunc();
       RenderSystem.enableBlend();
-      ir.zLevel = zl;
+      ir.blitOffset = zl;
       setBlitOffset(100);
       RenderSystem.colorMask(true, true, true, true);
       RenderSystem.color4f(0.7f, 0.7f, 0.7f, 0.8f);
-      getMinecraft().getTextureManager().bindTexture(background_image);
+      getMinecraft().getTextureManager().bind(background_image);
       blit(mx, x0+x, y0+y, x, y, 16, 16);
       RenderSystem.color4f(1f, 1f, 1f, 1f);
       setBlitOffset(main_zl);
@@ -205,8 +205,8 @@ public class Guis
     public void renderButton(MatrixStack mx, int mouseX, int mouseY, float partialTicks)
     {
       final Minecraft mc = Minecraft.getInstance();
-      final FontRenderer fontrenderer = mc.fontRenderer;
-      mc.getTextureManager().bindTexture(atlas_);
+      final FontRenderer fontrenderer = mc.font;
+      mc.getTextureManager().bind(atlas_);
       RenderSystem.color4f(1.0F, 1.0F, 1.0F, this.alpha);
       RenderSystem.enableBlend();
       RenderSystem.defaultBlendFunc();
@@ -239,7 +239,7 @@ public class Guis
     public void draw(MatrixStack mx, Screen parent)
     {
       if(!visible) return;
-      parent.getMinecraft().getTextureManager().bindTexture(atlas_);
+      parent.getMinecraft().getTextureManager().bind(atlas_);
       parent.blit(mx, x, y, atlas_position_.x, atlas_position_.y, width, height);
     }
 
@@ -280,8 +280,8 @@ public class Guis
     public void renderButton(MatrixStack mx, int mouseX, int mouseY, float partialTicks)
     {
       final Minecraft mc = Minecraft.getInstance();
-      final FontRenderer fontrenderer = mc.fontRenderer;
-      mc.getTextureManager().bindTexture(atlas_);
+      final FontRenderer fontrenderer = mc.font;
+      mc.getTextureManager().bind(atlas_);
       RenderSystem.color4f(1.0F, 1.0F, 1.0F, this.alpha);
       RenderSystem.enableBlend();
       RenderSystem.defaultBlendFunc();

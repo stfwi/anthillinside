@@ -80,6 +80,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 
+import net.minecraft.block.AbstractBlock;
+
 public class RedAntHive
 {
   private static final Item ANTS_ITEM = ModContent.ANTS_ITEM;
@@ -162,11 +164,11 @@ public class RedAntHive
 
   public static void onGlobalPlayerBlockBrokenEvent(BlockState state, IWorld iworld, BlockPos pos, PlayerEntity player)
   {
-    if((!state.isIn(Blocks.REDSTONE_ORE)) || (iworld.isRemote()) || !(iworld instanceof World)) return;
+    if((!state.is(Blocks.REDSTONE_ORE)) || (iworld.isClientSide()) || !(iworld instanceof World)) return;
     if(iworld.getRandom().nextInt(100) >= hive_drop_probability_percent) return;
     World world = (World)iworld;
-    Inventories.dropStack(world, Vector3d.copyCentered(pos), new ItemStack(ModContent.HIVE_BLOCK.asItem()));
-    world.playSound(null, pos, SoundEvents.ITEM_ARMOR_EQUIP_CHAIN, SoundCategory.BLOCKS, 1f,1.4f);
+    Inventories.dropStack(world, Vector3d.atCenterOf(pos), new ItemStack(ModContent.HIVE_BLOCK.asItem()));
+    world.playSound(null, pos, SoundEvents.ARMOR_EQUIP_CHAIN, SoundCategory.BLOCKS, 1f,1.4f);
   }
 
   //--------------------------------------------------------------------------------------------------------------------
@@ -177,19 +179,19 @@ public class RedAntHive
   {
     public static final IntegerProperty VARIANT = IntegerProperty.create("variant", 0, 2);
 
-    public RedAntHiveBlock(long config, Block.Properties builder, AxisAlignedBB[] aabbs)
+    public RedAntHiveBlock(long config, AbstractBlock.Properties builder, AxisAlignedBB[] aabbs)
     {
       super(config, builder, aabbs);
-      setDefaultState(super.getDefaultState().with(FACING, Direction.DOWN).with(VARIANT, 0));
+      registerDefaultState(super.defaultBlockState().setValue(FACING, Direction.DOWN).setValue(VARIANT, 0));
     }
 
     @Override
     public VoxelShape getCollisionShape(BlockState state, IBlockReader world, BlockPos pos, ISelectionContext context)
-    { return VoxelShapes.fullCube(); }
+    { return VoxelShapes.block(); }
 
     @Override
-    protected void fillStateContainer(StateContainer.Builder<Block, BlockState> builder)
-    { super.fillStateContainer(builder.add(VARIANT)); }
+    protected void createBlockStateDefinition(StateContainer.Builder<Block, BlockState> builder)
+    { super.createBlockStateDefinition(builder.add(VARIANT)); }
 
     @Override
     @Nullable
@@ -198,21 +200,21 @@ public class RedAntHive
     {
       BlockState state = super.getStateForPlacement(context);
       if(state == null) return null;
-      if(!context.getPlayer().isSneaking()) state = state.with(FACING, Direction.DOWN);
-      double[] variant_votes = new double[VARIANT.getAllowedValues().size()];
+      if(!context.getPlayer().isShiftKeyDown()) state = state.setValue(FACING, Direction.DOWN);
+      double[] variant_votes = new double[VARIANT.getPossibleValues().size()];
       int reference_weight=0;
-      final World world = context.getWorld();
-      final BlockPos placement_pos = context.getPos();
+      final World world = context.getLevel();
+      final BlockPos placement_pos = context.getClickedPos();
       for(int x=-1; x<=1; ++x) {
         for(int y=-1; y<=1; ++y) {
           for(int z=-1; z<=1; ++z) {
             if(x==0 && y==0 && z==0) continue;
             Vector3i dirv = new Vector3i(x,y,z);
-            BlockPos adj_pos = placement_pos.add(dirv);
+            BlockPos adj_pos = placement_pos.offset(dirv);
             final double adj_scaler = ((Math.abs(x)+Math.abs(y)+Math.abs(z))==1) ? 1.3 : 1.0;
             final double weight = ((x==0)?1.7:1) * ((y==0)?1.7:1) * ((z==0)?1.7:1) * adj_scaler;
             final BlockState adj_state = world.getBlockState(adj_pos);
-            if(!adj_state.isOpaqueCube(world, adj_pos)) continue;
+            if(!adj_state.isSolidRender(world, adj_pos)) continue;
             reference_weight += weight;
             final String name = adj_state.getBlock().getRegistryName().getPath();
             if(name.contains("sand")) {
@@ -235,20 +237,20 @@ public class RedAntHive
       }
       max_vote /= Math.max(1.0, reference_weight);
       if(max_vote >= 0.2) {
-        state = state.with(VARIANT, best_variant);
+        state = state.setValue(VARIANT, best_variant);
       }
       return state;
     }
 
     @Override
     @SuppressWarnings("deprecation")
-    public boolean hasComparatorInputOverride(BlockState state)
+    public boolean hasAnalogOutputSignal(BlockState state)
     { return true; }
 
     @Override
     @SuppressWarnings("deprecation")
-    public int getComparatorInputOverride(BlockState blockState, World world, BlockPos pos)
-    { TileEntity te = world.getTileEntity(pos); return (te instanceof RedAntHiveTileEntity) ? ((RedAntHiveTileEntity)te).comparatorValue() : 0; }
+    public int getAnalogOutputSignal(BlockState blockState, World world, BlockPos pos)
+    { TileEntity te = world.getBlockEntity(pos); return (te instanceof RedAntHiveTileEntity) ? ((RedAntHiveTileEntity)te).comparatorValue() : 0; }
 
     @Override
     public boolean hasTileEntity(BlockState state)
@@ -260,16 +262,16 @@ public class RedAntHive
     { return new RedAntHiveTileEntity(); }
 
     @Override
-    public void onBlockPlacedBy(World world, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack)
+    public void setPlacedBy(World world, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack)
     {
-      if(world.isRemote()) return;
+      if(world.isClientSide()) return;
       if((!stack.hasTag()) || (!stack.getTag().contains("tedata"))) return;
       CompoundNBT te_nbt = stack.getTag().getCompound("tedata");
       if(te_nbt.isEmpty()) return;
-      final TileEntity te = world.getTileEntity(pos);
+      final TileEntity te = world.getBlockEntity(pos);
       if(!(te instanceof RedAntHiveTileEntity)) return;
       ((RedAntHiveTileEntity)te).readnbt(te_nbt, false);
-      ((RedAntHiveTileEntity)te).markDirty();
+      ((RedAntHiveTileEntity)te).setChanged();
     }
 
     @Override
@@ -279,7 +281,7 @@ public class RedAntHive
     @Override
     public List<ItemStack> dropList(BlockState state, World world, final TileEntity te, boolean explosion)
     {
-      if(world.isRemote() || (!(te instanceof RedAntHiveTileEntity))) return Collections.emptyList();
+      if(world.isClientSide() || (!(te instanceof RedAntHiveTileEntity))) return Collections.emptyList();
       final CompoundNBT te_nbt = ((RedAntHiveTileEntity)te).clear_getnbt();
       ItemStack stack = new ItemStack(asItem());
       if(!te_nbt.isEmpty()) {
@@ -291,10 +293,10 @@ public class RedAntHive
     }
 
     @Override
-    public ActionResultType onBlockActivated(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockRayTraceResult rayTraceResult)
+    public ActionResultType use(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockRayTraceResult rayTraceResult)
     {
-      if(world.isRemote()) return ActionResultType.SUCCESS;
-      final TileEntity te = world.getTileEntity(pos);
+      if(world.isClientSide()) return ActionResultType.SUCCESS;
+      final TileEntity te = world.getBlockEntity(pos);
       if(!(te instanceof RedAntHiveTileEntity)) return ActionResultType.FAIL;
       if((!(player instanceof ServerPlayerEntity) && (!(player instanceof FakePlayer)))) return ActionResultType.FAIL;
       NetworkHooks.openGui((ServerPlayerEntity)player,(INamedContainerProvider)te);
@@ -305,8 +307,8 @@ public class RedAntHive
     @SuppressWarnings("deprecation")
     public void neighborChanged(BlockState state, World world, BlockPos pos, Block block, BlockPos fromPos, boolean unused)
     {
-      if(!(world instanceof World) || (((World) world).isRemote)) return;
-      TileEntity te = world.getTileEntity(pos);
+      if(!(world instanceof World) || (((World) world).isClientSide)) return;
+      TileEntity te = world.getBlockEntity(pos);
       if(!(te instanceof RedAntHiveTileEntity)) return;
       ((RedAntHiveTileEntity)te).block_updated();
     }
@@ -321,22 +323,22 @@ public class RedAntHive
 
     @Override
     @SuppressWarnings("deprecation")
-    public boolean canProvidePower(BlockState state)
+    public boolean isSignalSource(BlockState state)
     { return true; }
 
     @Override
     @SuppressWarnings("deprecation")
-    public int getWeakPower(BlockState state, IBlockReader world, BlockPos pos, Direction side)
+    public int getSignal(BlockState state, IBlockReader world, BlockPos pos, Direction side)
     {
-      final TileEntity te = world.getTileEntity(pos);
+      final TileEntity te = world.getBlockEntity(pos);
       return (te instanceof RedAntHiveTileEntity) ? (((RedAntHiveTileEntity)te).getRedstonePower(state, side, false)) : 0;
     }
 
     @Override
     @SuppressWarnings("deprecation")
-    public int getStrongPower(BlockState state, IBlockReader world, BlockPos pos, Direction side)
+    public int getDirectSignal(BlockState state, IBlockReader world, BlockPos pos, Direction side)
     {
-      final TileEntity te = world.getTileEntity(pos);
+      final TileEntity te = world.getBlockEntity(pos);
       return (te instanceof RedAntHiveTileEntity) ? (((RedAntHiveTileEntity)te).getRedstonePower(state, side, true)) : 0;
     }
   }
@@ -491,7 +493,7 @@ public class RedAntHive
       if(!main_inventory_.isEmpty()) {
         writenbt(nbt, false);
       } else {
-        main_inventory_.clear();
+        main_inventory_.clearContent();
       }
       return nbt;
     }
@@ -529,16 +531,16 @@ public class RedAntHive
     // TileEntity --------------------------------------------------------------------------------------------
 
     @Override
-    public void read(BlockState state, CompoundNBT nbt)
-    { super.read(state, nbt); readnbt(nbt, false); }
+    public void load(BlockState state, CompoundNBT nbt)
+    { super.load(state, nbt); readnbt(nbt, false); }
 
     @Override
-    public CompoundNBT write(CompoundNBT nbt)
-    { super.write(nbt); writenbt(nbt, false); return nbt; }
+    public CompoundNBT save(CompoundNBT nbt)
+    { super.save(nbt); writenbt(nbt, false); return nbt; }
 
     @Override
-    public void remove()
-    { super.remove(); item_handler_.invalidate(); }
+    public void setRemoved()
+    { super.setRemoved(); item_handler_.invalidate(); }
 
     @Override
     public <T> LazyOptional<T> getCapability(net.minecraftforge.common.capabilities.Capability<T> capability, @Nullable Direction facing)
@@ -551,7 +553,7 @@ public class RedAntHive
 
     @Override
     public ITextComponent getName()
-    { final Block block=getBlockState().getBlock(); return (block!=null) ? (new TranslationTextComponent(block.getTranslationKey())) : (new StringTextComponent("Hive")); }
+    { final Block block=getBlockState().getBlock(); return (block!=null) ? (new TranslationTextComponent(block.getDescriptionId())) : (new StringTextComponent("Hive")); }
 
     @Override
     public boolean hasCustomName()
@@ -569,7 +571,7 @@ public class RedAntHive
 
     @Override
     public Container createMenu(int id, PlayerInventory inventory, PlayerEntity player )
-    { return new RedAntHiveContainer(id, inventory, main_inventory_, IWorldPosCallable.of(world, pos), fields); }
+    { return new RedAntHiveContainer(id, inventory, main_inventory_, IWorldPosCallable.create(level, worldPosition), fields); }
 
     protected final IIntArray fields = new IntArray(RedAntHiveTileEntity.NUM_OF_FIELDS)
     {
@@ -601,7 +603,7 @@ public class RedAntHive
     public void tick()
     {
       // Tick timing
-      if(world.isRemote() || (--tick_timer_ > 0)) return;
+      if(level.isClientSide() || (--tick_timer_ > 0)) return;
       tick_timer_ = TICK_INTERVAL;
       if(slow_timer_++ >= SLOW_INTERVAL) slow_timer_ = 0;
       // Tick timing
@@ -612,7 +614,7 @@ public class RedAntHive
       dirty |= checkItemOutput();
       dirty |= checkWorkProcess();
       dirty |= checkItemInput();
-      if(dirty) markDirty();
+      if(dirty) setChanged();
     }
 
     // TE specific ------------------------------------------------------------------------------------------
@@ -620,8 +622,8 @@ public class RedAntHive
     public int getRedstonePower(BlockState state, Direction redstone_side, boolean strong)
     {
       if(strong) return 0;
-      if((input_side_redstone_pulse_time_left_  > 0) && (redstone_side == state.get(RedAntHiveBlock.FACING))) return 15;
-      if((output_side_redstone_pulse_time_left_ > 0) && (redstone_side == state.get(RedAntHiveBlock.FACING).getOpposite())) return 15;
+      if((input_side_redstone_pulse_time_left_  > 0) && (redstone_side == state.getValue(RedAntHiveBlock.FACING))) return 15;
+      if((output_side_redstone_pulse_time_left_ > 0) && (redstone_side == state.getValue(RedAntHiveBlock.FACING).getOpposite())) return 15;
       return 0;
     }
 
@@ -638,39 +640,39 @@ public class RedAntHive
     BlockState updateBlockstate()
     {
       BlockState state = getBlockState();
-      state_flags_.powered(getWorld().isBlockPowered(getPos()));
+      state_flags_.powered(getLevel().hasNeighborSignal(getBlockPos()));
       return state;
     }
 
     protected void setResultSlot(ItemStack stack)
-    { main_inventory_.setInventorySlotContents(CMD_RESULT_START, stack); }
+    { main_inventory_.setItem(CMD_RESULT_START, stack); }
 
     protected ItemStack getResultSlot()
-    { return main_inventory_.getStackInSlot(CMD_RESULT_START); }
+    { return main_inventory_.getItem(CMD_RESULT_START); }
 
     protected void setCommandSlot(ItemStack stack)
-    { main_inventory_.setInventorySlotContents(CMD_STORAGE_START, stack); }
+    { main_inventory_.setItem(CMD_STORAGE_START, stack); }
 
     protected ItemStack getCommandSlot()
-    { return main_inventory_.getStackInSlot(CMD_STORAGE_START); }
+    { return main_inventory_.getItem(CMD_STORAGE_START); }
 
     protected void setInputControlSlot(ItemStack stack)
-    { main_inventory_.setInventorySlotContents(INP_STORAGE_START, stack); }
+    { main_inventory_.setItem(INP_STORAGE_START, stack); }
 
     protected ItemStack getInputControlSlot()
-    { return main_inventory_.getStackInSlot(INP_STORAGE_START); }
+    { return main_inventory_.getItem(INP_STORAGE_START); }
 
     protected void setOutputControlSlot(ItemStack stack)
-    { main_inventory_.setInventorySlotContents(OUT_STORAGE_START, stack); }
+    { main_inventory_.setItem(OUT_STORAGE_START, stack); }
 
     protected ItemStack getOutputControlSlot()
-    { return main_inventory_.getStackInSlot(OUT_STORAGE_START); }
+    { return main_inventory_.getItem(OUT_STORAGE_START); }
 
     protected boolean insertionAllowed(int index, ItemStack stack)
     {
       if((!state_flags_.filteredinsert())) return true;
-      if(left_filter_slot_range_.getStackInSlot(index).isEmpty()) return true;
-      if(left_filter_slot_range_.getStackInSlot(index).getItem() == stack.getItem()) return true;
+      if(left_filter_slot_range_.getItem(index).isEmpty()) return true;
+      if(left_filter_slot_range_.getItem(index).getItem() == stack.getItem()) return true;
       return false;
     }
 
@@ -678,10 +680,10 @@ public class RedAntHive
     {
       if(!state_flags_.filteredinsert()) return left_storage_slot_range_.insert(stack);
       ItemStack remaining = stack.copy();
-      for(int i=0; i<left_storage_slot_range_.getSizeInventory(); ++i) {
-        if((!left_storage_slot_range_.getStackInSlot(i).isEmpty())
-        || (left_filter_slot_range_.getStackInSlot(i).isEmpty())
-        || (left_filter_slot_range_.getStackInSlot(i).getItem() == stack.getItem())
+      for(int i=0; i<left_storage_slot_range_.getContainerSize(); ++i) {
+        if((!left_storage_slot_range_.getItem(i).isEmpty())
+        || (left_filter_slot_range_.getItem(i).isEmpty())
+        || (left_filter_slot_range_.getItem(i).getItem() == stack.getItem())
       ) {
           remaining = left_storage_slot_range_.insert(i, remaining);
           if(remaining.isEmpty()) break;
@@ -694,32 +696,32 @@ public class RedAntHive
     {
       state_flags_.filteredinsert(enable);
       if(!enable) {
-        left_filter_slot_range_.clear();
+        left_filter_slot_range_.clearContent();
       } else {
         for(int i=0; i<left_filter_slot_range_.size(); ++i) {
-          ItemStack stack = left_storage_slot_range_.getStackInSlot(i);
+          ItemStack stack = left_storage_slot_range_.getItem(i);
           if(stack.isEmpty()) {
-            left_filter_slot_range_.setInventorySlotContents(i, ItemStack.EMPTY);
+            left_filter_slot_range_.setItem(i, ItemStack.EMPTY);
           } else {
             stack = stack.copy();
             stack.setCount(1);
-            left_filter_slot_range_.setInventorySlotContents(i, stack);
+            left_filter_slot_range_.setItem(i, stack);
           }
         }
       }
-      markDirty();
+      setChanged();
     }
 
     private AxisAlignedBB workingRange(int xz_radius, int y_height, int y_offset)
     {
-      final Direction facing = getBlockState().get(RedAntHiveBlock.FACING).getOpposite();
+      final Direction facing = getBlockState().getValue(RedAntHiveBlock.FACING).getOpposite();
       AxisAlignedBB aabb = new AxisAlignedBB(-xz_radius, y_offset, -xz_radius, xz_radius+1, y_offset+y_height, xz_radius+1);
       if(facing == Direction.UP) {
-        aabb = aabb.offset(getPos().up());
+        aabb = aabb.move(getBlockPos().above());
       } else if(facing == Direction.DOWN) {
-        aabb = aabb.offset(getPos().down(y_height));
+        aabb = aabb.move(getBlockPos().below(y_height));
       } else {
-        aabb = aabb.offset(getPos().offset(facing, xz_radius+1));
+        aabb = aabb.move(getBlockPos().relative(facing, xz_radius+1));
       }
       return aabb;
     }
@@ -727,7 +729,7 @@ public class RedAntHive
     private boolean entityCooldownExpired(UUID uuid)
     {
       final long t = entity_handling_cooldowns_.getOrDefault(uuid,0L);
-      if(t <= getWorld().getGameTime()) {
+      if(t <= getLevel().getGameTime()) {
         entity_handling_cooldowns_.remove(uuid);
         return true;
       } else {
@@ -737,7 +739,7 @@ public class RedAntHive
 
     private void entityCooldown(UUID uuid, int time)
     {
-      final long t = getWorld().getGameTime();
+      final long t = getLevel().getGameTime();
       entity_handling_cooldowns_.put(uuid, t+time);
       if(entity_handling_cooldowns_.size() < 128) return;
       entity_handling_cooldowns_.keySet().forEach((k)->{
@@ -748,7 +750,7 @@ public class RedAntHive
 
     private boolean checkColony()
     {
-      final int max_ants = ant_storage_slot_range_.size() * ant_storage_slot_range_.getInventoryStackLimit();
+      final int max_ants = ant_storage_slot_range_.size() * ant_storage_slot_range_.getMaxStackSize();
       ant_count_ = ant_storage_slot_range_.stream().filter(e->e.getItem()==ANTS_ITEM).mapToInt(ItemStack::getCount).sum();
       state_flags_.noants(ant_count_ == 0);
       sugar_ticks_ = Math.max(sugar_ticks_ - TICK_INTERVAL, 0);
@@ -778,55 +780,55 @@ public class RedAntHive
       if(output_side_redstone_pulse_time_left_ > 0) {
         if((output_side_redstone_pulse_time_left_ -= TICK_INTERVAL) <= 0) {
           output_side_redstone_pulse_time_left_ = 0;
-          world.neighborChanged(getPos().offset(getBlockState().get(RedAntHiveBlock.FACING)), getBlockState().getBlock(), getPos());
+          level.neighborChanged(getBlockPos().relative(getBlockState().getValue(RedAntHiveBlock.FACING)), getBlockState().getBlock(), getBlockPos());
         }
       }
       if(state_flags_.powered()) return false;
       if(getOutputControlSlot().isEmpty()) return false;
       final int outstack_size = 1 + (ant_count_/96);
       final Item control_item = getOutputControlSlot().getItem();
-      final Direction output_facing = getBlockState().get(RedAntHiveBlock.FACING);
-      final BlockPos output_position = getPos().offset(output_facing);
+      final Direction output_facing = getBlockState().getValue(RedAntHiveBlock.FACING);
+      final BlockPos output_position = getBlockPos().relative(output_facing);
       if(control_item == Items.HOPPER) {
-        if(Inventories.insertionPossible(getWorld(), output_position, output_facing.getOpposite(), true)) {
+        if(Inventories.insertionPossible(getLevel(), output_position, output_facing.getOpposite(), true)) {
           for(int slot=0; slot<right_storage_slot_range_.size(); ++slot) {
-            ItemStack ostack = right_storage_slot_range_.getStackInSlot(slot);
+            ItemStack ostack = right_storage_slot_range_.getItem(slot);
             if(ostack.isEmpty()) continue;
             final ItemStack stack = ostack.copy();
             if(stack.getCount() > outstack_size) stack.setCount(outstack_size);
-            final ItemStack remaining = Inventories.insert(getWorld(), output_position, output_facing.getOpposite(), stack, false, true);
+            final ItemStack remaining = Inventories.insert(getLevel(), output_position, output_facing.getOpposite(), stack, false, true);
             if(remaining.getCount() == stack.getCount()) continue;
             final int n_inserted = stack.getCount() - remaining.getCount();
-            right_storage_slot_range_.getStackInSlot(slot).shrink(n_inserted);
+            right_storage_slot_range_.getItem(slot).shrink(n_inserted);
             return true; // TE dirty.
           }
           if(right_storage_slot_range_.isEmpty()) {
-            if((Inventories.itemhandler(getWorld(), output_position, output_facing.getOpposite(), false) == null)) {
+            if((Inventories.itemhandler(getLevel(), output_position, output_facing.getOpposite(), false) == null)) {
               // Inventory entity eg minecart.
               boolean notify = output_side_redstone_pulse_time_left_<= 0;
               output_side_redstone_pulse_time_left_ = 15;
-              if(notify) world.neighborChanged(getPos().offset(output_facing), getBlockState().getBlock(), getPos());
+              if(notify) level.neighborChanged(getBlockPos().relative(output_facing), getBlockState().getBlock(), getBlockPos());
             }
           }
         } else {
-          final BlockState trail_state = getWorld().getBlockState(output_position);
-          if(!trail_state.isIn(ModContent.TRAIL_BLOCK)) return false;
-          if((output_facing == trail_state.get(RedAntTrailBlock.HORIZONTAL_FACING)) || (output_facing==Direction.DOWN && trail_state.get(RedAntTrailBlock.UP))) return false;
-          Inventories.dropStack(getWorld(), Vector3d.copyCentered(output_position).add(0,-.4,0), right_storage_slot_range_.extract(1), new Vector3d(0, -0.2, 0), 0.1, 0.1);
+          final BlockState trail_state = getLevel().getBlockState(output_position);
+          if(!trail_state.is(ModContent.TRAIL_BLOCK)) return false;
+          if((output_facing == trail_state.getValue(RedAntTrailBlock.HORIZONTAL_FACING)) || (output_facing==Direction.DOWN && trail_state.getValue(RedAntTrailBlock.UP))) return false;
+          Inventories.dropStack(getLevel(), Vector3d.atCenterOf(output_position).add(0,-.4,0), right_storage_slot_range_.extract(1), new Vector3d(0, -0.2, 0), 0.1, 0.1);
           return true;
         }
       } else if((control_item == Items.DROPPER) || (control_item == Items.DISPENSER)) {
-        final BlockState state = getWorld().getBlockState(output_position);
-        if(state.hasOpaqueCollisionShape(getWorld(), output_position)) return false;
+        final BlockState state = getLevel().getBlockState(output_position);
+        if(state.isCollisionShapeFullBlock(getLevel(), output_position)) return false;
         ItemStack stack = right_storage_slot_range_.extract(1, true);
         if(control_item == Items.DISPENSER) {
-          Vector3d drop_pos = Vector3d.copyCentered(output_position).add(Vector3d.copy(output_facing.getOpposite().getDirectionVec()).scale(0.3));
-          Vector3d speed = Vector3d.copy(output_facing.getDirectionVec()).scale(0.6);
-          Inventories.dropStack(getWorld(), drop_pos, stack, speed, 0.1, 0.2);
+          Vector3d drop_pos = Vector3d.atCenterOf(output_position).add(Vector3d.atLowerCornerOf(output_facing.getOpposite().getNormal()).scale(0.3));
+          Vector3d speed = Vector3d.atLowerCornerOf(output_facing.getNormal()).scale(0.6);
+          Inventories.dropStack(getLevel(), drop_pos, stack, speed, 0.1, 0.2);
         } else {
-          Vector3d drop_pos = Vector3d.copyCentered(output_position).add(Vector3d.copy(output_facing.getOpposite().getDirectionVec()).scale(0.1));
-          Vector3d speed = Vector3d.copy(output_facing.getDirectionVec()).scale(0.05);
-          Inventories.dropStack(getWorld(), drop_pos, stack, speed, 0.3,0.02);
+          Vector3d drop_pos = Vector3d.atCenterOf(output_position).add(Vector3d.atLowerCornerOf(output_facing.getOpposite().getNormal()).scale(0.1));
+          Vector3d speed = Vector3d.atLowerCornerOf(output_facing.getNormal()).scale(0.05);
+          Inventories.dropStack(getLevel(), drop_pos, stack, speed, 0.3,0.02);
         }
       }
       return false;
@@ -834,11 +836,11 @@ public class RedAntHive
 
     private boolean checkItemInput()
     {
-      final Direction input_facing = getBlockState().get(RedAntHiveBlock.FACING).getOpposite();
+      final Direction input_facing = getBlockState().getValue(RedAntHiveBlock.FACING).getOpposite();
       if(input_side_redstone_pulse_time_left_ > 0) {
         if((input_side_redstone_pulse_time_left_ -= TICK_INTERVAL) <= 0) {
           input_side_redstone_pulse_time_left_ = 0;
-          world.neighborChanged(getPos().offset(input_facing), getBlockState().getBlock(), getPos());
+          level.neighborChanged(getBlockPos().relative(input_facing), getBlockState().getBlock(), getBlockPos());
         }
       }
       if(getInputControlSlot().getItem() != Items.HOPPER) return false;
@@ -847,13 +849,13 @@ public class RedAntHive
       boolean dirty = false;
       // Item handler
       {
-        final IItemHandler ih = Inventories.itemhandler(getWorld(), getPos().offset(input_facing), input_facing.getOpposite(), true);
+        final IItemHandler ih = Inventories.itemhandler(getLevel(), getBlockPos().relative(input_facing), input_facing.getOpposite(), true);
         if(ih!=null) {
           for(int i=0; i<left_storage_slot_range_.size(); ++i) {
-            ItemStack ref_stack = left_storage_slot_range_.getStackInSlot(i);
-            if((ref_stack.getCount() >= ref_stack.getMaxStackSize()) || (ref_stack.getCount() >= (left_storage_slot_range_.getInventoryStackLimit()))) continue;
+            ItemStack ref_stack = left_storage_slot_range_.getItem(i);
+            if((ref_stack.getCount() >= ref_stack.getMaxStackSize()) || (ref_stack.getCount() >= (left_storage_slot_range_.getMaxStackSize()))) continue;
             if(ref_stack.isEmpty()) {
-              if(filtered) ref_stack = left_filter_slot_range_.getStackInSlot(i);
+              if(filtered) ref_stack = left_filter_slot_range_.getItem(i);
               final ItemStack fetched = Inventories.extract(ih, ref_stack.isEmpty() ? null : ref_stack, instack_size, false);
               if(!fetched.isEmpty()) {
                 insertLeft(fetched);
@@ -868,23 +870,23 @@ public class RedAntHive
               }
             }
           }
-          if((Inventories.itemhandler(getWorld(), getPos().offset(input_facing), input_facing.getOpposite(), false) == null)) {
+          if((Inventories.itemhandler(getLevel(), getBlockPos().relative(input_facing), input_facing.getOpposite(), false) == null)) {
             // Nothing inserted from inventory entity eg minecart.
             boolean all_empty = true;
             for(int i=0; (all_empty) && (i<ih.getSlots()); ++i) all_empty = ih.getStackInSlot(i).isEmpty();
             if(all_empty) {
               boolean notify = input_side_redstone_pulse_time_left_ <= 0;
               input_side_redstone_pulse_time_left_ = 15;
-              if(notify) world.neighborChanged(getPos().offset(input_facing), getBlockState().getBlock(), getPos());
+              if(notify) level.neighborChanged(getBlockPos().relative(input_facing), getBlockState().getBlock(), getBlockPos());
             }
           }
         }
       }
       // Item entities
       {
-        final Vector3d dvec = Vector3d.copy(input_facing.getDirectionVec());
-        final AxisAlignedBB aabb = (new AxisAlignedBB(getPos())).grow(0.3).offset(dvec.scale(0.3)).expand(dvec.scale(1.0));
-        final List<ItemEntity> items = getWorld().getEntitiesWithinAABB(ItemEntity.class, aabb, (e)->e.isAlive() && (!e.getItem().isEmpty()));
+        final Vector3d dvec = Vector3d.atLowerCornerOf(input_facing.getNormal());
+        final AxisAlignedBB aabb = (new AxisAlignedBB(getBlockPos())).inflate(0.3).move(dvec.scale(0.3)).expandTowards(dvec.scale(1.0));
+        final List<ItemEntity> items = getLevel().getEntitiesOfClass(ItemEntity.class, aabb, (e)->e.isAlive() && (!e.getItem().isEmpty()));
         for(ItemEntity ie:items) {
           final ItemStack stack = ie.getItem().copy();
           final ItemStack remaining = insertLeft(stack);
@@ -969,7 +971,7 @@ public class RedAntHive
     private boolean itemPassThroughExcept(List<Item> except)
     {
       for(int i=0; i<left_storage_slot_range_.size(); ++i) {
-        ItemStack stack = left_storage_slot_range_.getStackInSlot(i);
+        ItemStack stack = left_storage_slot_range_.getItem(i);
         if(stack.isEmpty() || (stack.getItem()==RED_SUGAR_ITEM) || (except.contains(stack.getItem()))) continue;
         if(left_storage_slot_range_.move(i, right_storage_slot_range_)) return true;
       }
@@ -983,14 +985,14 @@ public class RedAntHive
         setResultSlot(ItemStack.EMPTY);
         List<ICraftingRecipe> crafting_recipes;
         if(!last_recipe_.isEmpty()) {
-          crafting_recipes = Crafting.getCraftingRecipe(getWorld(), new ResourceLocation(last_recipe_)).map(Collections::singletonList).orElse(Collections.emptyList());
+          crafting_recipes = Crafting.getCraftingRecipe(getLevel(), new ResourceLocation(last_recipe_)).map(Collections::singletonList).orElse(Collections.emptyList());
         } else {
-          crafting_recipes = Crafting.get3x3CraftingRecipes(getWorld(), cache_slot_range_);
+          crafting_recipes = Crafting.get3x3CraftingRecipes(getLevel(), cache_slot_range_);
         }
         if(!crafting_recipes.isEmpty()) {
-          final List<ItemStack> remaining = Crafting.get3x3RemainingItems(getWorld(), cache_slot_range_, crafting_recipes.get(0));
-          final ItemStack result = Crafting.get3x3CraftingResult(getWorld(), cache_slot_range_, crafting_recipes.get(0));
-          cache_slot_range_.clear();
+          final List<ItemStack> remaining = Crafting.get3x3RemainingItems(getLevel(), cache_slot_range_, crafting_recipes.get(0));
+          final ItemStack result = Crafting.get3x3CraftingResult(getLevel(), cache_slot_range_, crafting_recipes.get(0));
+          cache_slot_range_.clearContent();
           cache_slot_range_.insert(result);
           for(ItemStack stack:remaining) {
             if(!stack.isEmpty()) {
@@ -1009,9 +1011,9 @@ public class RedAntHive
       } else {
         if(!cache_slot_range_.isEmpty()) return false;
         // Initiate new crafting process
-        List<ICraftingRecipe> crafting_recipes = Crafting.get3x3CraftingRecipes(getWorld(), grid_storage_slot_range_);
+        List<ICraftingRecipe> crafting_recipes = Crafting.get3x3CraftingRecipes(getLevel(), grid_storage_slot_range_);
         if(!crafting_recipes.isEmpty() && !last_recipe_.isEmpty()) {
-          List<ICraftingRecipe> last = Crafting.getCraftingRecipe(getWorld(), new ResourceLocation(last_recipe_)).map(Collections::singletonList).orElse(Collections.emptyList());
+          List<ICraftingRecipe> last = Crafting.getCraftingRecipe(getLevel(), new ResourceLocation(last_recipe_)).map(Collections::singletonList).orElse(Collections.emptyList());
           if(!last.isEmpty() && crafting_recipes.contains(last.get(0))) {
             crafting_recipes = last;
           }
@@ -1024,7 +1026,7 @@ public class RedAntHive
         ICraftingRecipe selected_recipe = null;
         List<ItemStack> selected_placement = Collections.emptyList();
         for(ICraftingRecipe recipe:crafting_recipes) {
-          final List<ItemStack> placement = Crafting.get3x3Placement(getWorld(), recipe, left_storage_slot_range_, grid_storage_slot_range_);
+          final List<ItemStack> placement = Crafting.get3x3Placement(getLevel(), recipe, left_storage_slot_range_, grid_storage_slot_range_);
           if(placement.isEmpty()) continue;
           selected_recipe = recipe;
           selected_placement = placement;
@@ -1034,11 +1036,11 @@ public class RedAntHive
           state_flags_.noingr(true);
           return false;
         }
-        cache_slot_range_.clear();
+        cache_slot_range_.clearContent();
         for(int i=0; i<selected_placement.size(); ++i) {
-          cache_slot_range_.setInventorySlotContents(i, left_storage_slot_range_.extract(selected_placement.get(i)));
+          cache_slot_range_.setItem(i, left_storage_slot_range_.extract(selected_placement.get(i)));
         }
-        setResultSlot(Crafting.get3x3CraftingResult(getWorld(), cache_slot_range_, selected_recipe));
+        setResultSlot(Crafting.get3x3CraftingResult(getLevel(), cache_slot_range_, selected_recipe));
         last_recipe_ = selected_recipe.getId().toString();
         progress_ = 0;
         max_progress_ = 60 + (4*cache_slot_range_.stream().mapToInt(ItemStack::getCount).sum());
@@ -1049,12 +1051,12 @@ public class RedAntHive
     private boolean itemPassThroughCrafting(IRecipeType<?> recipe_type)
     {
       if(last_recipe_.isEmpty()) return false;
-      final ICraftingRecipe recipe = Crafting.getCraftingRecipe(getWorld(), new ResourceLocation(last_recipe_)).orElse(null);
+      final ICraftingRecipe recipe = Crafting.getCraftingRecipe(getLevel(), new ResourceLocation(last_recipe_)).orElse(null);
       if(recipe==null) return false;
       final List<Ingredient> ingredients = recipe.getIngredients().stream().filter(ing->(ing!=Ingredient.EMPTY)).collect(Collectors.toList());
       if(ingredients.isEmpty()) return false;
       for(int i=0; i<left_storage_slot_range_.size(); ++i) {
-        final ItemStack stack = left_storage_slot_range_.getStackInSlot(i);
+        final ItemStack stack = left_storage_slot_range_.getItem(i);
         if(stack.getItem() == RED_SUGAR_ITEM) continue;
         if(ingredients.stream().noneMatch(ing->ing.test(stack))) {
           if(left_storage_slot_range_.move(i,right_storage_slot_range_)) {
@@ -1071,7 +1073,7 @@ public class RedAntHive
       progress_ = -40; // Default "cannot process or transfer", needs waiting time.
       if(is_done) {
         if(!getResultSlot().isEmpty()) {
-          cache_slot_range_.setInventorySlotContents(0, getResultSlot());
+          cache_slot_range_.setItem(0, getResultSlot());
           setResultSlot(ItemStack.EMPTY);
         }
         cache_slot_range_.move(right_storage_slot_range_);
@@ -1087,15 +1089,15 @@ public class RedAntHive
         {
           recipe_search = input_slots.find((slot,stack)->{
             // Recipes for items that are not fuel.
-            if(Crafting.isFuel(world, stack)) return Optional.empty();
-            Optional<AbstractCookingRecipe> recipe = Crafting.getFurnaceRecipe(recipe_type, world, stack);
+            if(Crafting.isFuel(level, stack)) return Optional.empty();
+            Optional<AbstractCookingRecipe> recipe = Crafting.getFurnaceRecipe(recipe_type, level, stack);
             return recipe.map(r->new Tuple<>(slot, r));
           }).orElse(null);
           if(recipe_search == null) {
             // Recipes for items that are also fuel, but not in the fuel slot list.
             recipe_search = input_slots.find((slot,stack)->{
               if((!allowed_fuel.isEmpty()) && (!allowed_fuel.contains(stack.getItem()))) return Optional.empty();
-              Optional<AbstractCookingRecipe> recipe = Crafting.getFurnaceRecipe(recipe_type, world, stack);
+              Optional<AbstractCookingRecipe> recipe = Crafting.getFurnaceRecipe(recipe_type, level, stack);
               return recipe.map(r->new Tuple<>(slot, r));
             }).orElse(null);
           }
@@ -1107,19 +1109,19 @@ public class RedAntHive
         }
         final AbstractCookingRecipe recipe = recipe_search.getB();
         final int smelting_input_slot = recipe_search.getA();
-        final int fuel_time_needed = (int)Math.ceil((1.0+ant_speed_) * recipe.getCookTime());
+        final int fuel_time_needed = (int)Math.ceil((1.0+ant_speed_) * recipe.getCookingTime());
         // Collect fuel
         {
           final int initial_fuel_left = fuel_left_;
           final boolean enough_fuel = input_slots.iterate((slot,stack)->{
             if(fuel_left_ >= fuel_time_needed) return true;
             if((slot == smelting_input_slot) || (stack.isEmpty())) return false;
-            int t = Crafting.getFuelBurntime(world, stack);
+            int t = Crafting.getFuelBurntime(level, stack);
             if(t <= 0) return false;
             if((!allowed_fuel.isEmpty()) && (!allowed_fuel.contains(stack.getItem()))) return false;
             while((stack.getCount() > 0) && (fuel_left_ < fuel_time_needed)) {
               final ItemStack consumed = stack.split(1);
-              Tuple<Integer,ItemStack> bt_and_rem = Crafting.consumeFuel(getWorld(), consumed);
+              Tuple<Integer,ItemStack> bt_and_rem = Crafting.consumeFuel(getLevel(), consumed);
               fuel_left_ += bt_and_rem.getA();
               if(!bt_and_rem.getB().isEmpty()) {
                 final ItemStack container_item = bt_and_rem.getB();
@@ -1133,7 +1135,7 @@ public class RedAntHive
               }
             }
             if(stack.isEmpty()) stack = ItemStack.EMPTY;
-            input_slots.setInventorySlotContents(slot, stack);
+            input_slots.setItem(slot, stack);
             return false;
           });
           if(!enough_fuel) {
@@ -1147,12 +1149,12 @@ public class RedAntHive
           if(fuel_left_ < fuel_time_needed) return true;
           state_flags_.nofuel(false);
           state_flags_.norecipe(false);
-          setResultSlot(recipe.getRecipeOutput());
+          setResultSlot(recipe.getResultItem());
           fuel_left_ -= fuel_time_needed;
-          max_progress_ = recipe.getCookTime();
+          max_progress_ = recipe.getCookingTime();
           last_recipe_ = recipe.getId().toString();
           progress_ = 0;
-          cache_slot_range_.setInventorySlotContents(0, input_slots.getStackInSlot(smelting_input_slot).split(1));
+          cache_slot_range_.setItem(0, input_slots.getItem(smelting_input_slot).split(1));
           return true;
         }
       }
@@ -1164,13 +1166,13 @@ public class RedAntHive
       final List<Integer> unmatching_slots = left_storage_slot_range_.collect((slot,stack)->{
         // Recipes for items that are not fuel.
         if(stack.isEmpty() || (stack.getItem()==RED_SUGAR_ITEM)) return Optional.empty();
-        if(Crafting.isFuel(world, stack) && (allowed_fuel.isEmpty() || allowed_fuel.contains(stack.getItem()))) return Optional.empty();
-        if(Crafting.getFurnaceRecipe(recipe_type, world, stack).isPresent()) return Optional.empty();
+        if(Crafting.isFuel(level, stack) && (allowed_fuel.isEmpty() || allowed_fuel.contains(stack.getItem()))) return Optional.empty();
+        if(Crafting.getFurnaceRecipe(recipe_type, level, stack).isPresent()) return Optional.empty();
         return Optional.of(slot);
       });
       // Randomly pick a slot among the eligable and try to move that to the output side.
       if(unmatching_slots.isEmpty()) return false;
-      final int picked_slot = unmatching_slots.get(world.getRandom().nextInt(unmatching_slots.size()));
+      final int picked_slot = unmatching_slots.get(level.getRandom().nextInt(unmatching_slots.size()));
       return left_storage_slot_range_.move(picked_slot, right_storage_slot_range_);
     }
 
@@ -1185,7 +1187,7 @@ public class RedAntHive
           if(chance <= 0) continue;
           ++processed;
           stack.shrink(1);
-          if(((getWorld().getRandom().nextDouble() * 7) > chance)) continue;
+          if(((getLevel().getRandom().nextDouble() * 7) > chance)) continue;
           if(!right_storage_slot_range_.insert(bonemeal).isEmpty()) cache_slot_range_.insert(bonemeal);
         }
         if(processed > 0) {
@@ -1206,7 +1208,7 @@ public class RedAntHive
     {
       if(!cache_slot_range_.isEmpty()) return false;
       for(int i=0; i<left_storage_slot_range_.size(); ++i) {
-        final ItemStack stack = left_storage_slot_range_.getStackInSlot(i);
+        final ItemStack stack = left_storage_slot_range_.getItem(i);
         if(stack.isEmpty() || (Crafting.getCompostingChance(stack)>0) || (stack.getItem()==RED_SUGAR_ITEM)) continue;
         if(left_storage_slot_range_.move(i, right_storage_slot_range_)) return true;
       }
@@ -1222,11 +1224,11 @@ public class RedAntHive
 
     private boolean processShears()
     {
-      final Direction input_facing = getBlockState().get(RedAntHiveBlock.FACING).getOpposite();
-      boolean snipped = ToolActions.shearPlant(getWorld(), getPos().offset(input_facing));
+      final Direction input_facing = getBlockState().getValue(RedAntHiveBlock.FACING).getOpposite();
+      boolean snipped = ToolActions.shearPlant(getLevel(), getBlockPos().relative(input_facing));
       if(!snipped) {
-        AxisAlignedBB aabb = new AxisAlignedBB(getPos().offset(input_facing));
-        snipped = ToolActions.shearEntities(getWorld(), aabb, 1);
+        AxisAlignedBB aabb = new AxisAlignedBB(getBlockPos().relative(input_facing));
+        snipped = ToolActions.shearEntities(getLevel(), aabb, 1);
       }
       if(snipped) {
         progress_ = 0;
@@ -1244,13 +1246,13 @@ public class RedAntHive
       progress_ = 0;
       max_progress_ = 200 * 100/animal_feeding_speed_percent;
       final ItemStack kibble = new ItemStack(food, 2);
-      if(left_storage_slot_range_.stream().filter(s->s.isItemEqual(kibble)).mapToInt(ItemStack::getCount).sum() <= 0) return false;
+      if(left_storage_slot_range_.stream().filter(s->s.sameItem(kibble)).mapToInt(ItemStack::getCount).sum() <= 0) return false;
       final AxisAlignedBB aabb = workingRange(animal_feeding_xz_radius, 2, 0);
-      List<AnimalEntity> animals = getWorld().getEntitiesWithinAABB(AnimalEntity.class, aabb, a->(a.isAlive()));
+      List<AnimalEntity> animals = getLevel().getEntitiesOfClass(AnimalEntity.class, aabb, a->(a.isAlive()));
       final double progress_delay = 1.0/MathHelper.clamp(1.0-(Math.max(animals.size()*animals.size(), 1.0)/Math.max(animal_feeding_entity_limit*animal_feeding_entity_limit, 16.0)), 0.05,1.0);
-      Auxiliaries.logDebug("" + getPos() + ": animals:" + animals.size() + "/" + animal_feeding_entity_limit + " feeding delay rate:" + progress_delay);
+      Auxiliaries.logDebug("" + getBlockPos() + ": animals:" + animals.size() + "/" + animal_feeding_entity_limit + " feeding delay rate:" + progress_delay);
       if(animals.size() >= animal_feeding_entity_limit) { max_progress_ = (int)(600*progress_delay); return false; }
-      animals = animals.stream().filter(a->(!a.isChild()) && (a.isBreedingItem(kibble)) && (a.canFallInLove()) && (!a.isInLove()) && entityCooldownExpired(a.getUniqueID())).collect(Collectors.toList());
+      animals = animals.stream().filter(a->(!a.isBaby()) && (a.isFood(kibble)) && (a.canFallInLove()) && (!a.isInLove()) && entityCooldownExpired(a.getUUID())).collect(Collectors.toList());
       if(animals.size() >= 2) {
         for(int i=0; i<animals.size()-1; ++i) {
           for(int j=i+1; j<animals.size(); ++j) {
@@ -1259,8 +1261,8 @@ public class RedAntHive
               animals.get(i).setInLove((PlayerEntity)null);
               animals.get(j).setInLove((PlayerEntity)null);
               final int cooldown = (int)(20*600* 100/animal_feeding_speed_percent / progress_delay);
-              entityCooldown(animals.get(i).getUniqueID(), cooldown);
-              entityCooldown(animals.get(j).getUniqueID(), cooldown);
+              entityCooldown(animals.get(i).getUUID(), cooldown);
+              entityCooldown(animals.get(j).getUUID(), cooldown);
               max_progress_ = (int)(600 * progress_delay);
               return false;
             }
@@ -1277,7 +1279,7 @@ public class RedAntHive
       progress_ = 0;
       max_progress_ = 300 * 100/farming_speed_percent;
       boolean dirty = false;
-      final int range_ref = MathHelper.clamp(((hoe instanceof TieredItem) ? (((TieredItem)hoe).getTier().getHarvestLevel()):0), 0, 4);
+      final int range_ref = MathHelper.clamp(((hoe instanceof TieredItem) ? (((TieredItem)hoe).getTier().getLevel()):0), 0, 4);
       final int range_rad = range_ref+1;
       final Auxiliaries.BlockPosRange range = Auxiliaries.BlockPosRange.of(workingRange(range_rad, 1, 0));
       final int[] step_sizes = {5,13,31,47,71};
@@ -1285,28 +1287,28 @@ public class RedAntHive
       final int volume = range.getVolume();
       final int max_count = (range_ref/2) + 1;
       final int max_search_count = 5;
-      final ITag<Item> fertilizers = TagCollectionManager.getManager().getItemTags().get(new ResourceLocation(ModAnthillInside.MODID, "fertilizers"));
+      final ITag<Item> fertilizers = TagCollectionManager.getInstance().getItems().getTag(new ResourceLocation(ModAnthillInside.MODID, "fertilizers"));
       int fertilizer_slot = -1;
       if(fertilizers!=null) {
-        fertilizer_slot = (left_storage_slot_range_.find((slot,stack)->stack.getItem().isIn(fertilizers) ? Optional.of(slot) : Optional.empty()).orElse(-1));
+        fertilizer_slot = (left_storage_slot_range_.find((slot,stack)->stack.getItem().is(fertilizers) ? Optional.of(slot) : Optional.empty()).orElse(-1));
       }
       if(fertilizer_slot < 0) {
         fertilizer_slot = (left_storage_slot_range_.find((slot,stack)->stack.getItem() == Items.BONE_MEAL ? Optional.of(slot) : Optional.empty()).orElse(-1));
       }
-      final ItemStack fertilizer = (fertilizer_slot>=0) ? left_storage_slot_range_.getStackInSlot(fertilizer_slot).copy() : ItemStack.EMPTY;
+      final ItemStack fertilizer = (fertilizer_slot>=0) ? left_storage_slot_range_.getItem(fertilizer_slot).copy() : ItemStack.EMPTY;
       for(int search_count = max_search_count; search_count > 0; --search_count) {
         for(int i=0; i<max_count; ++i) {
           universal_task_index_ = (universal_task_index_ + step_size) % volume;
           final BlockPos pos = range.byXZYIndex(universal_task_index_);
-          final Optional<List<ItemStack>> drops = ToolActions.harvestCrop((ServerWorld)getWorld(), pos, true, fertilizer);
+          final Optional<List<ItemStack>> drops = ToolActions.harvestCrop((ServerWorld)getLevel(), pos, true, fertilizer);
           if(!drops.isPresent()) continue;
-          if(!drops.get().isEmpty()) getWorld().playSound(null, pos, SoundEvents.ITEM_CROP_PLANT, SoundCategory.BLOCKS, 0.6f, 1.4f);
+          if(!drops.get().isEmpty()) getLevel().playSound(null, pos, SoundEvents.CROP_PLANTED, SoundCategory.BLOCKS, 0.6f, 1.4f);
           for(ItemStack stack:drops.get()) right_storage_slot_range_.insert(stack); // skip/void excess
           search_count = 0;
         }
       }
       if(fertilizer_slot >= 0) {
-        left_storage_slot_range_.setInventorySlotContents(fertilizer_slot, fertilizer.isEmpty() ? ItemStack.EMPTY : fertilizer);
+        left_storage_slot_range_.setItem(fertilizer_slot, fertilizer.isEmpty() ? ItemStack.EMPTY : fertilizer);
       }
       return dirty;
     }
@@ -1317,8 +1319,8 @@ public class RedAntHive
       progress_ = -40;
       if(is_done) {
         if(!getResultSlot().isEmpty()) {
-          cache_slot_range_.setInventorySlotContents(0, getResultSlot()); // replace input potion with result
-          cache_slot_range_.setInventorySlotContents(1, ItemStack.EMPTY); // consume ingredient
+          cache_slot_range_.setItem(0, getResultSlot()); // replace input potion with result
+          cache_slot_range_.setItem(1, ItemStack.EMPTY); // consume ingredient
           setResultSlot(ItemStack.EMPTY);
         }
         cache_slot_range_.move(right_storage_slot_range_);
@@ -1328,7 +1330,7 @@ public class RedAntHive
         return true;
       } else {
         final Inventories.InventoryRange input_slots = left_storage_slot_range_;
-        Crafting.BrewingOutput brewing_output = Crafting.BrewingOutput.find(world, input_slots, input_slots);
+        Crafting.BrewingOutput brewing_output = Crafting.BrewingOutput.find(level, input_slots, input_slots);
         if(brewing_output.item.isEmpty()) {
           // No ingredients or potions.
           state_flags_.noingr(true);
@@ -1341,11 +1343,11 @@ public class RedAntHive
           final boolean enough_fuel = input_slots.iterate((slot,stack)->{
             if(fuel_left_ >= fuel_time_needed) return true;
             if((slot == brewing_output.ingredientSlot) || (slot == brewing_output.potionSlot) || (stack.isEmpty())) return false;
-            int t = Crafting.getBrewingFuelBurntime(world, stack) * brewing_fuel_efficiency_percent / 100;
+            int t = Crafting.getBrewingFuelBurntime(level, stack) * brewing_fuel_efficiency_percent / 100;
             if(t <= 0) return false;
             while((stack.getCount() > 0) && (fuel_left_ < fuel_time_needed)) {
               final ItemStack consumed = stack.split(1);
-              Tuple<Integer,ItemStack> bt_and_rem = Crafting.consumeBrewingFuel(getWorld(), consumed);
+              Tuple<Integer,ItemStack> bt_and_rem = Crafting.consumeBrewingFuel(getLevel(), consumed);
               fuel_left_ += bt_and_rem.getA();
               if(!bt_and_rem.getB().isEmpty()) {
                 final ItemStack container_item = bt_and_rem.getB();
@@ -1359,7 +1361,7 @@ public class RedAntHive
               }
             }
             if(stack.isEmpty()) stack = ItemStack.EMPTY;
-            input_slots.setInventorySlotContents(slot, stack);
+            input_slots.setItem(slot, stack);
             return false;
           });
           if(!enough_fuel) {
@@ -1377,8 +1379,8 @@ public class RedAntHive
           fuel_left_ -= fuel_time_needed;
           max_progress_ = brewing_output.brewTime;
           progress_ = 0;
-          cache_slot_range_.setInventorySlotContents(0, input_slots.getStackInSlot(brewing_output.potionSlot).split(1));
-          cache_slot_range_.setInventorySlotContents(1, input_slots.getStackInSlot(brewing_output.ingredientSlot).split(1));
+          cache_slot_range_.setItem(0, input_slots.getItem(brewing_output.potionSlot).split(1));
+          cache_slot_range_.setItem(1, input_slots.getItem(brewing_output.ingredientSlot).split(1));
           return true;
         }
       }
@@ -1389,14 +1391,14 @@ public class RedAntHive
       if(!cache_slot_range_.isEmpty()) return false;
       boolean changed = false;
       for(int i=0; i<left_storage_slot_range_.size(); ++i) {
-        final ItemStack stack = left_storage_slot_range_.getStackInSlot(i);
+        final ItemStack stack = left_storage_slot_range_.getItem(i);
         if(stack.isEmpty() || (stack.getItem()==RED_SUGAR_ITEM) ||
-          (Crafting.isBrewingFuel(world, stack)) ||
-          (Crafting.isBrewingIngredient(world, stack)) ||
-          (Crafting.isBrewingInput(world, stack))
+          (Crafting.isBrewingFuel(level, stack)) ||
+          (Crafting.isBrewingIngredient(level, stack)) ||
+          (Crafting.isBrewingInput(level, stack))
         ) continue;
         if(left_storage_slot_range_.move(i, right_storage_slot_range_)) {
-          if(left_storage_slot_range_.getStackInSlot(i).isEmpty()) return true;
+          if(left_storage_slot_range_.getItem(i).isEmpty()) return true;
           changed = true;
         }
       }
@@ -1410,21 +1412,21 @@ public class RedAntHive
       fuel_left_ = 0;
       if(is_done) {
         if(!getResultSlot().isEmpty()) {
-          ItemStack input_stack = cache_slot_range_.getStackInSlot(0);
-          cache_slot_range_.setInventorySlotContents(0, getResultSlot()); // replace input potion with result
+          ItemStack input_stack = cache_slot_range_.getItem(0);
+          cache_slot_range_.setItem(0, getResultSlot()); // replace input potion with result
           setResultSlot(ItemStack.EMPTY);
-          List<ItemStack> enchanted_books = Crafting.removeEnchantmentsOnItem(world, input_stack, (e, l)->true)
+          List<ItemStack> enchanted_books = Crafting.removeEnchantmentsOnItem(level, input_stack, (e, l)->true)
             .entrySet().stream()
             .filter(e->!e.getKey().isCurse())
             .sorted(Comparator.comparingInt(e->e.getValue()))
-            .map(e->Crafting.getEnchantmentBook(world, e.getKey(), e.getValue()))
+            .map(e->Crafting.getEnchantmentBook(level, e.getKey(), e.getValue()))
             .filter(e->!e.isEmpty())
             .limit(cache_slot_range_.size()-1)
             .collect(Collectors.toList());
           for(int i=0; i<cache_slot_range_.size(); ++i) {
-            if(cache_slot_range_.getStackInSlot(i).getItem()!=Items.BOOK) continue;
+            if(cache_slot_range_.getItem(i).getItem()!=Items.BOOK) continue;
             if(enchanted_books.isEmpty()) break;
-            cache_slot_range_.setInventorySlotContents(i, enchanted_books.remove(0));
+            cache_slot_range_.setItem(i, enchanted_books.remove(0));
           }
         }
         cache_slot_range_.move(right_storage_slot_range_);
@@ -1442,17 +1444,17 @@ public class RedAntHive
         // Check disenchanting
         {
           final Optional<Tuple<Integer,ItemStack>> match = input_slots.find((slot,stack)->{
-            return Crafting.getEnchantmentsOnItem(world, stack).isEmpty() ? Optional.empty() : Optional.of(new Tuple<>(slot,stack));
+            return Crafting.getEnchantmentsOnItem(level, stack).isEmpty() ? Optional.empty() : Optional.of(new Tuple<>(slot,stack));
           });
           if(match.isPresent()) {
             input_slot = match.get().getA();
             input_stack = match.get().getB();
             output_stack = input_stack.copy();
-            List<ItemStack> enchanted_books = Crafting.removeEnchantmentsOnItem(world, output_stack, (e, l)->true)
+            List<ItemStack> enchanted_books = Crafting.removeEnchantmentsOnItem(level, output_stack, (e, l)->true)
               .entrySet().stream()
               .filter(e->!e.getKey().isCurse())
               .sorted(Comparator.comparingInt(e->e.getValue()))
-              .map(e->Crafting.getEnchantmentBook(world, e.getKey(), e.getValue()))
+              .map(e->Crafting.getEnchantmentBook(level, e.getKey(), e.getValue()))
               .filter(e->!e.isEmpty())
               .limit(cache_slot_range_.size()-1)
               .collect(Collectors.toList());
@@ -1460,7 +1462,7 @@ public class RedAntHive
             for(ItemStack enchanted_book:enchanted_books) {
               if(input_slots.extract(new ItemStack(Items.BOOK,1)).isEmpty()) break;
               secondary_output_stacks.add(new ItemStack(Items.BOOK));
-              additional_processing_time += (Crafting.getEnchantmentRepairCost(world, Crafting.getEnchantmentsOnItem(world, enchanted_book))+1) * 160;
+              additional_processing_time += (Crafting.getEnchantmentRepairCost(level, Crafting.getEnchantmentsOnItem(level, enchanted_book))+1) * 160;
             }
           }
         }
@@ -1476,10 +1478,10 @@ public class RedAntHive
           setResultSlot(output_stack);
           max_progress_ = 60 + additional_processing_time;
           progress_ = 0;
-          cache_slot_range_.setInventorySlotContents(0, input_slots.getStackInSlot(input_slot).split(1));
+          cache_slot_range_.setItem(0, input_slots.getItem(input_slot).split(1));
           for(int i=0; i<secondary_output_stacks.size(); ++i) {
             if(i >= (cache_slot_range_.size()-1)) break;
-            cache_slot_range_.setInventorySlotContents(1+i, secondary_output_stacks.get(i));
+            cache_slot_range_.setItem(1+i, secondary_output_stacks.get(i));
           }
           return true;
         }
@@ -1491,13 +1493,13 @@ public class RedAntHive
       if(!cache_slot_range_.isEmpty()) return false;
       boolean changed = false;
       for(int i=0; i<left_storage_slot_range_.size(); ++i) {
-        final ItemStack stack = left_storage_slot_range_.getStackInSlot(i);
+        final ItemStack stack = left_storage_slot_range_.getItem(i);
         if(stack.isEmpty() || (stack.getItem()==RED_SUGAR_ITEM) ||
           (stack.getItem()==Items.BOOK) ||
-          (!Crafting.getEnchantmentsOnItem(world, stack).isEmpty())
+          (!Crafting.getEnchantmentsOnItem(level, stack).isEmpty())
         ) continue;
         if(left_storage_slot_range_.move(i, right_storage_slot_range_)) {
-          if(left_storage_slot_range_.getStackInSlot(i).isEmpty()) return true;
+          if(left_storage_slot_range_.getItem(i).isEmpty()) return true;
           changed = true;
         }
       }
@@ -1530,7 +1532,7 @@ public class RedAntHive
     private final int storage_slot_count;
 
     public RedAntHiveContainer(int cid, PlayerInventory player_inventory)
-    { this(cid, player_inventory, new Inventory(RedAntHiveTileEntity.NUM_MAIN_INVENTORY_SLOTS), IWorldPosCallable.DUMMY, new IntArray(RedAntHiveTileEntity.NUM_OF_FIELDS)); }
+    { this(cid, player_inventory, new Inventory(RedAntHiveTileEntity.NUM_MAIN_INVENTORY_SLOTS), IWorldPosCallable.NULL, new IntArray(RedAntHiveTileEntity.NUM_OF_FIELDS)); }
 
     private RedAntHiveContainer(int cid, PlayerInventory player_inventory, IInventory block_inventory, IWorldPosCallable wpc, IIntArray fields)
     {
@@ -1546,9 +1548,9 @@ public class RedAntHive
       right_storage_slot_range_ =  new Inventories.InventoryRange(inventory_, RedAntHiveTileEntity.RIGHT_STORAGE_START, RedAntHiveTileEntity.RIGHT_STORAGE_NUM_SLOTS, RedAntHiveTileEntity.RIGHT_STORAGE_NUM_ROWS);
       grid_storage_slot_range_  =  new Inventories.InventoryRange(inventory_, RedAntHiveTileEntity.GRID_STORAGE_START, RedAntHiveTileEntity.GRID_STORAGE_NUM_SLOTS, RedAntHiveTileEntity.GRID_STORAGE_NUM_ROWS);
       ant_slot_range_ =  new Inventories.InventoryRange(inventory_, RedAntHiveTileEntity.ANT_STORAGE_START, RedAntHiveTileEntity.ANT_STORAGE_NUM_SLOTS, RedAntHiveTileEntity.ANT_STORAGE_NUM_ROWS);
-      te_ = wpc_.apply((w,p)->{
-        inventory_.openInventory(player_);
-        final TileEntity te = w.getTileEntity(p);
+      te_ = wpc_.evaluate((w,p)->{
+        inventory_.startOpen(player_);
+        final TileEntity te = w.getBlockEntity(p);
         return (te instanceof RedAntHiveTileEntity) ? ((RedAntHiveTileEntity)te) : (null);
       }).orElse(null);
 
@@ -1565,7 +1567,7 @@ public class RedAntHive
               if((!te_.getStateFlags().filteredinsert()) || (inventory_index<0) || (inventory_index>=left_storage_slot_range_.size())) return;
               ItemStack filter_stack = new_stack.copy();
               filter_stack.setCount(1);
-              left_filter_slot_range_.setInventorySlotContents(inventory_index, filter_stack);
+              left_filter_slot_range_.setItem(inventory_index, filter_stack);
               sync();
             });
           }
@@ -1623,7 +1625,7 @@ public class RedAntHive
       storage_slot_count = i+1;
       // block slot fillup for stack synchronisation
       {
-        while(i<inventory_.getSizeInventory()-1) addSlot(new Containers.HiddenSlot(inventory_, ++i));
+        while(i<inventory_.getContainerSize()-1) addSlot(new Containers.HiddenSlot(inventory_, ++i));
       }
       // player slots hotbar
       for(int x=0; x<9; ++x) {
@@ -1635,7 +1637,7 @@ public class RedAntHive
           addSlot(new Slot(player_inventory, x+y*9+9, 8+x*18, 140+y*18));
         }
       }
-      this.trackIntArray(fields_);
+      this.addDataSlots(fields_);
     }
 
     // -----------------------------------------------------------------------------------------
@@ -1645,39 +1647,39 @@ public class RedAntHive
 
     private final void sync()
     {
-      inventory_.markDirty();
-      player_.inventory.markDirty();
-      detectAndSendChanges();
+      inventory_.setChanged();
+      player_.inventory.setChanged();
+      broadcastChanges();
     }
 
     // Container -------------------------------------------------------------------------------
 
     @Override
-    public boolean canInteractWith(PlayerEntity player)
-    { return inventory_.isUsableByPlayer(player); }
+    public boolean stillValid(PlayerEntity player)
+    { return inventory_.stillValid(player); }
 
     @Override
-    public void onContainerClosed(PlayerEntity player)
+    public void removed(PlayerEntity player)
     {
-      super.onContainerClosed(player);
-      inventory_.closeInventory(player);
+      super.removed(player);
+      inventory_.stopOpen(player);
     }
 
     @Override
-    public ItemStack transferStackInSlot(PlayerEntity player, int index)
+    public ItemStack quickMoveStack(PlayerEntity player, int index)
     {
-      final int player_start_index = inventory_.getSizeInventory();
+      final int player_start_index = inventory_.getContainerSize();
       Slot slot = getSlot(index);
-      if((slot==null) || (!slot.getHasStack())) return ItemStack.EMPTY;
-      ItemStack slot_stack = slot.getStack();
+      if((slot==null) || (!slot.hasItem())) return ItemStack.EMPTY;
+      ItemStack slot_stack = slot.getItem();
       ItemStack transferred = slot_stack.copy();
       if((index>=0) && (index<player_start_index)) {
         // Storage slots -> to player
-        if(!mergeItemStack(slot_stack, player_start_index, player_start_index+36, false)) return ItemStack.EMPTY;
+        if(!moveItemStackTo(slot_stack, player_start_index, player_start_index+36, false)) return ItemStack.EMPTY;
       } else if((index >= player_start_index) && (index <= player_start_index+36)) {
         // Player slot -> to storage
         if(slot_stack.getItem() == ANTS_ITEM) {
-          if(!mergeItemStack(slot_stack, RedAntHiveTileEntity.ANT_STORAGE_START, RedAntHiveTileEntity.ANT_STORAGE_START+RedAntHiveTileEntity.ANT_STORAGE_NUM_SLOTS, false)) {
+          if(!moveItemStackTo(slot_stack, RedAntHiveTileEntity.ANT_STORAGE_START, RedAntHiveTileEntity.ANT_STORAGE_START+RedAntHiveTileEntity.ANT_STORAGE_NUM_SLOTS, false)) {
             return ItemStack.EMPTY;
           }
         } else {
@@ -1691,9 +1693,9 @@ public class RedAntHive
         return ItemStack.EMPTY;
       }
       if(slot_stack.isEmpty()) {
-        slot.putStack(ItemStack.EMPTY);
+        slot.set(ItemStack.EMPTY);
       } else {
-        slot.onSlotChanged();
+        slot.setChanged();
       }
       if(slot_stack.getCount() == transferred.getCount()) return ItemStack.EMPTY;
       slot.onTake(player, slot_stack);
@@ -1701,25 +1703,25 @@ public class RedAntHive
     }
 
     @Override
-    public ItemStack slotClick(int slot, int dragType, ClickType clickType, PlayerEntity player)
+    public ItemStack clicked(int slot, int dragType, ClickType clickType, PlayerEntity player)
     {
       if((te_ == null)
       || (slot < 0) || (slot >= storage_slot_count)
       || (dragType != 0)
       || (clickType != ClickType.PICKUP)
-      || (getSlot(slot).getHasStack()) // <-- before super.slotClick()
+      || (getSlot(slot).hasItem()) // <-- before super.slotClick()
       || (!te_.getStateFlags().filteredinsert())
       ) {
-        return super.slotClick(slot, dragType, clickType, player);
+        return super.clicked(slot, dragType, clickType, player);
       }
       final int index = getSlot(slot).getSlotIndex() - left_storage_slot_range_.offset();
       if((index < 0) || (index >= left_storage_slot_range_.size())) {
-        return super.slotClick(slot, dragType, clickType, player);
+        return super.clicked(slot, dragType, clickType, player);
       } else {
-        final ItemStack stack = super.slotClick(slot, dragType, clickType, player);
-        if(!getSlot(slot).getHasStack()) { // <-- after super.slotClick()
+        final ItemStack stack = super.clicked(slot, dragType, clickType, player);
+        if(!getSlot(slot).hasItem()) { // <-- after super.slotClick()
           // Was just clicked, no item transfer -> clear
-          left_filter_slot_range_.setInventorySlotContents(index, ItemStack.EMPTY);
+          left_filter_slot_range_.setItem(index, ItemStack.EMPTY);
           sync();
         }
         return stack;
@@ -1730,14 +1732,14 @@ public class RedAntHive
 
     @OnlyIn(Dist.CLIENT)
     public void onGuiAction(CompoundNBT nbt)
-    { Networking.PacketContainerSyncClientToServer.sendToServer(windowId, nbt); }
+    { Networking.PacketContainerSyncClientToServer.sendToServer(containerId, nbt); }
 
     @OnlyIn(Dist.CLIENT)
     public void onGuiAction(String key, int value)
     {
       CompoundNBT nbt = new CompoundNBT();
       nbt.putInt(key, value);
-      Networking.PacketContainerSyncClientToServer.sendToServer(windowId, nbt);
+      Networking.PacketContainerSyncClientToServer.sendToServer(containerId, nbt);
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -1745,14 +1747,14 @@ public class RedAntHive
     {
       CompoundNBT nbt = new CompoundNBT();
       nbt.putString("action", message);
-      Networking.PacketContainerSyncClientToServer.sendToServer(windowId, nbt);
+      Networking.PacketContainerSyncClientToServer.sendToServer(containerId, nbt);
     }
 
     @OnlyIn(Dist.CLIENT)
     public void onGuiAction(String message, CompoundNBT nbt)
     {
       nbt.putString("action", message);
-      Networking.PacketContainerSyncClientToServer.sendToServer(windowId, nbt);
+      Networking.PacketContainerSyncClientToServer.sendToServer(containerId, nbt);
     }
 
     @Override
@@ -1773,9 +1775,9 @@ public class RedAntHive
         default: break;
       }
       if(changed) {
-        inventory_.markDirty();
-        player.inventory.markDirty();
-        detectAndSendChanges();
+        inventory_.setChanged();
+        player.inventory.setChanged();
+        broadcastChanges();
       }
     }
   }
@@ -1811,9 +1813,9 @@ public class RedAntHive
     {
       super(container, player_inventory, title, new ResourceLocation(ModAnthillInside.MODID, "textures/gui/hive_gui.png"));
       player_ = player_inventory.player;
-      xSize = 176;
-      ySize = 222;
-      gui_background_    = new Guis.BackgroundImage(background_image, xSize,ySize, new Coord2d(0,0));
+      imageWidth = 176;
+      imageHeight = 222;
+      gui_background_    = new Guis.BackgroundImage(background_image, imageWidth,imageHeight, new Coord2d(0,0));
       grid_background_   = new Guis.BackgroundImage(background_image, 54,54, new Coord2d(180,71));
       result_background_ = new Guis.BackgroundImage(background_image, 22,18, new Coord2d(206,49));
       progress_bar_      = new HorizontalProgressBar(background_image, 40,8, new Coord2d(180,0), new Coord2d(180,8));
@@ -1858,9 +1860,9 @@ public class RedAntHive
 
     private void update()
     {
-      final RedAntHiveContainer container = (RedAntHiveContainer)getContainer();
+      final RedAntHiveContainer container = (RedAntHiveContainer)getMenu();
       state_flags_.value(container.field(0));
-      final ItemStack cmdstack = container.command_slot.getStack();
+      final ItemStack cmdstack = container.command_slot.getItem();
       final boolean show_process = (!cmdstack.isEmpty()) && (command_items_with_process_bar.contains(cmdstack.getItem()));
       grid_background_.visible = (show_process && (command_items_grid_visible.contains(cmdstack.getItem())) || (!container.grid_storage_slot_range_.isEmpty()));
       container.grid_slots.forEach(slot->{slot.enabled=grid_background_.visible;});
@@ -1897,7 +1899,7 @@ public class RedAntHive
       left_filter_enable_.checked(state_flags_.filteredinsert());
       passthrough_enable_.checked(!state_flags_.nopassthrough());
 
-      final String prefix = ModContent.HIVE_BLOCK.getTranslationKey() + ".tooltips.";
+      final String prefix = ModContent.HIVE_BLOCK.getDescriptionId() + ".tooltips.";
       final int x0 = getGuiLeft(), y0 = getGuiTop();
       tooltip_.init(
         new TooltipDisplay.TipRange(
@@ -1946,19 +1948,19 @@ public class RedAntHive
         ),
         new TooltipDisplay.TipRange(
           x0+26, y0+18, 16,16,
-          ()->(getContainer().input_selection_slot.getHasStack() ? EMPTY_TOOLTIP : new TranslationTextComponent(prefix + "inputselect"))
+          ()->(getMenu().input_selection_slot.hasItem() ? EMPTY_TOOLTIP : new TranslationTextComponent(prefix + "inputselect"))
         ),
         new TooltipDisplay.TipRange(
           x0+134, y0+108, 16,16,
-          ()->(getContainer().output_selection_slot.getHasStack() ? EMPTY_TOOLTIP : new TranslationTextComponent(prefix + "outputselect"))
+          ()->(getMenu().output_selection_slot.hasItem() ? EMPTY_TOOLTIP : new TranslationTextComponent(prefix + "outputselect"))
         ),
         new TooltipDisplay.TipRange(
           x0+70, y0+50, 16,16,
-          ()->(getContainer().command_slot.getHasStack() ? EMPTY_TOOLTIP : new TranslationTextComponent(prefix + "workselect"))
+          ()->(getMenu().command_slot.hasItem() ? EMPTY_TOOLTIP : new TranslationTextComponent(prefix + "workselect"))
         ),
         new TooltipDisplay.TipRange(
           x0+62, y0+18, 52,16,
-          ()->(getContainer().ant_slot_range_.isEmpty() ? new TranslationTextComponent(prefix + "antslots") : EMPTY_TOOLTIP )
+          ()->(getMenu().ant_slot_range_.isEmpty() ? new TranslationTextComponent(prefix + "antslots") : EMPTY_TOOLTIP )
         )
       ).delay(400);
       update();
@@ -1973,20 +1975,20 @@ public class RedAntHive
     {
       renderBackground(mx);
       super.render(mx, mouseX, mouseY, partialTicks);
-      if(!tooltip_.render(mx, this, mouseX, mouseY)) renderHoveredTooltip(mx, mouseX, mouseY);
+      if(!tooltip_.render(mx, this, mouseX, mouseY)) renderTooltip(mx, mouseX, mouseY);
     }
 
     @Override
-    protected void drawGuiContainerForegroundLayer(MatrixStack mx, int x, int y)
+    protected void renderLabels(MatrixStack mx, int x, int y)
     {
-      font.func_243248_b(mx, title, (float)titleX+1, (float)titleY+1, 0x303030);
+      font.draw(mx, title, (float)titleLabelX+1, (float)titleLabelY+1, 0x303030);
     }
 
     @Override
-    protected void handleMouseClick(Slot slot, int slotId, int button, ClickType type)
+    protected void slotClicked(Slot slot, int slotId, int button, ClickType type)
     {
       tooltip_.resetTimer();
-      super.handleMouseClick(slot, slotId, button, type);
+      super.slotClicked(slot, slotId, button, type);
     }
 
     @Override
@@ -1998,12 +2000,12 @@ public class RedAntHive
 
     @Override
     @SuppressWarnings("deprecation")
-    protected void drawGuiContainerBackgroundLayer(MatrixStack mx, float partialTicks, int mouseX, int mouseY)
+    protected void renderBg(MatrixStack mx, float partialTicks, int mouseX, int mouseY)
     {
       RenderSystem.enableBlend();
       RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
-      getMinecraft().getTextureManager().bindTexture(background_image);
-      final RedAntHiveContainer container = (RedAntHiveContainer)getContainer();
+      getMinecraft().getTextureManager().bind(background_image);
+      final RedAntHiveContainer container = (RedAntHiveContainer)getMenu();
       final int x0=getGuiLeft(), y0=getGuiTop(), w=getXSize(), h=getYSize();
       // backgrounds images
       {
@@ -2019,15 +2021,15 @@ public class RedAntHive
       }
       // result slot
       {
-        final ItemStack stack = container.result_slot.getStack();
-        if(!stack.isEmpty()) renderItemTemplate(mx, stack, container.result_slot.xPos , container.result_slot.yPos);
+        final ItemStack stack = container.result_slot.getItem();
+        if(!stack.isEmpty()) renderItemTemplate(mx, stack, container.result_slot.x , container.result_slot.y);
       }
       // ants background
       {
         for(int i=0; i<RedAntHiveTileEntity.ANT_STORAGE_NUM_SLOTS; ++i) {
           final Slot slot = container.getSlot(RedAntHiveTileEntity.ANT_STORAGE_START+i);
-          if(slot.getStack().isEmpty()) {
-            renderItemTemplate(mx, new ItemStack(ANTS_ITEM), slot.xPos , slot.yPos);
+          if(slot.getItem().isEmpty()) {
+            renderItemTemplate(mx, new ItemStack(ANTS_ITEM), slot.x , slot.y);
           }
         }
       }
@@ -2036,10 +2038,10 @@ public class RedAntHive
         if(state_flags_.filteredinsert()) {
           for(int i=0; i<RedAntHiveTileEntity.LEFT_STORAGE_NUM_SLOTS; ++i) {
             final Slot slot = container.getSlot(RedAntHiveTileEntity.LEFT_STORAGE_START+i);
-            if(slot.getStack().isEmpty()) {
-              final ItemStack filter_stack = container.left_filter_slot_range_.getStackInSlot(i);
+            if(slot.getItem().isEmpty()) {
+              final ItemStack filter_stack = container.left_filter_slot_range_.getItem(i);
               if(!filter_stack.isEmpty()) {
-                renderItemTemplate(mx, filter_stack, slot.xPos , slot.yPos);
+                renderItemTemplate(mx, filter_stack, slot.x , slot.y);
               }
             }
           }

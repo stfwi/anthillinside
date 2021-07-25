@@ -34,6 +34,8 @@ import javax.annotation.Nonnull;
 import java.util.*;
 
 
+import net.minecraft.block.AbstractBlock;
+
 public class ModContent
 {
   private static final Logger LOGGER = ModAnthillInside.LOGGER;
@@ -45,7 +47,7 @@ public class ModContent
 
   public static final RedAntHive.RedAntHiveBlock HIVE_BLOCK = (RedAntHive.RedAntHiveBlock)(new RedAntHive.RedAntHiveBlock(
     StandardBlocks.CFG_CUTOUT|StandardBlocks.CFG_WATERLOGGABLE|StandardBlocks.CFG_LOOK_PLACEMENT,
-    Block.Properties.create(Material.ROCK, MaterialColor.STONE).hardnessAndResistance(2f, 6f).sound(SoundType.STONE),
+    AbstractBlock.Properties.of(Material.STONE, MaterialColor.STONE).strength(2f, 6f).sound(SoundType.STONE),
     new AxisAlignedBB[]{
       Auxiliaries.getPixeledAABB(1,1,0,15,15, 1),
       Auxiliaries.getPixeledAABB(0,0,1,16,16,16),
@@ -54,8 +56,8 @@ public class ModContent
 
   public static final RedAntTrail.RedAntTrailBlock TRAIL_BLOCK = (RedAntTrail.RedAntTrailBlock)(new RedAntTrail.RedAntTrailBlock(
     StandardBlocks.CFG_TRANSLUCENT|StandardBlocks.CFG_HORIZIONTAL|StandardBlocks.CFG_LOOK_PLACEMENT,
-    Block.Properties.create(Material.MISCELLANEOUS, MaterialColor.BROWN).hardnessAndResistance(0.1f, 3f).sound(SoundType.CROP)
-      .doesNotBlockMovement().notSolid().setAllowsSpawn((s,w,p,e)->false).jumpFactor(1.2f).tickRandomly()
+    AbstractBlock.Properties.of(Material.DECORATION, MaterialColor.COLOR_BROWN).strength(0.1f, 3f).sound(SoundType.CROP)
+      .noCollission().noOcclusion().isValidSpawn((s,w,p,e)->false).jumpFactor(1.2f).randomTicks()
   )).setRegistryName(new ResourceLocation(MODID, "trail"));
 
   private static final Block modBlocks[] = {
@@ -68,7 +70,7 @@ public class ModContent
   //--------------------------------------------------------------------------------------------------------------------
 
   private static Item.Properties default_item_properties()
-  { return (new Item.Properties()).group(ModAnthillInside.ITEMGROUP); }
+  { return (new Item.Properties()).tab(ModAnthillInside.ITEMGROUP); }
 
   public static final RedSugarItem RED_SUGAR_ITEM = (RedSugarItem)((new RedSugarItem(
     default_item_properties().rarity(Rarity.UNCOMMON)
@@ -89,7 +91,7 @@ public class ModContent
   //--------------------------------------------------------------------------------------------------------------------
 
   public static final TileEntityType<?> TET_HIVE = TileEntityType.Builder
-    .create(RedAntHive.RedAntHiveTileEntity::new, HIVE_BLOCK)
+    .of(RedAntHive.RedAntHiveTileEntity::new, HIVE_BLOCK)
     .build(null)
     .setRegistryName(MODID, "te_hive");
 
@@ -138,9 +140,9 @@ public class ModContent
       if(rl == null) continue;
       Item item;
       if(block instanceof StandardBlocks.IBlockItemFactory) {
-        item = ((StandardBlocks.IBlockItemFactory)block).getBlockItem(block, (new BlockItem.Properties().group(ModAnthillInside.ITEMGROUP)));
+        item = ((StandardBlocks.IBlockItemFactory)block).getBlockItem(block, (new Item.Properties().tab(ModAnthillInside.ITEMGROUP)));
       } else {
-        item = new BlockItem(block, (new BlockItem.Properties().group(ModAnthillInside.ITEMGROUP)));
+        item = new BlockItem(block, (new Item.Properties().tab(ModAnthillInside.ITEMGROUP)));
       }
       if((!items.containsValue(item)) && (!items.containsKey(item.getRegistryName())) ){
         items.put(rl, item.setRegistryName(rl));
@@ -173,7 +175,7 @@ public class ModContent
 
   public static final void registerContainerGuis()
   {
-    ScreenManager.registerFactory(CT_HIVE, RedAntHive.RedAntHiveGui::new);
+    ScreenManager.register(CT_HIVE, RedAntHive.RedAntHiveGui::new);
   }
 
   @OnlyIn(Dist.CLIENT)
@@ -189,16 +191,16 @@ public class ModContent
       if(block instanceof IStandardBlock) {
         switch(((IStandardBlock)block).getRenderTypeHint()) {
           case CUTOUT:
-            RenderTypeLookup.setRenderLayer(block, RenderType.getCutout());
+            RenderTypeLookup.setRenderLayer(block, RenderType.cutout());
             break;
           case CUTOUT_MIPPED:
-            RenderTypeLookup.setRenderLayer(block, RenderType.getCutoutMipped());
+            RenderTypeLookup.setRenderLayer(block, RenderType.cutoutMipped());
             break;
           case TRANSLUCENT:
-            RenderTypeLookup.setRenderLayer(block, RenderType.getTranslucent());
+            RenderTypeLookup.setRenderLayer(block, RenderType.translucent());
             break;
           case TRANSLUCENT_NO_CRUMBLING:
-            RenderTypeLookup.setRenderLayer(block, RenderType.getTranslucentNoCrumbling());
+            RenderTypeLookup.setRenderLayer(block, RenderType.translucentNoCrumbling());
             break;
           case SOLID:
             break;

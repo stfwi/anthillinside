@@ -44,19 +44,19 @@ public class Crafting
     protected static final CraftingGrid instance3x3 = new CraftingGrid(3,3);
 
     protected CraftingGrid(int width, int height)
-    { super(new Container(null,0) { public boolean canInteractWith(PlayerEntity player) { return false; } }, width, height); }
+    { super(new Container(null,0) { public boolean stillValid(PlayerEntity player) { return false; } }, width, height); }
 
     protected void fill(IInventory grid)
-    { for(int i=0; i<getSizeInventory(); ++i) setInventorySlotContents(i, i>=grid.getSizeInventory() ? ItemStack.EMPTY : grid.getStackInSlot(i)); }
+    { for(int i=0; i<getContainerSize(); ++i) setItem(i, i>=grid.getContainerSize() ? ItemStack.EMPTY : grid.getItem(i)); }
 
     public List<ICraftingRecipe> getRecipes(World world, IInventory grid)
-    { fill(grid); return world.getRecipeManager().getRecipes(IRecipeType.CRAFTING, this, world); }
+    { fill(grid); return world.getRecipeManager().getRecipesFor(IRecipeType.CRAFTING, this, world); }
 
     public List<ItemStack> getRemainingItems(World world, IInventory grid, ICraftingRecipe recipe)
     { fill(grid); return recipe.getRemainingItems(this); }
 
     public ItemStack getCraftingResult(World world, IInventory grid, ICraftingRecipe recipe)
-    { fill(grid); return recipe.getCraftingResult(this); }
+    { fill(grid); return recipe.assemble(this); }
   }
 
   /**
@@ -64,7 +64,7 @@ public class Crafting
    */
   public static final Optional<ICraftingRecipe> getCraftingRecipe(World world, ResourceLocation recipe_id)
   {
-    IRecipe<?> recipe = world.getRecipeManager().getRecipe(recipe_id).orElse(null);
+    IRecipe<?> recipe = world.getRecipeManager().byKey(recipe_id).orElse(null);
     return (recipe instanceof ICraftingRecipe) ? Optional.of((ICraftingRecipe)recipe) : Optional.empty();
   }
 
@@ -96,7 +96,7 @@ public class Crafting
   {
     final int width = 3;
     final int height = 3;
-    if(!recipe.canFit(width,height)) return Collections.emptyList();
+    if(!recipe.canCraftInDimensions(width,height)) return Collections.emptyList();
     List<ItemStack> used = new ArrayList<>();   //NonNullList.withSize(width*height);
     for(int i=width*height; i>0; --i) used.add(ItemStack.EMPTY);
     IInventory check_inventory = Inventories.copyOf(item_inventory);
@@ -104,8 +104,8 @@ public class Crafting
     final List<Ingredient> ingredients = recipe.getIngredients();
     final List<ItemStack> preferred = new ArrayList<>(width*height);
     if(crafting_grid != null) {
-      for(int i=0; i<crafting_grid.getSizeInventory(); ++i) {
-        ItemStack stack = crafting_grid.getStackInSlot(i);
+      for(int i=0; i<crafting_grid.getContainerSize(); ++i) {
+        ItemStack stack = crafting_grid.getItem(i);
         if(stack.isEmpty()) continue;
         stack = stack.copy();
         stack.setCount(1);
@@ -153,18 +153,18 @@ public class Crafting
       return Optional.empty();
     } else if(recipe_type == IRecipeType.SMELTING) {
       Inventory inventory = new Inventory(3);
-      inventory.setInventorySlotContents(0, input_stack);
-      FurnaceRecipe recipe = world.getRecipeManager().getRecipe(IRecipeType.SMELTING, inventory, world).orElse(null);
+      inventory.setItem(0, input_stack);
+      FurnaceRecipe recipe = world.getRecipeManager().getRecipeFor(IRecipeType.SMELTING, inventory, world).orElse(null);
       return (recipe==null) ? Optional.empty() : Optional.of(recipe);
     } else if(recipe_type == IRecipeType.BLASTING) {
       Inventory inventory = new Inventory(3);
-      inventory.setInventorySlotContents(0, input_stack);
-      BlastingRecipe recipe = world.getRecipeManager().getRecipe(IRecipeType.BLASTING, inventory, world).orElse(null);
+      inventory.setItem(0, input_stack);
+      BlastingRecipe recipe = world.getRecipeManager().getRecipeFor(IRecipeType.BLASTING, inventory, world).orElse(null);
       return (recipe==null) ? Optional.empty() : Optional.of(recipe);
     } else if(recipe_type == IRecipeType.SMOKING) {
       Inventory inventory = new Inventory(3);
-      inventory.setInventorySlotContents(0, input_stack);
-      SmokingRecipe recipe = world.getRecipeManager().getRecipe(IRecipeType.SMOKING, inventory, world).orElse(null);
+      inventory.setItem(0, input_stack);
+      SmokingRecipe recipe = world.getRecipeManager().getRecipeFor(IRecipeType.SMOKING, inventory, world).orElse(null);
       return (recipe==null) ? Optional.empty() : Optional.of(recipe);
     } else {
       return Optional.empty();
@@ -272,11 +272,11 @@ public class Crafting
 
     public static BrewingOutput find(World world, IInventory potion_inventory, IInventory ingredient_inventory)
     {
-      for(int potion_slot = 0; potion_slot<potion_inventory.getSizeInventory(); ++potion_slot) {
-        final ItemStack pstack = potion_inventory.getStackInSlot(potion_slot);
+      for(int potion_slot = 0; potion_slot<potion_inventory.getContainerSize(); ++potion_slot) {
+        final ItemStack pstack = potion_inventory.getItem(potion_slot);
         if(!isBrewingInput(world, pstack)) continue;
-        for(int ingredient_slot = 0; ingredient_slot<ingredient_inventory.getSizeInventory(); ++ingredient_slot) {
-          final ItemStack istack = ingredient_inventory.getStackInSlot(ingredient_slot);
+        for(int ingredient_slot = 0; ingredient_slot<ingredient_inventory.getContainerSize(); ++ingredient_slot) {
+          final ItemStack istack = ingredient_inventory.getItem(ingredient_slot);
           if((!isBrewingIngredient(world, istack)) || (ingredient_slot == potion_slot) || (isBrewingFuel(world, istack))) continue;
           final ItemStack result = BrewingRecipeRegistry.getOutput(pstack, istack);
           if(result.isEmpty()) continue;
@@ -290,7 +290,7 @@ public class Crafting
   // -------------------------------------------------------------------------------------------------------------------
 
   public static final double getCompostingChance(ItemStack stack)
-  { return ComposterBlock.CHANCES.getOrDefault(stack.getItem(),0); }
+  { return ComposterBlock.COMPOSTABLES.getOrDefault(stack.getItem(),0); }
 
   // -------------------------------------------------------------------------------------------------------------------
 
@@ -304,7 +304,7 @@ public class Crafting
    * Returns an enchanted book with the given enchantment, emtpy stack if not applicable.
    */
   public static final ItemStack getEnchantmentBook(World world, Enchantment enchantment, int level)
-  { return ((!enchantment.isAllowedOnBooks()) || (level <= 0)) ? ItemStack.EMPTY : EnchantedBookItem.getEnchantedItemStack(new EnchantmentData(enchantment, level)); }
+  { return ((!enchantment.isAllowedOnBooks()) || (level <= 0)) ? ItemStack.EMPTY : EnchantedBookItem.createForEnchantment(new EnchantmentData(enchantment, level)); }
 
   /**
    * Returns the accumulated repair cost for the given enchantments.
@@ -324,8 +324,8 @@ public class Crafting
     if(stack.isEmpty() || (level <= 0) || (!stack.isEnchantable()) || (level >= enchantment.getMaxLevel())) return false;
     final Map<Enchantment, Integer> on_item = getEnchantmentsOnItem(world, stack);
     if(on_item.keySet().stream().anyMatch(ench-> ench.isCompatibleWith(enchantment))) return false;
-    final ItemStack book = EnchantedBookItem.getEnchantedItemStack(new EnchantmentData(enchantment, level));
-    if((!(stack.isBookEnchantable(book) && enchantment.isAllowedOnBooks())) && (!stack.canApplyAtEnchantingTable(enchantment)) && (!enchantment.canApply(stack))) return false;
+    final ItemStack book = EnchantedBookItem.createForEnchantment(new EnchantmentData(enchantment, level));
+    if((!(stack.isBookEnchantable(book) && enchantment.isAllowedOnBooks())) && (!stack.canApplyAtEnchantingTable(enchantment)) && (!enchantment.canEnchant(stack))) return false;
     final int existing_level = on_item.getOrDefault(enchantment, 0);
     if(existing_level == 0) {
       on_item.put(enchantment, level);

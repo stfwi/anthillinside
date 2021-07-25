@@ -28,38 +28,38 @@ public class Containers
     public StorageSlot setSlotStackLimit(int limit)
     { stack_limit_ = MathHelper.clamp(limit, 1, 64); return this; }
 
-    public int getSlotStackLimit()
+    public int getMaxStackSize()
     { return stack_limit_; }
 
     public StorageSlot setSlotChangeNotifier(BiConsumer<ItemStack, ItemStack> action)
     { slot_change_action_ = action; return this; }
 
     @Override
-    public void onSlotChange(ItemStack oldStack, ItemStack newStack)
+    public void onQuickCraft(ItemStack oldStack, ItemStack newStack)
     { slot_change_action_.accept(oldStack, newStack);} // no crafting trigger
 
     @Override
-    public void putStack(ItemStack stack)
+    public void set(ItemStack stack)
     {
-      if(stack.isItemEqual(getStack())) {
-        super.putStack(stack);
+      if(stack.sameItem(getItem())) {
+        super.set(stack);
       } else {
-        final ItemStack before = getStack().copy();
-        super.putStack(stack); // whatever this does else next to setting inventory.
-        slot_change_action_.accept(before, getStack());
+        final ItemStack before = getItem().copy();
+        super.set(stack); // whatever this does else next to setting inventory.
+        slot_change_action_.accept(before, getItem());
       }
     }
 
     @Override
-    public boolean isItemValid(ItemStack stack)
-    { return enabled && this.inventory.isItemValidForSlot(this.getSlotIndex(), stack); }
+    public boolean mayPlace(ItemStack stack)
+    { return enabled && this.container.canPlaceItem(this.getSlotIndex(), stack); }
 
     @Override
-    public int getItemStackLimit(ItemStack stack)
-    { return Math.min(getSlotStackLimit(), stack_limit_); }
+    public int getMaxStackSize(ItemStack stack)
+    { return Math.min(getMaxStackSize(), stack_limit_); }
 
     @OnlyIn(Dist.CLIENT)
-    public boolean isEnabled()
+    public boolean isActive()
     { return enabled; }
   }
 
@@ -74,23 +74,23 @@ public class Containers
     public LockedSlot setSlotStackLimit(int limit)
     { stack_limit_ = MathHelper.clamp(limit, 1, 64); return this; }
 
-    public int getSlotStackLimit()
+    public int getMaxStackSize()
     { return stack_limit_; }
 
     @Override
-    public int getItemStackLimit(ItemStack stack)
-    { return Math.min(getSlotStackLimit(), stack_limit_); }
+    public int getMaxStackSize(ItemStack stack)
+    { return Math.min(getMaxStackSize(), stack_limit_); }
 
     @Override
-    public boolean isItemValid(ItemStack stack)
+    public boolean mayPlace(ItemStack stack)
     { return false; }
 
     @Override
-    public boolean canTakeStack(PlayerEntity player)
+    public boolean mayPickup(PlayerEntity player)
     { return false; }
 
     @OnlyIn(Dist.CLIENT)
-    public boolean isEnabled()
+    public boolean isActive()
     { return enabled; }
   }
 
@@ -100,19 +100,19 @@ public class Containers
     { super(inventory, index, 0, 0); }
 
     @Override
-    public int getItemStackLimit(ItemStack stack)
-    { return getSlotStackLimit(); }
+    public int getMaxStackSize(ItemStack stack)
+    { return getMaxStackSize(); }
 
     @Override
-    public boolean isItemValid(ItemStack stack)
+    public boolean mayPlace(ItemStack stack)
     { return false; }
 
     @Override
-    public boolean canTakeStack(PlayerEntity player)
+    public boolean mayPickup(PlayerEntity player)
     { return false; }
 
     @OnlyIn(Dist.CLIENT)
-    public boolean isEnabled()
+    public boolean isActive()
     { return false; }
   }
 

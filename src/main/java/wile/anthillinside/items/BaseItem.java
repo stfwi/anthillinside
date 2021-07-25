@@ -27,11 +27,11 @@ import java.util.List;
 public class BaseItem extends Item
 {
   public BaseItem(Item.Properties properties)
-  { super(properties.group(ModAnthillInside.ITEMGROUP)); }
+  { super(properties.tab(ModAnthillInside.ITEMGROUP)); }
 
   @Override
   @OnlyIn(Dist.CLIENT)
-  public void addInformation(ItemStack stack, @Nullable World world, List<ITextComponent> tooltip, ITooltipFlag flag)
+  public void appendHoverText(ItemStack stack, @Nullable World world, List<ITextComponent> tooltip, ITooltipFlag flag)
   { Auxiliaries.Tooltip.addInformation(stack, world, tooltip, flag, true); }
 
   @Override

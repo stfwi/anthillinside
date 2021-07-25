@@ -45,6 +45,8 @@ import javax.annotation.Nullable;
 import java.util.*;
 
 
+import net.minecraft.block.AbstractBlock;
+
 public class RedAntTrail
 {
   private static double speed_modifier = 1.0;
@@ -65,26 +67,26 @@ public class RedAntTrail
     public static final BooleanProperty RIGHT = BooleanProperty.create("right");
     public static final BooleanProperty UP = BooleanProperty.create("up");
 
-    public RedAntTrailBlock(long config, Block.Properties builder)
+    public RedAntTrailBlock(long config, AbstractBlock.Properties builder)
     {
       super(config, builder, (states)->{
         final HashMap<BlockState,VoxelShape> shapes = new HashMap<>();
         final AxisAlignedBB base_aabb = Auxiliaries.getPixeledAABB(0,0,0,16,0.2,16);
         final AxisAlignedBB up_aabb   = Auxiliaries.getPixeledAABB(0,0,0,16,16,0.2);
         for(BlockState state:states) {
-          final Direction facing = state.get(HORIZONTAL_FACING);
+          final Direction facing = state.getValue(HORIZONTAL_FACING);
           VoxelShape shape = VoxelShapes.empty();
-          if(state.get(UP)) {
-            shape = VoxelShapes.combine(shape, VoxelShapes.create(Auxiliaries.getRotatedAABB(up_aabb, facing, true)), IBooleanFunction.OR);
+          if(state.getValue(UP)) {
+            shape = VoxelShapes.joinUnoptimized(shape, VoxelShapes.create(Auxiliaries.getRotatedAABB(up_aabb, facing, true)), IBooleanFunction.OR);
           }
-          if(state.get(FRONT) || (!state.get(UP))) {
-            shape = VoxelShapes.combine(shape, VoxelShapes.create(Auxiliaries.getRotatedAABB(base_aabb, facing, true)), IBooleanFunction.OR);
+          if(state.getValue(FRONT) || (!state.getValue(UP))) {
+            shape = VoxelShapes.joinUnoptimized(shape, VoxelShapes.create(Auxiliaries.getRotatedAABB(base_aabb, facing, true)), IBooleanFunction.OR);
           }
           shapes.putIfAbsent(state, shape);
         }
         return shapes;
       });
-      setDefaultState(super.getDefaultState().with(FRONT, true).with(UP, false).with(LEFT, false).with(RIGHT, false));
+      registerDefaultState(super.defaultBlockState().setValue(FRONT, true).setValue(UP, false).setValue(LEFT, false).setValue(RIGHT, false));
     }
 
     @Override
@@ -104,8 +106,8 @@ public class RedAntTrail
     { return Collections.singletonList(new ItemStack(asItem())); }
 
     @Override
-    protected void fillStateContainer(StateContainer.Builder<Block, BlockState> builder)
-    { super.fillStateContainer(builder); builder.add(FRONT, LEFT, RIGHT, UP); }
+    protected void createBlockStateDefinition(StateContainer.Builder<Block, BlockState> builder)
+    { super.createBlockStateDefinition(builder); builder.add(FRONT, LEFT, RIGHT, UP); }
 
     @Override
     @Nullable
@@ -113,63 +115,63 @@ public class RedAntTrail
     {
       BlockState state = super.getStateForPlacement(context);
       if(state == null) return state;
-      if((!state.get(UP)) && (context.getFace().getAxis().isVertical()) && (!Block.hasSolidSideOnTop(context.getWorld(), context.getPos().down()))) return null;
-      return updatedState(state, context.getWorld(), context.getPos());
+      if((!state.getValue(UP)) && (context.getClickedFace().getAxis().isVertical()) && (!Block.canSupportRigidBlock(context.getLevel(), context.getClickedPos().below()))) return null;
+      return updatedState(state, context.getLevel(), context.getClickedPos());
     }
 
     @Override
-    public void onBlockPlacedBy(World world, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack)
+    public void setPlacedBy(World world, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack)
     {
-      final Direction block_facing = state.get(HORIZONTAL_FACING);
+      final Direction block_facing = state.getValue(HORIZONTAL_FACING);
       for(Direction facing: Direction.values()) {
         if(!facing.getAxis().isHorizontal()) continue;
         if(facing == block_facing) continue;
-        final BlockPos diagonal_pos = pos.offset(facing).down();
+        final BlockPos diagonal_pos = pos.relative(facing).below();
         final BlockState diagonal_state = world.getBlockState(diagonal_pos);
-        if(!diagonal_state.isIn(this)) continue;
-        if(diagonal_state.get(UP)) continue;
-        final Direction diagonal_facing = diagonal_state.get(HORIZONTAL_FACING);
+        if(!diagonal_state.is(this)) continue;
+        if(diagonal_state.getValue(UP)) continue;
+        final Direction diagonal_facing = diagonal_state.getValue(HORIZONTAL_FACING);
         if(diagonal_facing != facing.getOpposite()) continue;
-        world.setBlockState(diagonal_pos, diagonal_state.with(UP, true), 2);
+        world.setBlock(diagonal_pos, diagonal_state.setValue(UP, true), 2);
       }
     }
 
     @Override
-    public BlockState updatePostPlacement(BlockState state, Direction facing, BlockState facingState, IWorld world, BlockPos pos, BlockPos facingPos)
+    public BlockState updateShape(BlockState state, Direction facing, BlockState facingState, IWorld world, BlockPos pos, BlockPos facingPos)
     {
       if(!(world instanceof World)) return state;
-      if(isValidPosition(state, world, pos)) return updatedState(state, world, pos);
-      return Blocks.AIR.getDefaultState();
+      if(canSurvive(state, world, pos)) return updatedState(state, world, pos);
+      return Blocks.AIR.defaultBlockState();
     }
 
     @Override
     @SuppressWarnings("deprecation")
-    public boolean isValidPosition(BlockState state, IWorldReader world, BlockPos pos)
+    public boolean canSurvive(BlockState state, IWorldReader world, BlockPos pos)
     {
-      if(Block.doesSideFillSquare(world.getBlockState(pos.down()).getShape(world, pos.down()), Direction.UP)) return true;
-      if(!state.get(UP)) return false;
-      Direction facing = state.get(HORIZONTAL_FACING);
-      if(!Block.doesSideFillSquare(world.getBlockState(pos.offset(facing)).getShape(world, pos.offset(facing)), facing.getOpposite())) return false;
+      if(Block.isFaceFull(world.getBlockState(pos.below()).getShape(world, pos.below()), Direction.UP)) return true;
+      if(!state.getValue(UP)) return false;
+      Direction facing = state.getValue(HORIZONTAL_FACING);
+      if(!Block.isFaceFull(world.getBlockState(pos.relative(facing)).getShape(world, pos.relative(facing)), facing.getOpposite())) return false;
       return true;
     }
 
     @Override
-    public ActionResultType onBlockActivated(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockRayTraceResult rtr)
+    public ActionResultType use(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockRayTraceResult rtr)
     {
-      Direction dir = rtr.getFace().getOpposite();
-      return world.getBlockState(pos.offset(dir)).onBlockActivated(world, player, hand, new BlockRayTraceResult(
-        rtr.getHitVec(), rtr.getFace(), pos.offset(dir), false
+      Direction dir = rtr.getDirection().getOpposite();
+      return world.getBlockState(pos.relative(dir)).use(world, player, hand, new BlockRayTraceResult(
+        rtr.getLocation(), rtr.getDirection(), pos.relative(dir), false
       ));
     }
 
     @Override
     @SuppressWarnings("deprecation")
-    public void onEntityCollision(BlockState state, World world, BlockPos pos, Entity entity)
+    public void entityInside(BlockState state, World world, BlockPos pos, Entity entity)
     {
       if(entity instanceof ItemEntity) {
         moveEntity(state, world, pos, entity);
-        if(state.get(UP) && (!world.getPendingBlockTicks().isTickScheduled(pos, this))) {
-          world.getPendingBlockTicks().scheduleTick(pos, this, 60);
+        if(state.getValue(UP) && (!world.getBlockTicks().hasScheduledTick(pos, this))) {
+          world.getBlockTicks().scheduleTick(pos, this, 60);
         }
       } else if(entity instanceof LivingEntity) {
         itchEntity(state, world, pos, entity);
@@ -179,18 +181,18 @@ public class RedAntTrail
     @Override
     public void tick(BlockState state, ServerWorld world, BlockPos pos, Random rand)
     {
-      if(!state.get(UP)) return;
-      final BlockState st = world.getBlockState(pos.up());
-      if(st==null || st.isIn(this)) return;
-      final List<ItemEntity> entities = world.getEntitiesWithinAABB(ItemEntity.class, new AxisAlignedBB(pos.up()).expand(0,-0.2,0), Entity::isAlive);
-      final Vector3d v = Vector3d.copy(state.get(HORIZONTAL_FACING).getDirectionVec()).add(0,1,0).scale(0.1);
-      for(ItemEntity entity:entities) entity.setMotion(v);
+      if(!state.getValue(UP)) return;
+      final BlockState st = world.getBlockState(pos.above());
+      if(st==null || st.is(this)) return;
+      final List<ItemEntity> entities = world.getEntitiesOfClass(ItemEntity.class, new AxisAlignedBB(pos.above()).expandTowards(0,-0.2,0), Entity::isAlive);
+      final Vector3d v = Vector3d.atLowerCornerOf(state.getValue(HORIZONTAL_FACING).getNormal()).add(0,1,0).scale(0.1);
+      for(ItemEntity entity:entities) entity.setDeltaMovement(v);
     }
 
     @Override
     @SuppressWarnings("deprecation")
     public void neighborChanged(BlockState state, World world, BlockPos pos, Block block, BlockPos fromPos, boolean unused)
-    { world.setBlockState(pos, updatedState(state, world, pos), 2); }
+    { world.setBlock(pos, updatedState(state, world, pos), 2); }
 
     @Override
     public boolean shouldCheckWeakPower(BlockState state, IWorldReader world, BlockPos pos, Direction side)
@@ -201,32 +203,32 @@ public class RedAntTrail
     { return true; }
 
     @Override
-    public boolean allowsMovement(BlockState state, IBlockReader world, BlockPos pos, PathType type)
-    { return (!state.get(UP)) || super.allowsMovement(state, world, pos, type); }
+    public boolean isPathfindable(BlockState state, IBlockReader world, BlockPos pos, PathType type)
+    { return (!state.getValue(UP)) || super.isPathfindable(state, world, pos, type); }
 
     //------------------------------------------------------------------------------------------------------
 
     public BlockState updatedState(@Nullable BlockState state, IWorld world, BlockPos pos)
     {
       if((state == null) || (!(world instanceof World))) return state;
-      final Direction facing = state.get(HORIZONTAL_FACING);
-      boolean down_solid = Block.hasSolidSideOnTop(world, pos.down());
-      boolean up_is_cube = world.getBlockState(pos.up()).isNormalCube(world, pos.up());
-      final boolean up = doesSideFillSquare(world.getBlockState(pos.offset(facing)).getShape(world, pos.offset(facing)), facing.getOpposite())
-        && ((!down_solid) || (world.getBlockState(pos.up()).isIn(this)) || ((!up_is_cube) && (world.getBlockState(pos.offset(facing).up()).isIn(this))));
+      final Direction facing = state.getValue(HORIZONTAL_FACING);
+      boolean down_solid = Block.canSupportRigidBlock(world, pos.below());
+      boolean up_is_cube = world.getBlockState(pos.above()).isRedstoneConductor(world, pos.above());
+      final boolean up = isFaceFull(world.getBlockState(pos.relative(facing)).getShape(world, pos.relative(facing)), facing.getOpposite())
+        && ((!down_solid) || (world.getBlockState(pos.above()).is(this)) || ((!up_is_cube) && (world.getBlockState(pos.relative(facing).above()).is(this))));
       boolean left = false, right = false;
       boolean front = down_solid;
-      if(((World)world).isBlockPowered(pos)) {
+      if(((World)world).hasNeighborSignal(pos)) {
         {
-          final BlockState right_state = world.getBlockState(pos.offset(facing.rotateY()));
-          if(right_state.isIn(this)) {
-            if(right_state.get(HORIZONTAL_FACING) == facing.rotateY()) right = true;
+          final BlockState right_state = world.getBlockState(pos.relative(facing.getClockWise()));
+          if(right_state.is(this)) {
+            if(right_state.getValue(HORIZONTAL_FACING) == facing.getClockWise()) right = true;
           }
         }
         {
-          final BlockState left_state = world.getBlockState(pos.offset(facing.rotateYCCW()));
-          if(left_state.isIn(this)) {
-            if(left_state.get(HORIZONTAL_FACING) == facing.rotateYCCW()) left = true;
+          final BlockState left_state = world.getBlockState(pos.relative(facing.getCounterClockWise()));
+          if(left_state.is(this)) {
+            if(left_state.getValue(HORIZONTAL_FACING) == facing.getCounterClockWise()) left = true;
           }
         }
         if(!right && !left) {
@@ -235,7 +237,7 @@ public class RedAntTrail
       } else if(!right && !left && !up) {
         front = true;
       }
-      state = state.with(FRONT, front).with(RIGHT, right).with(LEFT, left).with(UP, up);
+      state = state.setValue(FRONT, front).setValue(RIGHT, right).setValue(LEFT, left).setValue(UP, up);
       return state;
     }
 
@@ -244,31 +246,31 @@ public class RedAntTrail
       if((!any_entity.isAlive()) || (!(any_entity instanceof ItemEntity))) return;
       final ItemEntity entity = (ItemEntity)any_entity;
       if(entity.getItem().isEmpty() || entity.getItem().getItem() == ModContent.ANTS_ITEM) return;
-      final boolean up = state.get(UP);
+      final boolean up = state.getValue(UP);
       if(!up && !entity.isOnGround()) return;
       double speed = 7e-2 * speed_modifier;
-      final Vector3d dp = entity.getPositionVec().subtract(pos.getX()+0.5, pos.getY()+0.5, pos.getZ()+0.5).scale(2);
+      final Vector3d dp = entity.position().subtract(pos.getX()+0.5, pos.getY()+0.5, pos.getZ()+0.5).scale(2);
       if((!up) && (dp.y > 0)) speed *= 0.2;
       boolean outgoing = false, check_insertion_front = false, check_insertion_up = false;
-      final boolean front = state.get(FRONT);
-      boolean right = state.get(RIGHT);
-      boolean left = state.get(LEFT);
-      final Direction block_facing = state.get(HORIZONTAL_FACING);
+      final boolean front = state.getValue(FRONT);
+      boolean right = state.getValue(RIGHT);
+      boolean left = state.getValue(LEFT);
+      final Direction block_facing = state.getValue(HORIZONTAL_FACING);
       final Optional<Direction> sorting_diversion = (left || right || (!front && !up)) ? Optional.empty() : itemFrameDiversion(world, pos, entity.getItem());
-      Vector3d motion = Vector3d.copy(block_facing.getDirectionVec());
+      Vector3d motion = Vector3d.atLowerCornerOf(block_facing.getNormal());
       if(sorting_diversion.isPresent()) {
         final Direction sorting_direction = sorting_diversion.get();
         if((sorting_direction != block_facing) && (sorting_direction != block_facing.getOpposite()) && (sorting_direction != Direction.UP)) {
           if(sorting_direction == Direction.DOWN) {
             // check insertion
-            if(!world.isRemote()) {
+            if(!world.isClientSide()) {
               if(tryInsertItemEntity(world, pos, Direction.DOWN, entity)) {
-                entity.setMotion(entity.getMotion().scale(0.7));
+                entity.setDeltaMovement(entity.getDeltaMovement().scale(0.7));
                 return;
               }
             }
           } else {
-            motion = Vector3d.copy(sorting_direction.getDirectionVec());
+            motion = Vector3d.atLowerCornerOf(sorting_direction.getNormal());
             right = false;
             left = false;
             outgoing = true;
@@ -276,22 +278,22 @@ public class RedAntTrail
         }
       }
       if(right) {
-        final Direction facing_right = block_facing.rotateY();
-        final BlockState right_state = world.getBlockState(pos.offset(facing_right));
-        if(right_state.isIn(this)) {
-          final Direction dir = right_state.get(HORIZONTAL_FACING);
+        final Direction facing_right = block_facing.getClockWise();
+        final BlockState right_state = world.getBlockState(pos.relative(facing_right));
+        if(right_state.is(this)) {
+          final Direction dir = right_state.getValue(HORIZONTAL_FACING);
           if(dir == facing_right) {
-            motion = Vector3d.copy(facing_right.getDirectionVec());
+            motion = Vector3d.atLowerCornerOf(facing_right.getNormal());
             outgoing = true;
           }
         }
       } else if(left) {
-        final Direction facing_left  = block_facing.rotateYCCW();
-        final BlockState left_state = world.getBlockState(pos.offset(facing_left));
-        if(left_state.isIn(this)) {
-          final Direction dir = left_state.get(HORIZONTAL_FACING);
+        final Direction facing_left  = block_facing.getCounterClockWise();
+        final BlockState left_state = world.getBlockState(pos.relative(facing_left));
+        if(left_state.is(this)) {
+          final Direction dir = left_state.getValue(HORIZONTAL_FACING);
           if(dir == facing_left) {
-            motion = Vector3d.copy(facing_left.getDirectionVec());
+            motion = Vector3d.atLowerCornerOf(facing_left.getNormal());
             outgoing = true;
           }
         }
@@ -305,31 +307,31 @@ public class RedAntTrail
             if(up) centering_motion.scale(2);
             motion = motion.add(centering_motion);
           }
-          final BlockState ahead_state = world.getBlockState(pos.offset(block_facing));
-          if(!outgoing && ahead_state.isIn(this)) {
-            final Direction dir = ahead_state.get(HORIZONTAL_FACING);
+          final BlockState ahead_state = world.getBlockState(pos.relative(block_facing));
+          if(!outgoing && ahead_state.is(this)) {
+            final Direction dir = ahead_state.getValue(HORIZONTAL_FACING);
             if(dir == block_facing) {
               motion = motion.scale(2);
             } else if(dir == block_facing.getOpposite()) {
               motion = motion.scale(0.5);
-            } else if(ahead_state.get(UP)) {
+            } else if(ahead_state.getValue(UP)) {
               motion = motion.scale(2);
             }
           }
-          final double progress = dp.getCoordinate(block_facing.getAxis()) * Vector3d.copy(block_facing.getDirectionVec()).getCoordinate(block_facing.getAxis());
+          final double progress = dp.get(block_facing.getAxis()) * Vector3d.atLowerCornerOf(block_facing.getNormal()).get(block_facing.getAxis());
           double y_speed = -0.1 * Math.min(dp.y, 0.5);
           if(!up) {
             if((progress > 0.7) && front) check_insertion_front = true;
           } else {
             if(front && (dp.y < 0.3) && (progress < 0.6)) {
               y_speed = 0.08;
-            } else if((progress > 0.7) && (world.getBlockState(pos.up().offset(block_facing)).isIn(this))) {
+            } else if((progress > 0.7) && (world.getBlockState(pos.above().relative(block_facing)).is(this))) {
               motion = motion.scale(1.2);
               y_speed = 0.14;
             } else {
               y_speed = 0.1;
             }
-            if((dp.y >= 0.4) && (!world.getBlockState(pos.up()).isIn(this))) {
+            if((dp.y >= 0.4) && (!world.getBlockState(pos.above()).is(this))) {
               check_insertion_up = true;
             }
           }
@@ -337,54 +339,54 @@ public class RedAntTrail
           motion = motion.scale(speed).add(0, y_speed, 0);
         }
       }
-      if((check_insertion_front || check_insertion_up) && (!world.isRemote())) {
+      if((check_insertion_front || check_insertion_up) && (!world.isClientSide())) {
         if(!entity.getItem().isEmpty()){
           final Direction insertion_facing = check_insertion_up ? Direction.UP : block_facing;
           tryInsertItemEntity(world, pos, insertion_facing, entity);
         }
       }
-      if(state.get(WATERLOGGED)) motion.add(0,-0.1,0);
-      motion = entity.getMotion().scale(0.5).add(motion);
-      entity.setMotion(motion);
+      if(state.getValue(WATERLOGGED)) motion.add(0,-0.1,0);
+      motion = entity.getDeltaMovement().scale(0.5).add(motion);
+      entity.setDeltaMovement(motion);
     }
 
     public void itchEntity(BlockState state, World world, BlockPos pos, Entity entity)
     {
       if((world.getRandom().nextDouble() > 8e-3) || (!entity.isAlive()) || (!entity.isOnGround())
-         || (world.isRemote()) || (entity.isSneaking()) || (!entity.isNonBoss()) || (entity.isWet()) || (entity.isAirBorne)
+         || (world.isClientSide()) || (entity.isShiftKeyDown()) || (!entity.canChangeDimensions()) || (entity.isInWaterOrRain()) || (entity.hasImpulse)
          || (!(entity instanceof LivingEntity))
       ) {
         return;
       }
       if(entity instanceof MonsterEntity) {
-        entity.attackEntityFrom(DamageSource.CACTUS, 2f);
+        entity.hurt(DamageSource.CACTUS, 2f);
       } else if(entity instanceof PlayerEntity) {
         if(world.getRandom().nextDouble() > 1e-1) return;
-        entity.attackEntityFrom(DamageSource.CACTUS, 0.1f);
+        entity.hurt(DamageSource.CACTUS, 0.1f);
       } else {
-        entity.attackEntityFrom(DamageSource.CACTUS, 0.0f);
+        entity.hurt(DamageSource.CACTUS, 0.0f);
         if(entity instanceof VillagerEntity) {
-          ((VillagerEntity)entity).getBrain().switchTo(Activity.PANIC);
+          ((VillagerEntity)entity).getBrain().setActiveActivityIfPossible(Activity.PANIC);
         } else if(entity instanceof AnimalEntity) {
-          ((AnimalEntity)entity).getBrain().switchTo(Activity.PANIC);
+          ((AnimalEntity)entity).getBrain().setActiveActivityIfPossible(Activity.PANIC);
         }
       }
     }
 
     private Optional<Direction> itemFrameDiversion(World world, BlockPos pos, ItemStack match_stack)
     {
-      List<ItemFrameEntity> frames = world.getEntitiesWithinAABB(ItemFrameEntity.class, new AxisAlignedBB(pos));
+      List<ItemFrameEntity> frames = world.getEntitiesOfClass(ItemFrameEntity.class, new AxisAlignedBB(pos));
       if(frames.isEmpty()) return Optional.empty();
       for(ItemFrameEntity frame:frames) {
-        if(!frame.getDisplayedItem().isItemEqualIgnoreDurability(match_stack)) continue;
-        return Optional.of(frame.getHorizontalFacing());
+        if(!frame.getItem().sameItemStackIgnoreDurability(match_stack)) continue;
+        return Optional.of(frame.getDirection());
       }
       return Optional.empty();
     }
 
     private boolean tryInsertItemEntity(World world, BlockPos pos, Direction insertion_facing, ItemEntity entity)
     {
-      final IItemHandler ih = Inventories.itemhandler(world, pos.offset(insertion_facing), insertion_facing.getOpposite());
+      final IItemHandler ih = Inventories.itemhandler(world, pos.relative(insertion_facing), insertion_facing.getOpposite());
       if(ih == null) return false;
       ItemStack stack = entity.getItem().copy();
       final ItemStack remaining = Inventories.insert(ih, stack, false);
