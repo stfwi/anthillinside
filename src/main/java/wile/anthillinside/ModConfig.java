@@ -9,9 +9,9 @@
  */
 package wile.anthillinside;
 
-import net.minecraft.block.Block;
-import net.minecraft.item.Item;
-import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.block.Block;
 import net.minecraftforge.common.ForgeConfigSpec;
 import org.apache.logging.log4j.Logger;
 import org.apache.commons.lang3.tuple.Pair;
@@ -135,10 +135,10 @@ public class ModConfig
   // Optout checks
   //--------------------------------------------------------------------------------------------------------------------
 
-  public static final boolean isOptedOut(final @Nullable Block block)
+  public static boolean isOptedOut(final @Nullable Block block)
   { return isOptedOut(block.asItem()); }
 
-  public static final boolean isOptedOut(final @Nullable Item item)
+  public static boolean isOptedOut(final @Nullable Item item)
   { return (item!=null) && optouts_.contains(item.getRegistryName().getPath()); }
 
   public static boolean withExperimental()
@@ -154,21 +154,21 @@ public class ModConfig
   // Cache
   //--------------------------------------------------------------------------------------------------------------------
 
-  private static final CompoundNBT server_config_ = new CompoundNBT();
+  private static final CompoundTag server_config_ = new CompoundTag();
   private static HashSet<String> optouts_ = new HashSet<>();
   private static boolean with_experimental_features_ = false;
   private static boolean with_config_logging_ = false;
 
-  public static final CompoundNBT getServerConfig()
+  public static CompoundTag getServerConfig()
   { return server_config_; }
 
-  private static final void updateOptouts()
+  private static void updateOptouts()
   {
     final ArrayList<String> includes = new ArrayList<>();
     final ArrayList<String> excludes = new ArrayList<>();
     {
       String inc = COMMON.pattern_includes.get().toLowerCase().replaceAll(MODID+":", "").replaceAll("[^*_,a-z0-9]", "");
-      if(COMMON.pattern_includes.get() != inc) COMMON.pattern_includes.set(inc);
+      if(!COMMON.pattern_includes.get().equals(inc)) COMMON.pattern_includes.set(inc);
       String[] incl = inc.split(",");
       for(int i=0; i< incl.length; ++i) {
         incl[i] = incl[i].replaceAll("[*]", ".*?");
@@ -222,7 +222,7 @@ public class ModConfig
     }
   }
 
-  public static final void apply()
+  public static void apply()
   {
     if((!COMMON_CONFIG_SPEC.isLoaded())) return;
     with_config_logging_ = COMMON.with_config_logging.get();
@@ -240,7 +240,7 @@ public class ModConfig
     );
   }
 
-  public static final void log(String config_message)
+  public static void log(String config_message)
   {
     if(!with_config_logging_) return;
     LOGGER.info(config_message);

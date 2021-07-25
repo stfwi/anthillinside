@@ -8,24 +8,24 @@
  */
 package wile.anthillinside.libmc.detail;
 
-import net.minecraft.block.ComposterBlock;
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.enchantment.EnchantmentData;
-import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.inventory.CraftingInventory;
-import net.minecraft.inventory.IInventory;
-import net.minecraft.inventory.Inventory;
-import net.minecraft.inventory.container.Container;
-import net.minecraft.item.EnchantedBookItem;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.item.crafting.*;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.core.NonNullList;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.util.Tuple;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.World;
+import net.minecraft.world.Container;
+import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.CraftingContainer;
+import net.minecraft.world.item.EnchantedBookItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.*;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.EnchantmentInstance;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.ComposterBlock;
 import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.common.brewing.BrewingRecipeRegistry;
 import wile.anthillinside.libmc.detail.Inventories.InventoryRange;
@@ -39,67 +39,67 @@ public class Crafting
 {
   // -------------------------------------------------------------------------------------------------------------------
 
-  public static final class CraftingGrid extends CraftingInventory
+  public static final class CraftingGrid extends CraftingContainer
   {
     protected static final CraftingGrid instance3x3 = new CraftingGrid(3,3);
 
     protected CraftingGrid(int width, int height)
-    { super(new Container(null,0) { public boolean stillValid(PlayerEntity player) { return false; } }, width, height); }
+    { super(new AbstractContainerMenu(null,0) { public boolean stillValid(Player player) { return false; } }, width, height); }
 
-    protected void fill(IInventory grid)
+    protected void fill(Container grid)
     { for(int i=0; i<getContainerSize(); ++i) setItem(i, i>=grid.getContainerSize() ? ItemStack.EMPTY : grid.getItem(i)); }
 
-    public List<ICraftingRecipe> getRecipes(World world, IInventory grid)
-    { fill(grid); return world.getRecipeManager().getRecipesFor(IRecipeType.CRAFTING, this, world); }
+    public List<CraftingRecipe> getRecipes(Level world, Container grid)
+    { fill(grid); return world.getRecipeManager().getRecipesFor(RecipeType.CRAFTING, this, world); }
 
-    public List<ItemStack> getRemainingItems(World world, IInventory grid, ICraftingRecipe recipe)
+    public List<ItemStack> getRemainingItems(Level world, Container grid, CraftingRecipe recipe)
     { fill(grid); return recipe.getRemainingItems(this); }
 
-    public ItemStack getCraftingResult(World world, IInventory grid, ICraftingRecipe recipe)
+    public ItemStack getCraftingResult(Level world, Container grid, CraftingRecipe recipe)
     { fill(grid); return recipe.assemble(this); }
   }
 
   /**
    * Returns a Crafting recipe by registry name.
    */
-  public static final Optional<ICraftingRecipe> getCraftingRecipe(World world, ResourceLocation recipe_id)
+  public static Optional<CraftingRecipe> getCraftingRecipe(Level world, ResourceLocation recipe_id)
   {
-    IRecipe<?> recipe = world.getRecipeManager().byKey(recipe_id).orElse(null);
-    return (recipe instanceof ICraftingRecipe) ? Optional.of((ICraftingRecipe)recipe) : Optional.empty();
+    Recipe<?> recipe = world.getRecipeManager().byKey(recipe_id).orElse(null);
+    return (recipe instanceof CraftingRecipe) ? Optional.of((CraftingRecipe)recipe) : Optional.empty();
   }
 
   /**
    * Returns a list of matching recipes by the first N slots (crafting grid slots) of the given inventory.
    */
-  public static final List<ICraftingRecipe> get3x3CraftingRecipes(World world, IInventory crafting_grid_slots)
+  public static List<CraftingRecipe> get3x3CraftingRecipes(Level world, Container crafting_grid_slots)
   { return CraftingGrid.instance3x3.getRecipes(world, crafting_grid_slots); }
 
   /**
    * Returns a recipe by the first N slots (crafting grid slots).
    */
-  public static final Optional<ICraftingRecipe> get3x3CraftingRecipe(World world, IInventory crafting_grid_slots)
+  public static Optional<CraftingRecipe> get3x3CraftingRecipe(Level world, Container crafting_grid_slots)
   { return get3x3CraftingRecipes(world, crafting_grid_slots).stream().findFirst(); }
 
   /**
    * Returns the result item of the recipe with the given grid layout.
    */
-  public static final ItemStack get3x3CraftingResult(World world, IInventory grid, ICraftingRecipe recipe)
+  public static ItemStack get3x3CraftingResult(Level world, Container grid, CraftingRecipe recipe)
   { return CraftingGrid.instance3x3.getCraftingResult(world, grid, recipe); }
 
   /**
    * Returns the items remaining in the grid after crafting 3x3.
    */
-  public static final List<ItemStack> get3x3RemainingItems(World world, IInventory grid, ICraftingRecipe recipe)
+  public static List<ItemStack> get3x3RemainingItems(Level world, Container grid, CraftingRecipe recipe)
   { return CraftingGrid.instance3x3.getRemainingItems(world, grid, recipe); }
 
-  public static final List<ItemStack> get3x3Placement(World world, ICraftingRecipe recipe, IInventory item_inventory, @Nullable IInventory crafting_grid)
+  public static List<ItemStack> get3x3Placement(Level world, CraftingRecipe recipe, Container item_inventory, @Nullable Container crafting_grid)
   {
     final int width = 3;
     final int height = 3;
     if(!recipe.canCraftInDimensions(width,height)) return Collections.emptyList();
     List<ItemStack> used = new ArrayList<>();   //NonNullList.withSize(width*height);
     for(int i=width*height; i>0; --i) used.add(ItemStack.EMPTY);
-    IInventory check_inventory = Inventories.copyOf(item_inventory);
+    Container check_inventory = Inventories.copyOf(item_inventory);
     InventoryRange source = new InventoryRange(check_inventory);
     final List<Ingredient> ingredients = recipe.getIngredients();
     final List<ItemStack> preferred = new ArrayList<>(width*height);
@@ -127,9 +127,8 @@ public class Crafting
       }
       used.set(i, stack);
     }
-    if(recipe instanceof ShapedRecipe) {
+    if(recipe instanceof ShapedRecipe shaped) {
       List<ItemStack> placement = NonNullList.withSize(width*height, ItemStack.EMPTY);
-      ShapedRecipe shaped = (ShapedRecipe)recipe;
       for(int row=0; row<shaped.getRecipeHeight(); ++row) {
         for(int col=0; col<shaped.getRecipeWidth(); ++col) {
           placement.set(width*row+col, used.get(row*shaped.getRecipeWidth()+col));
@@ -147,24 +146,24 @@ public class Crafting
    * Returns the recipe for a given input stack to smelt, null if there is no recipe
    * for the given type (SMELTING,BLASTING,SMOKING, etc).
    */
-  public static final <T extends IRecipe<?>> Optional<AbstractCookingRecipe> getFurnaceRecipe(IRecipeType<T> recipe_type, World world, ItemStack input_stack)
+  public static <T extends Recipe<?>> Optional<AbstractCookingRecipe> getFurnaceRecipe(RecipeType<T> recipe_type, Level world, ItemStack input_stack)
   {
     if(input_stack.isEmpty()) {
       return Optional.empty();
-    } else if(recipe_type == IRecipeType.SMELTING) {
-      Inventory inventory = new Inventory(3);
+    } else if(recipe_type == RecipeType.SMELTING) {
+      SimpleContainer inventory = new SimpleContainer(3);
       inventory.setItem(0, input_stack);
-      FurnaceRecipe recipe = world.getRecipeManager().getRecipeFor(IRecipeType.SMELTING, inventory, world).orElse(null);
+      SmeltingRecipe recipe = world.getRecipeManager().getRecipeFor(RecipeType.SMELTING, inventory, world).orElse(null);
       return (recipe==null) ? Optional.empty() : Optional.of(recipe);
-    } else if(recipe_type == IRecipeType.BLASTING) {
-      Inventory inventory = new Inventory(3);
+    } else if(recipe_type == RecipeType.BLASTING) {
+      SimpleContainer inventory = new SimpleContainer(3);
       inventory.setItem(0, input_stack);
-      BlastingRecipe recipe = world.getRecipeManager().getRecipeFor(IRecipeType.BLASTING, inventory, world).orElse(null);
+      BlastingRecipe recipe = world.getRecipeManager().getRecipeFor(RecipeType.BLASTING, inventory, world).orElse(null);
       return (recipe==null) ? Optional.empty() : Optional.of(recipe);
-    } else if(recipe_type == IRecipeType.SMOKING) {
-      Inventory inventory = new Inventory(3);
+    } else if(recipe_type == RecipeType.SMOKING) {
+      SimpleContainer inventory = new SimpleContainer(3);
       inventory.setItem(0, input_stack);
-      SmokingRecipe recipe = world.getRecipeManager().getRecipeFor(IRecipeType.SMOKING, inventory, world).orElse(null);
+      SmokingRecipe recipe = world.getRecipeManager().getRecipeFor(RecipeType.SMOKING, inventory, world).orElse(null);
       return (recipe==null) ? Optional.empty() : Optional.of(recipe);
     } else {
       return Optional.empty();
@@ -174,23 +173,23 @@ public class Crafting
   /**
    * Returns the burn time of an item when used as fuel, 0 if it is no fuel.
    */
-  public static final int getFuelBurntime(World world, ItemStack stack)
+  public static int getFuelBurntime(Level world, ItemStack stack)
   {
     if(stack.isEmpty()) return 0;
-    int t = ForgeHooks.getBurnTime(stack);
-    return (t<0) ? 0 : t;
+    int t = ForgeHooks.getBurnTime(stack, null);
+    return Math.max(t, 0);
   }
 
   /**
    * Returns true if an item can be used as fuel.
    */
-  public static final boolean isFuel(World world, ItemStack stack)
+  public static boolean isFuel(Level world, ItemStack stack)
   { return (getFuelBurntime(world, stack) > 0) || (stack.getItem()==Items.LAVA_BUCKET); }
 
   /**
    * Returns burntime and remaining stack then the item shall be used as fuel.
    */
-  public static final Tuple<Integer,ItemStack> consumeFuel(World world, ItemStack stack)
+  public static Tuple<Integer,ItemStack> consumeFuel(Level world, ItemStack stack)
   {
     if(stack.isEmpty()) return new Tuple<>(0,stack);
     int burnime = getFuelBurntime(world, stack);
@@ -211,25 +210,25 @@ public class Crafting
   /**
    * Returns true if the item can be used as brewing fuel.
    */
-  public static final boolean isBrewingFuel(World world, ItemStack stack)
+  public static boolean isBrewingFuel(Level world, ItemStack stack)
   { return (stack.getItem() == Items.BLAZE_POWDER) || (stack.getItem() == Items.BLAZE_ROD); }
 
   /**
    * Returns true if the item can be used as brewing ingredient.
    */
-  public static final boolean isBrewingIngredient(World world, ItemStack stack)
+  public static boolean isBrewingIngredient(Level world, ItemStack stack)
   { return BrewingRecipeRegistry.isValidIngredient(stack); }
 
   /**
    * Returns true if the item can be used as brewing bottle.
    */
-  public static final boolean isBrewingInput(World world, ItemStack stack)
+  public static boolean isBrewingInput(Level world, ItemStack stack)
   { return BrewingRecipeRegistry.isValidInput(stack); }
 
   /**
    * Returns the burn time for brewing of the given stack.
    */
-  public static final int getBrewingFuelBurntime(World world, ItemStack stack)
+  public static int getBrewingFuelBurntime(Level world, ItemStack stack)
   {
     if(stack.isEmpty()) return 0;
     if(stack.getItem() == Items.BLAZE_POWDER) return (400*20);
@@ -240,7 +239,7 @@ public class Crafting
   /**
    * Returns brewing burn time and remaining stack if the item shall be used as fuel.
    */
-  public static final Tuple<Integer,ItemStack> consumeBrewingFuel(World world, ItemStack stack)
+  public static Tuple<Integer,ItemStack> consumeBrewingFuel(Level world, ItemStack stack)
   {
     int burntime = getBrewingFuelBurntime(world, stack);
     if(burntime <= 0) return new Tuple<>(0, stack.copy());
@@ -252,15 +251,15 @@ public class Crafting
   public static final class BrewingOutput
   {
     public static final int DEFAULT_BREWING_TIME = 400;
-    public static final BrewingOutput EMPTY = new BrewingOutput(ItemStack.EMPTY, new Inventory(1), new Inventory(1), 0,0, DEFAULT_BREWING_TIME);
+    public static final BrewingOutput EMPTY = new BrewingOutput(ItemStack.EMPTY, new SimpleContainer(1), new SimpleContainer(1), 0,0, DEFAULT_BREWING_TIME);
     public final ItemStack item;
-    public final IInventory potionInventory;
-    public final IInventory ingredientInventory;
+    public final Container potionInventory;
+    public final Container ingredientInventory;
     public final int potionSlot;
     public final int ingredientSlot;
     public final int brewTime;
 
-    public BrewingOutput(ItemStack output_potion, IInventory potion_inventory, IInventory ingredient_inventory, int potion_slot, int  ingredient_slot, int time_needed)
+    public BrewingOutput(ItemStack output_potion, Container potion_inventory, Container ingredient_inventory, int potion_slot, int  ingredient_slot, int time_needed)
     {
       item = output_potion;
       potionInventory = potion_inventory;
@@ -270,7 +269,7 @@ public class Crafting
       brewTime = time_needed;
     }
 
-    public static BrewingOutput find(World world, IInventory potion_inventory, IInventory ingredient_inventory)
+    public static BrewingOutput find(Level world, Container potion_inventory, Container ingredient_inventory)
     {
       for(int potion_slot = 0; potion_slot<potion_inventory.getContainerSize(); ++potion_slot) {
         final ItemStack pstack = potion_inventory.getItem(potion_slot);
@@ -289,7 +288,7 @@ public class Crafting
 
   // -------------------------------------------------------------------------------------------------------------------
 
-  public static final double getCompostingChance(ItemStack stack)
+  public static double getCompostingChance(ItemStack stack)
   { return ComposterBlock.COMPOSTABLES.getOrDefault(stack.getItem(),0); }
 
   // -------------------------------------------------------------------------------------------------------------------
@@ -297,42 +296,38 @@ public class Crafting
   /**
    * Returns the enchtments bound to the given stack.
    */
-  public static final Map<Enchantment, Integer> getEnchantmentsOnItem(World world, ItemStack stack)
+  public static Map<Enchantment, Integer> getEnchantmentsOnItem(Level world, ItemStack stack)
   { return (stack.isEmpty() || (stack.getTag()==null)) ? Collections.emptyMap() : EnchantmentHelper.getEnchantments(stack); }
 
   /**
    * Returns an enchanted book with the given enchantment, emtpy stack if not applicable.
    */
-  public static final ItemStack getEnchantmentBook(World world, Enchantment enchantment, int level)
-  { return ((!enchantment.isAllowedOnBooks()) || (level <= 0)) ? ItemStack.EMPTY : EnchantedBookItem.createForEnchantment(new EnchantmentData(enchantment, level)); }
+  public static ItemStack getEnchantmentBook(Level world, Enchantment enchantment, int level)
+  { return ((!enchantment.isAllowedOnBooks()) || (level <= 0)) ? ItemStack.EMPTY : EnchantedBookItem.createForEnchantment(new EnchantmentInstance(enchantment, level)); }
 
   /**
    * Returns the accumulated repair cost for the given enchantments.
    */
-  public static final int getEnchantmentRepairCost(World world, Map<Enchantment, Integer> enchantments)
+  public static int getEnchantmentRepairCost(Level world, Map<Enchantment, Integer> enchantments)
   {
     int repair_cost = 0;
-    for(Map.Entry e:enchantments.entrySet()) repair_cost = repair_cost * 2 + 1; // @see: RepairContainer.getNewRepairCost()
+    for(Map.Entry<Enchantment, Integer> e:enchantments.entrySet()) repair_cost = repair_cost * 2 + 1; // @see: RepairContainer.getNewRepairCost()
     return repair_cost;
   }
 
   /**
    * Trys to add an enchtment to the given stack, returns boolean success.
    */
-  public static final boolean addEnchantmentOnItem(World world, ItemStack stack, Enchantment enchantment, int level)
+  public static boolean addEnchantmentOnItem(Level world, ItemStack stack, Enchantment enchantment, int level)
   {
     if(stack.isEmpty() || (level <= 0) || (!stack.isEnchantable()) || (level >= enchantment.getMaxLevel())) return false;
     final Map<Enchantment, Integer> on_item = getEnchantmentsOnItem(world, stack);
     if(on_item.keySet().stream().anyMatch(ench-> ench.isCompatibleWith(enchantment))) return false;
-    final ItemStack book = EnchantedBookItem.createForEnchantment(new EnchantmentData(enchantment, level));
+    final ItemStack book = EnchantedBookItem.createForEnchantment(new EnchantmentInstance(enchantment, level));
     if((!(stack.isBookEnchantable(book) && enchantment.isAllowedOnBooks())) && (!stack.canApplyAtEnchantingTable(enchantment)) && (!enchantment.canEnchant(stack))) return false;
     final int existing_level = on_item.getOrDefault(enchantment, 0);
-    if(existing_level == 0) {
-      on_item.put(enchantment, level);
-    } else {
-      level = MathHelper.clamp(level+existing_level, 1, enchantment.getMaxLevel());
-      on_item.put(enchantment, level);
-    }
+    if(existing_level > 0) level = Mth.clamp(level+existing_level, 1, enchantment.getMaxLevel());
+    on_item.put(enchantment, level);
     EnchantmentHelper.setEnchantments(on_item, stack);
     stack.setRepairCost(getEnchantmentRepairCost(world, on_item));
     return true;
@@ -341,7 +336,7 @@ public class Crafting
   /**
    * Removes enchantments from a stack, returns the removed enchantments.
    */
-  public static final Map<Enchantment, Integer> removeEnchantmentsOnItem(World world, ItemStack stack, BiPredicate<Enchantment,Integer> filter)
+  public static Map<Enchantment, Integer> removeEnchantmentsOnItem(Level world, ItemStack stack, BiPredicate<Enchantment,Integer> filter)
   {
     if(stack.isEmpty()) return Collections.emptyMap();
     final Map<Enchantment, Integer> on_item = getEnchantmentsOnItem(world, stack);

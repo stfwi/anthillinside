@@ -9,11 +9,11 @@
  */
 package wile.anthillinside.libmc.detail;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
-import net.minecraft.client.gui.screen.inventory.ContainerScreen;
-import net.minecraft.inventory.container.Container;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.text.ITextComponent;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
@@ -31,8 +31,8 @@ public class TooltipDisplay
 
   public static void config(long delay, int max_deviation)
   {
-    default_delay = MathHelper.clamp(delay, 500, 5000);
-    default_max_deviation = MathHelper.clamp(max_deviation, 1, 5);
+    default_delay = Mth.clamp(delay, 500, 5000);
+    default_max_deviation = Mth.clamp(max_deviation, 1, 5);
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -40,12 +40,12 @@ public class TooltipDisplay
   public static class TipRange
   {
     public final int x0,y0,x1,y1;
-    public final Supplier<ITextComponent> text;
+    public final Supplier<Component> text;
 
-    public TipRange(int x, int y, int w, int h, ITextComponent text)
+    public TipRange(int x, int y, int w, int h, Component text)
     { this(x,y,w,h,()->text); }
 
-    public TipRange(int x, int y, int w, int h, Supplier<ITextComponent> text)
+    public TipRange(int x, int y, int w, int h, Supplier<Component> text)
     { this.text=text; this.x0=x; this.y0=y; this.x1=x0+w-1; this.y1=y0+h-1; }
 
   }
@@ -84,7 +84,7 @@ public class TooltipDisplay
   public void resetTimer()
   { t = System.currentTimeMillis(); }
 
-  public <T extends Container> boolean render(MatrixStack mx, final ContainerScreen<T> gui, int x, int y)
+  public <T extends AbstractContainerMenu> boolean render(PoseStack mx, final AbstractContainerScreen<T> gui, int x, int y)
   {
     if(had_render_exception) return false;
     if((Math.abs(x-x_last) > max_deviation) || (Math.abs(y-y_last) > max_deviation)) {

@@ -54,6 +54,9 @@ clean-all:
 	@echo "[1.16] Cleaning using gradle ..."
 	@rm -rf mcmodsrepo
 	@rm -f dist/*
+	@rm -rf build/
+	@rm -rf out/
+	@rm -rf logs/
 	@rm -rf run/logs/
 	@rm -rf run/crash-reports/
 	@$(GRADLE) clean
@@ -61,13 +64,13 @@ clean-all:
 mrproper: clean-all
 	@rm -f meta/*.*
 	@rm -rf run/
-	@rm -rf out/
 	@rm -f .project
 	@rm -f .classpath
 
 init:
 	@echo "[1.16] Initialising eclipse workspace using gradle ..."
-	@$(GRADLE) eclipse
+#	@$(GRADLE) eclipse
+	@$(GRADLE) genIntellijRuns
 
 sanitize:
 	@echo "[1.16] Running sanitising tasks ..."

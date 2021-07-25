@@ -1,6 +1,7 @@
 {
   "homepage": "https://www.curseforge.com/minecraft/mc-mods/engineers-tools/",
-  "1.16.5": {
+  "1.17.1": {
+    "1.0.7-b1": "[U] Initial 1.17.1 port.",
     "1.0.6": "[A] Bonemeal fertilizing non-experimental.\n[F] Fixed Potion insertion bug.",
     "1.0.6-b2": "[M] Hive: Adaptive animal feeding cool-down (the more animals already seen, the slower the breeding speed).\n[M] Trail: Itching damage for animals tuned down.\n[M] Hive: Redstone pulse on input/output side added for sending off minecarts after loading/unloading.",
     "1.0.6-b1": "[A] Hive: Item Disenchanting (Grind Stone) added.\n[A] Trail: Item sorting with item frames added.",
@@ -14,7 +15,7 @@
     "1.0.0-b1": "[U] Initial concept implementation."
   },
   "promos": {
-    "1.16.5-recommended": "1.0.6",
-    "1.16.5-latest": "1.0.6"
+    "1.17.1-recommended": "1.0.6",
+    "1.17.1-latest": "1.0.7-b1"
   }
 }

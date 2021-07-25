@@ -1,10 +1,10 @@
 
-## Anthill Inside (MC1.16.x)
+## Anthill Inside (MC1.17.x)
 
 ----
 ## Version history
 
-    ~ v1.0.7-b1   [F]
+    - v1.0.7-b1   [U] Initial 1.17.1 port.
 
     - v1.0.6      [A] Bonemeal fertilizing non-experimental.
                   [F] Fixed Potion insertion bug.

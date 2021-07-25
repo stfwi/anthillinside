@@ -8,14 +8,15 @@
  */
 package wile.anthillinside.libmc.detail;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
-import net.minecraft.client.MainWindow;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.text.ITextComponent;
+
+import com.mojang.blaze3d.platform.Window;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.AbstractGui;
-import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
+import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.api.distmarker.Dist;
@@ -33,10 +34,10 @@ public class Overlay
     }
   }
 
-  public static void show(PlayerEntity player, final ITextComponent message)
+  public static void show(Player player, final Component message)
   { Networking.OverlayTextMessage.sendToPlayer(player, message, 3000); }
 
-  public static void show(PlayerEntity player, final ITextComponent message, int delay)
+  public static void show(Player player, final Component message, int delay)
   { Networking.OverlayTextMessage.sendToPlayer(player, message, delay); }
 
   // -----------------------------------------------------------------------------
@@ -45,9 +46,9 @@ public class Overlay
 
   @Mod.EventBusSubscriber(Dist.CLIENT)
   @OnlyIn(Dist.CLIENT)
-  public static class TextOverlayGui extends AbstractGui
+  public static class TextOverlayGui extends Screen
   {
-    private static final ITextComponent EMPTY_TEXT = new StringTextComponent("");
+    private static final Component EMPTY_TEXT = new TextComponent("");
     private static double overlay_y_ = 0.75;
     private static int text_color_ = 0x00ffaa00;
     private static int border_color_ = 0xaa333333;
@@ -55,7 +56,7 @@ public class Overlay
     private static int background_color2_ = 0xaa444444;
     private final Minecraft mc;
     private static long deadline_;
-    private static ITextComponent text_;
+    private static Component text_;
 
     public static void on_config(double overlay_y)
     {
@@ -67,7 +68,7 @@ public class Overlay
       background_color2_ = 0xaa444444;
     }
 
-    public static synchronized ITextComponent text()
+    public static synchronized Component text()
     { return text_; }
 
     public static synchronized long deadline()
@@ -76,14 +77,14 @@ public class Overlay
     public static synchronized void hide()
     { deadline_ = 0; text_ = EMPTY_TEXT; }
 
-    public static synchronized void show(ITextComponent s, int displayTimeoutMs)
+    public static synchronized void show(Component s, int displayTimeoutMs)
     { text_ = (s==null)?(EMPTY_TEXT):(s.copy()); deadline_ = System.currentTimeMillis() + displayTimeoutMs; }
 
     public static synchronized void show(String s, int displayTimeoutMs)
-    { text_ = ((s==null)||(s.isEmpty()))?(EMPTY_TEXT):(new StringTextComponent(s)); deadline_ = System.currentTimeMillis() + displayTimeoutMs; }
+    { text_ = ((s==null)||(s.isEmpty()))?(EMPTY_TEXT):(new TextComponent(s)); deadline_ = System.currentTimeMillis() + displayTimeoutMs; }
 
     TextOverlayGui()
-    { super(); mc = SidedProxy.mc(); }
+    { super(new TextComponent("")); mc = SidedProxy.mc(); }
 
     @SubscribeEvent
     public void onRenderGui(RenderGameOverlayEvent.Post event)
@@ -93,9 +94,9 @@ public class Overlay
       if(text()==EMPTY_TEXT) return;
       String txt = text().getString();
       if(txt.isEmpty()) return;
-      MatrixStack mxs = event.getMatrixStack();
-      final MainWindow win = mc.getWindow();
-      final FontRenderer fr = mc.font;
+      PoseStack mxs = event.getMatrixStack();
+      final Window win = mc.getWindow();
+      final Font fr = mc.font;
       final boolean was_unicode = fr.isBidirectional();
       final int cx = win.getGuiScaledWidth() / 2;
       final int cy = (int)(win.getGuiScaledHeight() * overlay_y_);

@@ -1,23 +1,21 @@
 package wile.anthillinside.libmc.ui;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.audio.SoundHandler;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.gui.IGuiEventListener;
-import net.minecraft.client.gui.IHasContainer;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.inventory.ContainerScreen;
-import net.minecraft.client.gui.widget.Widget;
-import net.minecraft.client.renderer.ItemRenderer;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.container.Container;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.entity.ItemRenderer;
+import net.minecraft.client.sounds.SoundManager;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
@@ -32,41 +30,22 @@ public class Guis
   // -------------------------------------------------------------------------------------------------------------------
 
   @OnlyIn(Dist.CLIENT)
-  public static abstract class ContainerGui<T extends Container> extends ContainerScreen<T> implements IHasContainer<T>
+  public static abstract class ContainerGui<T extends AbstractContainerMenu> extends AbstractContainerScreen<T>
   {
     protected final ResourceLocation background_image;
 
-    public ContainerGui(T screenContainer, PlayerInventory inv, ITextComponent title, ResourceLocation background_image)
+    public ContainerGui(T menu, Inventory inv, Component title, ResourceLocation background_image)
     {
-      super(screenContainer, inv, title);
+      super(menu, inv, title);
       this.background_image = background_image;
     }
 
-    protected boolean canHaveDisturbingButtonsFromOtherMods()
-    { return false; }
-
-    public void init(Minecraft minecraft, int width, int height)
+    public void init()
     {
-      super.init(minecraft, width, height);
-      this.minecraft = minecraft;
-      this.itemRenderer = minecraft.getItemRenderer();
-      this.font = minecraft.font;
-      this.width = width;
-      this.height = height;
-      java.util.function.Consumer<Widget> remove = (b) -> { buttons.remove(b); children.remove(b); };
-      if((!canHaveDisturbingButtonsFromOtherMods()) || (!net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.client.event.GuiScreenEvent.InitGuiEvent.Pre(this, this.buttons, this::addButton, remove)))) {
-        this.buttons.clear();
-        this.children.clear();
-        this.setFocused((IGuiEventListener)null);
-        this.init();
-      }
-      if(canHaveDisturbingButtonsFromOtherMods()) {
-        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.client.event.GuiScreenEvent.InitGuiEvent.Post(this, this.buttons, this::addButton, remove));
-      }
+      super.init();
     }
 
-    @SuppressWarnings("deprecation")
-    protected void renderItemTemplate(MatrixStack mx, ItemStack stack, int x, int y)
+    protected void renderItemTemplate(PoseStack mx, ItemStack stack, int x, int y)
     {
       final ItemRenderer ir = itemRenderer;
       final int main_zl = getBlitOffset();
@@ -74,21 +53,18 @@ public class Guis
       final int x0 = getGuiLeft();
       final int y0 = getGuiTop();
       ir.blitOffset = -80;
-      RenderSystem.enableRescaleNormal();
       ir.renderGuiItem(stack, x0+x, y0+y);
-      RenderSystem.disableRescaleNormal();
-      RenderSystem.disableLighting();
-      RenderSystem.disableColorMaterial();
-      RenderSystem.enableAlphaTest();
-      RenderSystem.defaultAlphaFunc();
+      RenderSystem.disableColorLogicOp(); //RenderSystem.disableColorMaterial();
+      RenderSystem.enableDepthTest(); //RenderSystem.enableAlphaTest();
+      RenderSystem.defaultBlendFunc();
       RenderSystem.enableBlend();
       ir.blitOffset = zl;
       setBlitOffset(100);
       RenderSystem.colorMask(true, true, true, true);
-      RenderSystem.color4f(0.7f, 0.7f, 0.7f, 0.8f);
-      getMinecraft().getTextureManager().bind(background_image);
+      RenderSystem.setShaderColor(0.7f, 0.7f, 0.7f, 0.8f);
+      RenderSystem.setShaderTexture(0, background_image);
       blit(mx, x0+x, y0+y, x, y, 16, 16);
-      RenderSystem.color4f(1f, 1f, 1f, 1f);
+      RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
       setBlitOffset(main_zl);
     }
   }
@@ -105,27 +81,27 @@ public class Guis
   }
 
   @OnlyIn(Dist.CLIENT)
-  public static class UiWidget extends net.minecraft.client.gui.widget.Widget
+  public static class UiWidget extends net.minecraft.client.gui.components.AbstractWidget
   {
-    protected static final ITextComponent EMPTY_TEXT = new StringTextComponent("");
-    protected static final Function<UiWidget,ITextComponent> NO_TOOLTIP = (uiw)->EMPTY_TEXT;
+    protected static final Component EMPTY_TEXT = new TextComponent("");
+    protected static final Function<UiWidget,Component> NO_TOOLTIP = (uiw)->EMPTY_TEXT;
 
-    private Function<UiWidget,ITextComponent> tooltip_ = NO_TOOLTIP;
+    @SuppressWarnings("all") private Function<UiWidget,Component> tooltip_ = NO_TOOLTIP;
 
-    public UiWidget(int x, int y, int width, int height, ITextComponent title)
+    public UiWidget(int x, int y, int width, int height, Component title)
     { super(x, y, width, height, title); }
 
     public UiWidget init(Screen parent)
     {
-      this.x += ((parent instanceof ContainerScreen<?>) ? ((ContainerScreen<?>)parent).getGuiLeft() : 0);
-      this.y += ((parent instanceof ContainerScreen<?>) ? ((ContainerScreen<?>)parent).getGuiTop() : 0);
+      this.x += ((parent instanceof AbstractContainerScreen<?>) ? ((AbstractContainerScreen<?>)parent).getGuiLeft() : 0);
+      this.y += ((parent instanceof AbstractContainerScreen<?>) ? ((AbstractContainerScreen<?>)parent).getGuiTop() : 0);
       return this;
     }
 
     public UiWidget init(Screen parent, Coord2d position)
     {
-      this.x = position.x + ((parent instanceof ContainerScreen<?>) ? ((ContainerScreen<?>)parent).getGuiLeft() : 0);
-      this.y = position.y + ((parent instanceof ContainerScreen<?>) ? ((ContainerScreen<?>)parent).getGuiTop() : 0);
+      this.x = position.x + ((parent instanceof AbstractContainerScreen<?>) ? ((AbstractContainerScreen<?>)parent).getGuiLeft() : 0);
+      this.y = position.y + ((parent instanceof AbstractContainerScreen<?>) ? ((AbstractContainerScreen<?>)parent).getGuiTop() : 0);
       return this;
     }
 
@@ -142,19 +118,23 @@ public class Guis
     { visible = false; return this; }
 
     @Override
-    public void renderButton(MatrixStack matrixStack, int mouseX, int mouseY, float partialTicks)
+    public void renderButton(PoseStack matrixStack, int mouseX, int mouseY, float partialTicks)
     {
       super.renderButton(matrixStack, mouseX, mouseY, partialTicks);
       if(isHovered()) renderToolTip(matrixStack, mouseX, mouseY);
     }
 
     @Override
-    public void renderToolTip(MatrixStack matrixStack, int mouseX, int mouseY)
+    @SuppressWarnings("all")
+    public void renderToolTip(PoseStack matrixStack, int mouseX, int mouseY)
     {
       if(tooltip_ == NO_TOOLTIP) return;
       /// todo: need a Screen for that, not sure if adding a reference initialized in init() may cause GC problems.
     }
 
+    @Override
+    public void updateNarration(NarrationElementOutput element_output)
+    {}
   }
 
   @OnlyIn(Dist.CLIENT)
@@ -175,7 +155,7 @@ public class Guis
     }
 
     public HorizontalProgressBar setProgress(double progress)
-    { progress_ = MathHelper.clamp(progress, 0, progress_max_); return this; }
+    { progress_ = Mth.clamp(progress, 0, progress_max_); return this; }
 
     public double getProgress()
     { return progress_; }
@@ -193,27 +173,24 @@ public class Guis
     { visible = false; return this; }
 
     @Override
-    public void playDownSound(SoundHandler handler)
+    public void playDownSound(SoundManager handler)
     {}
 
     @Override
-    protected void renderBg(MatrixStack mx, Minecraft mc, int x, int y)
+    protected void renderBg(PoseStack mx, Minecraft mc, int x, int y)
     {}
 
     @Override
-    @SuppressWarnings("deprecation")
-    public void renderButton(MatrixStack mx, int mouseX, int mouseY, float partialTicks)
+    public void renderButton(PoseStack mx, int mouseX, int mouseY, float partialTicks)
     {
-      final Minecraft mc = Minecraft.getInstance();
-      final FontRenderer fontrenderer = mc.font;
-      mc.getTextureManager().bind(atlas_);
-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, this.alpha);
+      RenderSystem.setShaderTexture(0, atlas_);
+      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, this.alpha);
       RenderSystem.enableBlend();
       RenderSystem.defaultBlendFunc();
       RenderSystem.enableDepthTest();
       blit(mx, x, y, texture_position_base_.x, texture_position_base_.y, width, height);
       if((progress_max_ > 0) && (progress_ > 0)) {
-        int w = MathHelper.clamp((int)Math.round((progress_ * width) / progress_max_), 0, width);
+        int w = Mth.clamp((int)Math.round((progress_ * width) / progress_max_), 0, width);
         blit(mx, x, y, texture_position_filled_.x, texture_position_filled_.y, w, height);
       }
     }
@@ -236,10 +213,10 @@ public class Guis
       visible = true;
     }
 
-    public void draw(MatrixStack mx, Screen parent)
+    public void draw(PoseStack mx, Screen parent)
     {
       if(!visible) return;
-      parent.getMinecraft().getTextureManager().bind(atlas_);
+      RenderSystem.setShaderTexture(0, atlas_);
       parent.blit(mx, x, y, atlas_position_.x, atlas_position_.y, width, height);
     }
 
@@ -276,13 +253,11 @@ public class Guis
     { checked_ = !checked_; on_click_.accept(this); }
 
     @Override
-    @SuppressWarnings("deprecation")
-    public void renderButton(MatrixStack mx, int mouseX, int mouseY, float partialTicks)
+    public void renderButton(PoseStack mx, int mouseX, int mouseY, float partialTicks)
     {
-      final Minecraft mc = Minecraft.getInstance();
-      final FontRenderer fontrenderer = mc.font;
-      mc.getTextureManager().bind(atlas_);
-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, this.alpha);
+      RenderSystem.setShader(GameRenderer::getPositionTexShader);
+      RenderSystem.setShaderTexture(0, atlas_);
+      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, this.alpha);
       RenderSystem.enableBlend();
       RenderSystem.defaultBlendFunc();
       RenderSystem.enableDepthTest();

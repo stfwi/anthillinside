@@ -1,10 +1,10 @@
 package wile.anthillinside.libmc.ui;
 
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.inventory.IInventory;
-import net.minecraft.inventory.container.Slot;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.Mth;
+import net.minecraft.world.Container;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
@@ -22,11 +22,11 @@ public class Containers
     protected int stack_limit_ = 64;
     public boolean enabled = true;
 
-    public StorageSlot(IInventory inventory, int index, int x, int y)
+    public StorageSlot(Container inventory, int index, int x, int y)
     { super(inventory, index, x, y); }
 
     public StorageSlot setSlotStackLimit(int limit)
-    { stack_limit_ = MathHelper.clamp(limit, 1, 64); return this; }
+    { stack_limit_ = Mth.clamp(limit, 1, 64); return this; }
 
     public int getMaxStackSize()
     { return stack_limit_; }
@@ -68,11 +68,11 @@ public class Containers
     protected int stack_limit_ = 64;
     public boolean enabled = true;
 
-    public LockedSlot(IInventory inventory, int index, int x, int y)
+    public LockedSlot(Container inventory, int index, int x, int y)
     { super(inventory, index, x, y); }
 
     public LockedSlot setSlotStackLimit(int limit)
-    { stack_limit_ = MathHelper.clamp(limit, 1, 64); return this; }
+    { stack_limit_ = Mth.clamp(limit, 1, 64); return this; }
 
     public int getMaxStackSize()
     { return stack_limit_; }
@@ -86,7 +86,7 @@ public class Containers
     { return false; }
 
     @Override
-    public boolean mayPickup(PlayerEntity player)
+    public boolean mayPickup(Player player)
     { return false; }
 
     @OnlyIn(Dist.CLIENT)
@@ -96,7 +96,7 @@ public class Containers
 
   public static class HiddenSlot extends Slot
   {
-    public HiddenSlot(IInventory inventory, int index)
+    public HiddenSlot(Container inventory, int index)
     { super(inventory, index, 0, 0); }
 
     @Override
@@ -108,7 +108,7 @@ public class Containers
     { return false; }
 
     @Override
-    public boolean mayPickup(PlayerEntity player)
+    public boolean mayPickup(Player player)
     { return false; }
 
     @OnlyIn(Dist.CLIENT)

@@ -1,7 +1,7 @@
 # @file mods.toml
 # @spec TOML v0.5.0 (https://github.com/toml-lang/toml)
 modLoader="javafml" # forge FML java
-loaderVersion="[33,)"
+loaderVersion="[37,)"
 #issueTrackerURL="https://github.com/stfwi/anthillinside/issues/"
 license="MIT"
 
@@ -19,13 +19,13 @@ logoFile="logo.png"
 [[dependencies.anthillinside]]
   modId="forge"
   mandatory=true
-  versionRange="[35.0.2,)"
+  versionRange="[37,)"
   ordering="NONE"
   side="BOTH"
 
 [[dependencies.anthillinside]]
   modId="minecraft"
   mandatory=true
-  versionRange="[1.16.4,)"
+  versionRange="[1.17.1,1.18)"
   ordering="NONE"
   side="BOTH"

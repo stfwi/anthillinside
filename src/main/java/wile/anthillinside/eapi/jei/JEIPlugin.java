@@ -5,8 +5,9 @@
  * @license MIT (see https://opensource.org/licenses/MIT)
  */
 package wile.anthillinside.eapi.jei;
-//public class JEIPlugin {}
+public class JEIPlugin {}
 
+/*
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.block.Block;
@@ -55,3 +56,4 @@ public class JEIPlugin implements mezz.jei.api.IModPlugin
     }
   }
 }
+*/
