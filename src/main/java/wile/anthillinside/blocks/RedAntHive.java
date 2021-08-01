@@ -88,7 +88,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 
-
 public class RedAntHive
 {
   private static final Item ANTS_ITEM = ModContent.ANTS_ITEM;
@@ -1304,7 +1303,7 @@ public class RedAntHive
       final int volume = range.getVolume();
       final int max_count = (range_ref/2) + 1;
       final int max_search_count = 5;
-      final @Nullable  Tag<Item> fertilizers = ItemTags.getAllTags().getTag(new ResourceLocation(ModAnthillInside.MODID, "fertilizers"));
+      final @Nullable Tag<Item> fertilizers = ItemTags.getAllTags().getTag(new ResourceLocation(ModAnthillInside.MODID, "fertilizers"));
       int fertilizer_slot = -1;
       if(fertilizers!=null) {
         fertilizer_slot = (left_storage_slot_range_.find((slot,stack)->stack.is(fertilizers) ? Optional.of(slot) : Optional.empty()).orElse(-1));

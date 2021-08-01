@@ -8,7 +8,6 @@
  */
 package wile.anthillinside.libmc.detail;
 
-
 import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.Font;
@@ -23,6 +22,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
+
 
 public class Overlay
 {
@@ -59,13 +59,15 @@ public class Overlay
     private static Component text_;
 
     public static void on_config(double overlay_y)
+    { on_config(overlay_y, 0x00ffaa00, 0xaa333333, 0xaa333333, 0xaa444444); }
+
+    public static void on_config(double overlay_y, int text_color, int border_color, int background_color1, int background_color2)
     {
       overlay_y_ = overlay_y;
-      // currently const, just to circumvent "useless variable" warnings
-      text_color_ = 0x00ffaa00;
-      border_color_ = 0xaa333333;
-      background_color1_ = 0xaa333333;
-      background_color2_ = 0xaa444444;
+      text_color_ = text_color;
+      border_color_ = border_color;
+      background_color1_ = background_color1;
+      background_color2_ = background_color2;
     }
 
     public static synchronized Component text()

@@ -7,6 +7,7 @@
  * General commonly used functionality.
  */
 package wile.anthillinside.libmc.detail;
+import wile.anthillinside.ModConfig;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.ChatFormatting;
@@ -32,7 +33,6 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import org.apache.logging.log4j.Logger;
 import org.lwjgl.glfw.GLFW;
-import wile.anthillinside.ModConfig;
 
 import javax.annotation.Nullable;
 import java.io.BufferedReader;
@@ -290,6 +290,12 @@ public class Auxiliaries
 
   public static AABB getPixeledAABB(double x0, double y0, double z0, double x1, double y1, double z1)
   { return new AABB(x0/16.0, y0/16.0, z0/16.0, x1/16.0, y1/16.0, z1/16.0); }
+
+  public static AABB getRotatedAABB(AABB bb, Direction new_facing)
+  { return getRotatedAABB(bb, new_facing, false); }
+
+  public static AABB[] getRotatedAABB(AABB[] bb, Direction new_facing)
+  { return getRotatedAABB(bb, new_facing, false); }
 
   public static AABB getRotatedAABB(AABB bb, Direction new_facing, boolean horizontal_rotation)
   {

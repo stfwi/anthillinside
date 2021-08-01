@@ -6,7 +6,6 @@
  */
 package wile.anthillinside;
 
-
 import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;

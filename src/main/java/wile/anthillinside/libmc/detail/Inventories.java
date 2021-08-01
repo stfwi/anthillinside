@@ -797,6 +797,9 @@ public class Inventories
     public StorageInventory setCloseAction(Consumer<Player> fn)
     { close_action_ = fn; return this; }
 
+    public StorageInventory setSlotChangeAction(BiConsumer<Integer,ItemStack> fn)
+    { slot_set_action_ = fn; return this; }
+
     public StorageInventory setStackLimit(int max_slot_stack_size)
     { stack_limit_ = Math.max(max_slot_stack_size, 1); return this; }
 

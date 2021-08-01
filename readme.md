@@ -4,6 +4,9 @@
 ----
 ## Version history
 
+    - v1.0.7      [R] Initial 1.17.1 release.
+                  [F] Minor porting fixes.
+
     - v1.0.7-b1   [U] Initial 1.17.1 port.
 
     - v1.0.6      [A] Bonemeal fertilizing non-experimental.

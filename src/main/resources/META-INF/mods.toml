@@ -2,7 +2,7 @@
 # @spec TOML v0.5.0 (https://github.com/toml-lang/toml)
 modLoader="javafml" # forge FML java
 loaderVersion="[37,)"
-#issueTrackerURL="https://github.com/stfwi/anthillinside/issues/"
+issueTrackerURL="https://github.com/stfwi/anthillinside/issues/"
 license="MIT"
 
 [[mods]]
@@ -12,7 +12,7 @@ displayName="Anthill Inside"
 description="Adds 'natural' automation with Redstone Ants. Pratchett Readers know the term."
 authors="wilechaote"
 credits=""
-#updateJSONURL="https://raw.githubusercontent.com/stfwi/anthillinside/1.16/meta/update.json"
+updateJSONURL="https://raw.githubusercontent.com/stfwi/anthillinside/1.17/meta/update.json"
 displayURL="https://github.com/stfwi/anthillinside/"
 logoFile="logo.png"
 
