@@ -41,20 +41,13 @@ minecraft {
       property 'forge.logging.console.level', 'info'
       mods { anthillinside { source sourceSets.main } }
     }
-    data {
-      workingDirectory project.file('run')
-      property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
-      property 'forge.logging.console.level', 'debug'
-      args '--mod', 'anthillinside', '--all', '--output', file('src/generated/resources/')
-      mods { anthillinside { source sourceSets.main } }
-    }
   }
 }
 
 dependencies {
   minecraft "net.minecraftforge:forge:${version_forge_minecraft}"
-  // compileOnly fg.deobf("mezz.jei:jei-${version_jei}:api")
-  // runtimeOnly fg.deobf("mezz.jei:jei-${version_jei}")
+  compileOnly fg.deobf("mezz.jei:jei-${version_jei}:api")
+  runtimeOnly fg.deobf("mezz.jei:jei-${version_jei}")
 }
 
 processResources {

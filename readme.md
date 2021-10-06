@@ -4,6 +4,8 @@
 ----
 ## Version history
 
+    ~ v1.0.8-b1   [F] JEI integration and Forge update.
+
     - v1.0.7      [R] Initial 1.17.1 release.
                   [F] Minor porting fixes.
 

@@ -31,8 +31,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -53,8 +51,6 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-import wile.anthillinside.ModContent;
-import wile.anthillinside.blocks.RedAntHive;
 import wile.anthillinside.libmc.detail.Auxiliaries;
 import javax.annotation.Nullable;
 import java.util.*;
@@ -100,9 +96,6 @@ public class StandardBlocks
       if((config & CFG_TRANSLUCENT)!=0) return RenderTypeHint.TRANSLUCENT;
       return RenderTypeHint.SOLID;
     }
-
-    default boolean canConnectRedstone(BlockState state, BlockGetter world, BlockPos pos, @Nullable Direction side)
-    { return false; }
 
   }
 
@@ -520,7 +513,5 @@ public class StandardBlocks
       };
     }
   }
-
-
 
 }
