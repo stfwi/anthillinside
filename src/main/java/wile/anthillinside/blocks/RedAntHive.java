@@ -170,7 +170,7 @@ public class RedAntHive
 
   public static void onGlobalPlayerBlockBrokenEvent(BlockState state, LevelAccessor iworld, BlockPos pos, Player player)
   {
-    if((!state.is(Blocks.REDSTONE_ORE)) || (iworld.isClientSide()) || !(iworld instanceof Level world)) return;
+    if((!state.is(Blocks.REDSTONE_ORE) && (!state.is(Blocks.DEEPSLATE_REDSTONE_ORE))) || (iworld.isClientSide()) || !(iworld instanceof Level world)) return;
     if(iworld.getRandom().nextInt(100) >= hive_drop_probability_percent) return;
     Inventories.dropStack(world, Vec3.atCenterOf(pos), new ItemStack(ModContent.HIVE_BLOCK.asItem()));
     world.playSound(null, pos, SoundEvents.ARMOR_EQUIP_CHAIN, SoundSource.BLOCKS, 1f,1.4f);
@@ -547,8 +547,8 @@ public class RedAntHive
     { super.load(nbt); readnbt(nbt, false); }
 
     @Override
-    public CompoundTag save(CompoundTag nbt)
-    { super.save(nbt); writenbt(nbt, false); return nbt; }
+    protected void saveAdditional(CompoundTag nbt)
+    { super.saveAdditional(nbt); writenbt(nbt, false); }
 
     @Override
     public void setRemoved()

@@ -1,5 +1,5 @@
 // @file build.gradle
-// Anthill Inside mod gradle build relay (mc1.17.1)
+// Anthill Inside mod gradle build relay.
 buildscript {
   repositories {
       maven { url = 'https://maven.minecraftforge.net' }
@@ -12,8 +12,7 @@ buildscript {
 apply plugin: 'net.minecraftforge.gradle'
 apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
-java.toolchain.languageVersion = JavaLanguageVersion.of(16)
-//sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '1.8'
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 println('Java: ' + System.getProperty('java.version') + ' JVM: ' + System.getProperty('java.vm.version') + '(' + System.getProperty('java.vendor') + ') Arch: ' + System.getProperty('os.arch'))
 //-----------------------------------------------------------------------------
 version = "${version_anthillinside}"
@@ -22,13 +21,12 @@ archivesBaseName = "anthillinside-${version_minecraft}"
 
 repositories {
   maven { name = "Progwml6 maven"; url = "https://dvs1.progwml6.com/files/maven/" } // JEI files
-  maven { name = "ModMaven"; url = "modmaven.k-4u.nl" } // JEI files, fallback
+  maven { name = "ModMaven"; url = "https://modmaven.k-4u.nl" } // JEI files, fallback
   flatDir { dir 'libs' } // Mod jar dependencies in ./libs
 }
 
 minecraft {
-  mappings channel: "official", version: "1.17.1"
-  // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+  mappings channel: "official", version: "1.18.1"
   runs {
     client {
       workingDirectory project.file('run')
@@ -69,11 +67,9 @@ jar {
   }
 }
 
-sourceSets.main.resources { srcDir 'src/generated/resources' } // Include datagen resources
-
 jar.finalizedBy('reobfJar')
-//def reobfFile = file("$buildDir/reobfJar/output.jar")
-//def reobfArtifact = artifacts.add('default', reobfFile) { type 'jar'; builtBy 'reobfJar' }
+// def reobfFile = file("$buildDir/reobfJar/output.jar")
+// def reobfArtifact = artifacts.add('default', reobfFile) { type 'jar'; builtBy 'reobfJar' }
 
 
 //import net.minecraftforge.gradle.common.task.SignJar

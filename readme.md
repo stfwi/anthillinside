@@ -1,10 +1,10 @@
 
-## Anthill Inside (MC1.17.x)
+## Anthill Inside (MC1.18.x)
 
 ----
 ## Version history
 
-    ~ v1.0.8-b1   [F] JEI integration and Forge update.
+    - v1.0.8-b1   [F] Initial 1.18.1 port.
 
     - v1.0.7      [R] Initial 1.17.1 release.
                   [F] Minor porting fixes.

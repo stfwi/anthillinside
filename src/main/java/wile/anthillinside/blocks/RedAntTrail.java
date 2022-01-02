@@ -178,7 +178,7 @@ public class RedAntTrail
       if(entity instanceof ItemEntity) {
         moveEntity(state, world, pos, entity);
         if(state.getValue(UP) && (!world.getBlockTicks().hasScheduledTick(pos, this))) {
-          world.getBlockTicks().scheduleTick(pos, this, 60);
+          world.scheduleTick(pos, this, 60);
         }
       } else if(entity instanceof LivingEntity) {
         itchEntity(state, world, pos, entity);
