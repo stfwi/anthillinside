@@ -2,18 +2,17 @@
 // Anthill Inside mod gradle build relay.
 buildscript {
   repositories {
-      maven { url = 'https://maven.minecraftforge.net' }
-      mavenCentral()
+    maven { url = 'https://maven.minecraftforge.net' }
+    mavenCentral()
   }
   dependencies {
-      classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '5.1.+', changing: true
+    classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '5.1.+', changing: true
   }
 }
 apply plugin: 'net.minecraftforge.gradle'
 apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
-println('Java: ' + System.getProperty('java.version') + ' JVM: ' + System.getProperty('java.vm.version') + '(' + System.getProperty('java.vendor') + ') Arch: ' + System.getProperty('os.arch'))
 //-----------------------------------------------------------------------------
 version = "${version_anthillinside}"
 group = "wile.anthillinside"
@@ -87,8 +86,8 @@ jar.finalizedBy('reobfJar')
 //   }
 // }
 // build.dependsOn signJar
-
-publishing {
-  publications { mavenJava(MavenPublication) { artifact jar } }
-  repositories { maven { url "file:///${project.projectDir}/mcmodsrepo" } }
-}
+//
+// publishing {
+//   publications { mavenJava(MavenPublication) { artifact jar } }
+//   repositories { maven { url "file:///${project.projectDir}/mcmodsrepo" } }
+// }
