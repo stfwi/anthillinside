@@ -54,7 +54,7 @@ public class ModContent
 
   public static final RedAntTrail.RedAntTrailBlock TRAIL_BLOCK = (RedAntTrail.RedAntTrailBlock)(new RedAntTrail.RedAntTrailBlock(
     StandardBlocks.CFG_TRANSLUCENT|StandardBlocks.CFG_HORIZIONTAL|StandardBlocks.CFG_LOOK_PLACEMENT,
-    BlockBehaviour.Properties.of(Material.DECORATION, MaterialColor.COLOR_BROWN).strength(0.1f, 3f).sound(SoundType.CROP)
+    BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BROWN).strength(0.1f, 3f).sound(SoundType.CROP)
       .noCollission().noOcclusion().isValidSpawn((s,w,p,e)->false).jumpFactor(1.2f).randomTicks()
   )).setRegistryName(new ResourceLocation(MODID, "trail"));
 

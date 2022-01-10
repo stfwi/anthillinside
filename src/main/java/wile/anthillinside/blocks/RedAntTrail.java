@@ -147,6 +147,7 @@ public class RedAntTrail
     public BlockState updateShape(BlockState state, Direction facing, BlockState facingState, LevelAccessor world, BlockPos pos, BlockPos facingPos)
     {
       if(!(world instanceof Level)) return state;
+      state = super.updateShape(state, facing, facingState, world, pos, facingPos);
       if(canSurvive(state, world, pos)) return updatedState(state, world, pos);
       return Blocks.AIR.defaultBlockState();
     }
@@ -163,6 +164,7 @@ public class RedAntTrail
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult rtr)
     {
       Direction dir = rtr.getDirection().getOpposite();
@@ -186,6 +188,7 @@ public class RedAntTrail
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public void tick(BlockState state, ServerLevel world, BlockPos pos, Random rand)
     {
       if(!state.getValue(UP)) return;
@@ -364,9 +367,6 @@ public class RedAntTrail
       ) {
         return;
       }
-
-//      net.minecraft.world.entity.monster.Monster
-
       if(entity instanceof Monster) {
         entity.hurt(DamageSource.CACTUS, 2f);
       } else if(entity instanceof Player) {

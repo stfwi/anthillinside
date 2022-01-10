@@ -4,7 +4,7 @@
 ----
 ## Version history
 
-    ~ v1.0.8-b2   [F] Forge/gradle update.
+    - v1.0.8      [F] Forge/gradle update, minor adaptions.
 
     - v1.0.8-b1   [F] Initial 1.18.1 port.
 

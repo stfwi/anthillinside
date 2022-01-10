@@ -48,7 +48,6 @@ import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.*;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
@@ -71,6 +70,7 @@ import wile.anthillinside.ModConfig;
 import wile.anthillinside.ModContent;
 import wile.anthillinside.blocks.RedAntTrail.RedAntTrailBlock;
 import wile.anthillinside.libmc.blocks.StandardBlocks;
+import wile.anthillinside.libmc.blocks.StandardEntityBlocks;
 import wile.anthillinside.libmc.detail.*;
 import wile.anthillinside.libmc.ui.Containers;
 import wile.anthillinside.libmc.ui.Containers.StorageSlot;
@@ -180,7 +180,7 @@ public class RedAntHive
   // Block
   //--------------------------------------------------------------------------------------------------------------------
 
-  public static class RedAntHiveBlock extends StandardBlocks.DirectedWaterLoggable implements EntityBlock
+  public static class RedAntHiveBlock extends StandardBlocks.DirectedWaterLoggable implements StandardEntityBlocks.IStandardEntityBlock<RedAntHiveTileEntity>
   {
     public static final IntegerProperty VARIANT = IntegerProperty.create("variant", 0, 2);
 
@@ -189,6 +189,15 @@ public class RedAntHive
       super(config, builder, aabbs);
       registerDefaultState(super.defaultBlockState().setValue(FACING, Direction.DOWN).setValue(VARIANT, 0));
     }
+
+    @Nullable
+    @Override
+    public BlockEntityType<RedAntHiveTileEntity> getBlockEntityType()
+    { return ModContent.TET_HIVE; }
+
+    @Override
+    public boolean isBlockEntityTicking(Level world, BlockState state)
+    { return true; }
 
     @Override
     public VoxelShape getCollisionShape(BlockState state, BlockGetter world, BlockPos pos, CollisionContext context)
@@ -262,11 +271,6 @@ public class RedAntHive
 
     @Nullable
     @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level world, BlockState state, BlockEntityType<T> te_type)
-    { return (world.isClientSide) ? (null) : createTickerHelper(te_type, ModContent.TET_HIVE, RedAntHive.RedAntHiveTileEntity::serverTick); }
-
-    @Nullable
-    @Override
     @SuppressWarnings("deprecation")
     public MenuProvider getMenuProvider(BlockState state, Level world, BlockPos pos) {
       final BlockEntity ate = world.getBlockEntity(pos);
@@ -309,6 +313,7 @@ public class RedAntHive
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult rayTraceResult)
     {
       if(world.isClientSide()) return InteractionResult.SUCCESS;
@@ -362,7 +367,7 @@ public class RedAntHive
   // Tile entity
   //--------------------------------------------------------------------------------------------------------------------
 
-  public static class RedAntHiveTileEntity extends BlockEntity implements MenuProvider, Nameable
+  public static class RedAntHiveTileEntity extends StandardEntityBlocks.StandardBlockEntity implements MenuProvider, Nameable
   {
     // SimpleContainer sections ----------------------------------------------------------------------------------------------
     public static final int LEFT_STORAGE_NUM_SLOTS   = 10;
@@ -614,10 +619,8 @@ public class RedAntHive
 
     // Tick -------------------------------------------------------------------------------------------------
 
-    public static void serverTick(Level world, BlockPos pos, BlockState state, RedAntHiveTileEntity te)
-    { te.serverInstanceTick(world, pos, state); }
-
-    private void serverInstanceTick(Level world, BlockPos pos, BlockState state)
+    @Override
+    public void tick()
     {
       // Tick timing
       if(--tick_timer_ > 0) return;
@@ -1295,6 +1298,7 @@ public class RedAntHive
       progress_ = 0;
       max_progress_ = 300 * 100/farming_speed_percent;
       boolean dirty = false;
+      @SuppressWarnings("deprecation")
       final int range_ref = Mth.clamp(((hoe instanceof TieredItem) ? (((TieredItem)hoe).getTier().getLevel()):0), 0, 4);
       final int range_rad = range_ref+1;
       final Auxiliaries.BlockPosRange range = Auxiliaries.BlockPosRange.of(workingRange(range_rad, 1, 0));
