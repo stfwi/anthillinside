@@ -100,6 +100,8 @@ public class RedAntHive
   private static int animal_feeding_entity_limit = 16;
   private static int animal_feeding_xz_radius = 3;
   private static int farming_speed_percent = 100;
+  private static int block_breaking_speed_percent = 100;
+  private static int tree_chopping_speed_percent = 100;
   private static final int brewing_fuel_efficiency_percent = 75;
   private static final HashMap<Item, Object> processing_command_item_mapping = new HashMap<>();
 
@@ -112,9 +114,11 @@ public class RedAntHive
     { this.item = item; this.handler = handler; this.passthrough_handler = passthrough_handler; }
   }
 
-  public static void on_config(int ore_minining_spawn_probability_percent, int ant_speed_scaler_percent, int sugar_time_s,
-                               int growth_latency_s, int feeding_speed_factor_percent, int feeding_entity_limit, int feeding_xz_radius,
-                               int farming_speed_factor_percent
+  public static void on_config(int ore_minining_spawn_probability_percent, int ant_speed_scaler_percent,
+                               int sugar_time_s, int growth_latency_s, int feeding_speed_factor_percent,
+                               int feeding_entity_limit, int feeding_xz_radius, int farming_speed_factor_percent,
+                               int block_breaking_speed_factor_percent, int tree_chopping_speed_factor_percent,
+                               int tool_damage_factor_percent
   ){
     hive_drop_probability_percent = Mth.clamp(ore_minining_spawn_probability_percent, 1, 99);
     normal_processing_speed_ant_count_percent = Mth.clamp(ant_speed_scaler_percent, 10, 190);
@@ -123,7 +127,9 @@ public class RedAntHive
     animal_feeding_speed_percent = Mth.clamp(feeding_speed_factor_percent, 0, 200);
     animal_feeding_entity_limit = Mth.clamp(feeding_entity_limit, 3, 64);
     animal_feeding_xz_radius = Mth.clamp(feeding_xz_radius,1, 5);
-    farming_speed_percent = (farming_speed_factor_percent < 10) ? (0) : Math.min(farming_speed_factor_percent, 200);
+    farming_speed_percent = (farming_speed_factor_percent < 0) ? (0) : Mth.clamp(farming_speed_factor_percent, 10, 200);
+    block_breaking_speed_percent = (block_breaking_speed_factor_percent < 0) ? (0) : Mth.clamp(block_breaking_speed_factor_percent, 10, 200);
+    tree_chopping_speed_percent = (tree_chopping_speed_factor_percent < 0) ? (0) : Mth.clamp(tree_chopping_speed_factor_percent, 10, 200);
     processing_command_item_mapping.clear();
     processing_command_item_mapping.put(Items.CRAFTING_TABLE, RecipeType.CRAFTING);
     processing_command_item_mapping.put(Items.FURNACE, RecipeType.SMELTING);
@@ -140,10 +146,25 @@ public class RedAntHive
       processing_command_item_mapping.put(Items.CARROT, new ProcessingHandler(Items.CARROT, (te,done)->te.processAnimalFood(Items.CARROT), (te)->te.itemPassThroughExcept(Items.CARROT)));
     }
     if(farming_speed_percent > 0) {
-      processing_command_item_mapping.put(Items.STONE_HOE, new ProcessingHandler(Items.STONE_HOE, (te,done)->te.processFarming(Items.STONE_HOE), (te)->te.itemPassThroughExcept(Items.BONE_MEAL)));
-      processing_command_item_mapping.put(Items.IRON_HOE, new ProcessingHandler(Items.IRON_HOE, (te,done)->te.processFarming(Items.IRON_HOE), (te)->te.itemPassThroughExcept(Items.BONE_MEAL)));
-      processing_command_item_mapping.put(Items.DIAMOND_HOE, new ProcessingHandler(Items.DIAMOND_HOE, (te,done)->te.processFarming(Items.DIAMOND_HOE), (te)->te.itemPassThroughExcept(Items.BONE_MEAL)));
-      processing_command_item_mapping.put(Items.NETHERITE_HOE, new ProcessingHandler(Items.NETHERITE_HOE, (te,done)->te.processFarming(Items.NETHERITE_HOE), (te)->te.itemPassThroughExcept(Items.BONE_MEAL)));
+      Arrays.stream((new Item[]{
+        Items.STONE_HOE, Items.GOLDEN_HOE, Items.IRON_HOE, Items.DIAMOND_HOE, Items.NETHERITE_HOE
+      })).forEach((item)->{
+        processing_command_item_mapping.put(item, new ProcessingHandler(item, (te,done)->te.processFarming(item), (te)->te.itemPassThroughExcept(Items.BONE_MEAL)));
+      });
+    }
+    if(block_breaking_speed_percent > 0) {
+      Arrays.stream((new Item[]{
+        Items.STONE_PICKAXE, Items.GOLDEN_PICKAXE, Items.IRON_PICKAXE, Items.DIAMOND_PICKAXE, Items.NETHERITE_PICKAXE
+      })).forEach((item)->{
+        processing_command_item_mapping.put(item, new ProcessingHandler(item, RedAntHiveTileEntity::processPickAxe, (te)->te.itemPassThroughExcept(Collections.emptyList())));
+      });
+    }
+    if(tree_chopping_speed_percent > 0) {
+      Arrays.stream((new Item[]{
+        Items.STONE_AXE, Items.GOLDEN_AXE, Items.IRON_AXE, Items.DIAMOND_AXE, Items.NETHERITE_AXE
+      })).forEach((item)->{
+        processing_command_item_mapping.put(item, new ProcessingHandler(item, RedAntHiveTileEntity::processAxe, (te)->te.itemPassThroughExcept(Collections.emptyList())));
+      });
     }
     ModConfig.log("Hive:" +
       "drop-probability:" + hive_drop_probability_percent + "%" +
@@ -627,6 +648,7 @@ public class RedAntHive
       tick_timer_ = TICK_INTERVAL;
       if(slow_timer_++ >= SLOW_INTERVAL) slow_timer_ = 0;
       // Tick timing
+      updateBlockstate();
       if(!checkColony()) return;
       boolean dirty = false;
       dirty |= checkItemOutput();
@@ -947,7 +969,9 @@ public class RedAntHive
         return true;
       } else if((max_progress_ > 0) && (progress_ < max_progress_)) {
         // processing, don't waste performance until it is done.
-        progress_ = Math.min(max_progress_, progress_ + Math.max(TICK_INTERVAL, (int)((1.0+ant_speed_) * TICK_INTERVAL)));
+        if((progress_ > 1) || (!state_flags_.powered())) {
+          progress_ = Math.min(max_progress_, progress_ + Math.max(TICK_INTERVAL, (int)((1.0+ant_speed_) * TICK_INTERVAL)));
+        }
         itemPassThrough(cat);
       } else {
         // processing by recipe type
@@ -1244,10 +1268,10 @@ public class RedAntHive
     private boolean processShears()
     {
       final Direction input_facing = getBlockState().getValue(RedAntHiveBlock.FACING).getOpposite();
-      boolean snipped = ToolActions.shearPlant(getLevel(), getBlockPos().relative(input_facing));
+      boolean snipped = ToolActions.Shearing.shearPlant(getLevel(), getBlockPos().relative(input_facing));
       if(!snipped) {
         AABB aabb = new AABB(getBlockPos().relative(input_facing));
-        snipped = ToolActions.shearEntities(getLevel(), aabb, 1);
+        snipped = ToolActions.Shearing.shearEntities(getLevel(), aabb, 1);
       }
       if(snipped) {
         progress_ = 0;
@@ -1257,6 +1281,67 @@ public class RedAntHive
         max_progress_ = 0;
       }
       return false;
+    }
+
+    private boolean processPickAxe(boolean done)
+    {
+      if(!(getLevel() instanceof final ServerLevel world)) return false;
+      final Direction input_facing = getBlockState().getValue(RedAntHiveBlock.FACING).getOpposite();
+      final BlockPos pos = getBlockPos().relative(input_facing);
+      final BlockState state = world.getBlockState(pos);
+      int break_time = -1;
+      if(ToolActions.BlockBreaking.isBreakable(state, pos, world)) {
+        if(!done) {
+          final float reluctance = (float)(1.0/Math.max(ant_speed_, 1e-2));
+          break_time = ToolActions.BlockBreaking.breakTime(state, pos, world, getCommandSlot(), 5, 20*30, reluctance);
+        } else {
+          List<ItemStack> drops = ToolActions.BlockBreaking.breakBlock(state, pos, world, getCommandSlot(), false).orElse(null);
+          if(drops != null) {
+            if(drops.isEmpty()) {
+              drops = Collections.singletonList(new ItemStack(state.getBlock().asItem()));
+            }
+            final boolean drop_on_ground = (!getInputControlSlot().is(Items.HOPPER));
+            for(ItemStack drop:drops) {
+              if(!drop_on_ground) drop = insertLeft(drop);
+              if(!drop.isEmpty()) ToolActions.BlockBreaking.dropOnGround(drop, pos, world);
+            }
+          }
+        }
+      }
+      if(break_time >= 0) {
+        progress_ = 0;
+        max_progress_ = break_time;
+      } else {
+        progress_ = -40;
+        max_progress_ = 0;
+      }
+      return itemPassThroughExcept(Collections.emptyList());
+    }
+
+    private boolean processAxe(boolean done)
+    {
+      final Level world = getLevel();
+      final Direction input_facing = getBlockState().getValue(RedAntHiveBlock.FACING).getOpposite();
+      final BlockPos pos = getBlockPos().relative(input_facing);
+      final BlockState state = world.getBlockState(pos);
+      int break_time = -1;
+      if(TreeCutting.canChop(state)) {
+        if(!done) {
+          final float reluctance = (float)(7.5/Math.max(ant_speed_, 1e-2));
+          break_time = 10 * ToolActions.BlockBreaking.breakTime(state, pos, world, getCommandSlot(), 5, 20*90, reluctance);
+        } else {
+          TreeCutting.chopTree(world, state, pos, 256, false);
+          world.playSound(null, pos.getX(), pos.getY(), pos.getZ(), SoundEvents.WOOD_BREAK, SoundSource.BLOCKS, 1.0f, 1.0f);
+        }
+      }
+      if(break_time >= 0) {
+        progress_ = 0;
+        max_progress_ = break_time;
+      } else {
+        progress_ = -40;
+        max_progress_ = 0;
+      }
+      return itemPassThroughExcept(Collections.emptyList());
     }
 
     private boolean processAnimalFood(Item food)
@@ -1320,7 +1405,7 @@ public class RedAntHive
         for(int i=0; i<max_count; ++i) {
           universal_task_index_ = (universal_task_index_ + step_size) % volume;
           final BlockPos pos = range.byXZYIndex(universal_task_index_);
-          final Optional<List<ItemStack>> drops = ToolActions.harvestCrop((ServerLevel)getLevel(), pos, true, fertilizer);
+          final Optional<List<ItemStack>> drops = ToolActions.Farming.harvestPlant((ServerLevel)getLevel(), pos, true, fertilizer);
           if(!drops.isPresent()) continue;
           if(!drops.get().isEmpty()) getLevel().playSound(null, pos, SoundEvents.CROP_PLANTED, SoundSource.BLOCKS, 0.6f, 1.4f);
           for(ItemStack stack:drops.get()) right_storage_slot_range_.insert(stack); // skip/void excess
@@ -1848,31 +1933,21 @@ public class RedAntHive
       nofuel_indicator_ = new Guis.BackgroundImage(background_image, 16,16, new Coord2d(180,17));
       left_filter_enable_ = (new Guis.CheckBox(background_image, 5,6, new Coord2d(182,46), new Coord2d(182,53))).onclick((box)->container.onGuiAction(box.checked() ? "input-filter-on" : "input-filter-off"));
       passthrough_enable_ = (new Guis.CheckBox(background_image, 11,6, new Coord2d(189,46), new Coord2d(189,53))).onclick((box)->container.onGuiAction(box.checked() ? "pass-through-on" : "pass-through-off"));
-      command_items_with_process_bar.add(Items.CRAFTING_TABLE);
-      command_items_with_process_bar.add(Items.FURNACE);
-      command_items_with_process_bar.add(Items.BLAST_FURNACE);
-      command_items_with_process_bar.add(Items.SMOKER);
-      command_items_with_process_bar.add(Items.COMPOSTER);
-      command_items_with_process_bar.add(Items.BREWING_STAND);
-      command_items_with_process_bar.add(Items.WHEAT);
-      command_items_with_process_bar.add(Items.WHEAT_SEEDS);
-      command_items_with_process_bar.add(Items.CARROT);
-      command_items_with_process_bar.add(Items.STONE_HOE);
-      command_items_with_process_bar.add(Items.IRON_HOE);
-      command_items_with_process_bar.add(Items.DIAMOND_HOE);
-      command_items_with_process_bar.add(Items.NETHERITE_HOE);
-      command_items_with_process_bar.add(Items.GRINDSTONE);
-      command_items_result_visible.add(Items.CRAFTING_TABLE);
-      command_items_result_visible.add(Items.FURNACE);
-      command_items_result_visible.add(Items.BLAST_FURNACE);
-      command_items_result_visible.add(Items.SMOKER);
-      command_items_result_visible.add(Items.COMPOSTER);
-      command_items_result_visible.add(Items.BREWING_STAND);
-      command_items_result_visible.add(Items.GRINDSTONE);
-      command_items_grid_visible.add(Items.CRAFTING_TABLE);
-      command_items_grid_visible.add(Items.FURNACE);
-      command_items_grid_visible.add(Items.BLAST_FURNACE);
-      command_items_grid_visible.add(Items.SMOKER);
+      Collections.addAll(command_items_with_process_bar,
+        Items.CRAFTING_TABLE, Items.FURNACE, Items.BLAST_FURNACE, Items.SMOKER, Items.COMPOSTER, Items.BREWING_STAND,
+        Items.GRINDSTONE,
+        Items.WHEAT, Items.WHEAT_SEEDS, Items.CARROT,
+        Items.STONE_HOE, Items.GOLDEN_HOE, Items.IRON_HOE, Items.DIAMOND_HOE, Items.NETHERITE_HOE,
+        Items.STONE_PICKAXE, Items.GOLDEN_PICKAXE, Items.IRON_PICKAXE, Items.DIAMOND_PICKAXE, Items.NETHERITE_PICKAXE,
+        Items.STONE_AXE, Items.GOLDEN_AXE, Items.IRON_AXE, Items.DIAMOND_AXE, Items.NETHERITE_AXE
+      );
+      Collections.addAll(command_items_with_process_bar,
+        Items.CRAFTING_TABLE, Items.FURNACE, Items.BLAST_FURNACE, Items.SMOKER, Items.COMPOSTER, Items.BREWING_STAND,
+        Items.GRINDSTONE
+      );
+      Collections.addAll(command_items_with_process_bar,
+        Items.CRAFTING_TABLE, Items.FURNACE, Items.BLAST_FURNACE, Items.SMOKER
+      );
     }
 
     private void update()

@@ -236,7 +236,10 @@ public class ModConfig
       COMMON.hive_sugar_boost_time_s.get(),
       COMMON.hive_growth_period_s.get(),
       COMMON.hive_animal_feeding_speed_percent.get(),16, 3,
-      COMMON.hive_farming_speed_percent.get()
+      COMMON.hive_farming_speed_percent.get(),
+      100,
+      100,
+      100
     );
   }
 
