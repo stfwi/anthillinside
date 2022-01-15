@@ -4,10 +4,11 @@
 ----
 ## Version history
 
-    ~ v1.0.9-b1   [A] Plant harvesting extended.
+    - v1.0.9-b1   [A] Plant harvesting extended.
                   [A] Block breaking added (pickaxe).
                   [A] Tree Chopping implemented (axe).
-                  [M] Hive texture more decent for players with cribilitis.
+                  [A] Trail rotation (sneak-click with ants).
+                  [M] Textures more decent (for players with cribilitis).
 
     - v1.0.8      [F] Forge/gradle update, minor adaptions.
 

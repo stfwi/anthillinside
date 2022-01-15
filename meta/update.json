@@ -1,6 +1,7 @@
 {
   "homepage": "https://www.curseforge.com/minecraft/mc-mods/engineers-tools/",
   "1.18.1": {
+    "1.0.9-b1": "[A] Plant harvesting extended.\n[A] Block breaking added (pickaxe).\n[A] Tree Chopping implemented (axe).\n[A] Trail rotation (sneak-click with ants).\n[M] Textures more decent (for players with cribilitis).",
     "1.0.8": "[F] Forge/gradle update, minor adaptions.",
     "1.0.8-b1": "[F] Initial 1.18.1 port.",
     "1.0.7": "[R] Initial 1.17.1 release.\n[F] Minor porting fixes.",
@@ -19,6 +20,6 @@
   },
   "promos": {
     "1.18.1-recommended": "1.0.8",
-    "1.18.1-latest": "1.0.8"
+    "1.18.1-latest": "1.0.9-b1"
   }
 }
