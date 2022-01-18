@@ -2,16 +2,17 @@
 	"parent": "block/cube",
 	"textures": {
 		"particle": "anthillinside:block/trail_texture_s",
-		"s": "anthillinside:block/trail_texture_s"
+		"s": "anthillinside:block/trail_texture_s",
+    "i": "anthillinside:block/trail_texture_si"
 	},
 	"elements": [
 		{
 			"from": [0, 0, 0],
 			"to": [16, 0.2, 16],
 			"faces": {
-				"north": {"uv": [0, 15.8, 16, 16], "texture": "#s"},
-				"up": {"uv": [0, 0, 16, 16], "texture": "#s"},
-				"down": {"uv": [0, 0, 16, 16], "rotation": 180, "texture": "#s"}
+				"north": {"uv": [0, 15.8, 16, 16], "texture": "#i"},
+				"up": {"uv": [0, 0, 16, 16], "texture": "#i"},
+				"down": {"uv": [0, 0, 16, 16], "rotation": 180, "texture": "#i"}
 			}
 		},
 		{

@@ -1,0 +1,17 @@
+{
+	"credit": "Made with Blockbench",
+	"parent": "block/cube",
+	"textures": {
+		"s": "anthillinside:block/trail_texture_sr"
+	},
+	"elements": [
+		{
+			"from": [0, 0, 0],
+			"to": [16, 0.2, 16],
+			"faces": {
+				"up": {"uv": [16, 0, 0, 16], "texture": "#s"},
+				"down": {"uv": [16, 0, 0, 16], "rotation": 180, "texture": "#s"}
+			}
+		}
+	]
+}

@@ -46,7 +46,6 @@ public class ModConfig
     public final ForgeConfigSpec.BooleanValue with_experimental;
     public final ForgeConfigSpec.BooleanValue with_config_logging;
     /// Tweaks
-    public final ForgeConfigSpec.IntValue trail_speed_percent;
     public final ForgeConfigSpec.IntValue hive_drop_chance_percent;
     public final ForgeConfigSpec.IntValue hive_processing_speed_percent;
     public final ForgeConfigSpec.IntValue hive_sugar_boost_time_s;
@@ -98,10 +97,6 @@ public class ModConfig
       {
         builder.comment("Tweak settings")
           .push("tweaks");
-        trail_speed_percent = builder
-          .translation(MODID + ".config.trail_speed_percent")
-          .comment("Sets how fast the Red Ant Trail conveys items.")
-          .defineInRange("trail_speed_percent", 100, 50, 125);
         hive_drop_chance_percent = builder
           .translation(MODID + ".config.hive_drop_chance_percent")
           .comment("Sets how probable it is that a Red Ant Hive drops when manually mining Redstone Ore.")
@@ -229,7 +224,7 @@ public class ModConfig
     with_experimental_features_ = COMMON.with_experimental.get();
     if(with_experimental_features_) LOGGER.info("Config: EXPERIMENTAL FEATURES ENABLED.");
     updateOptouts();
-    RedAntTrail.on_config(COMMON.trail_speed_percent.get());
+    RedAntTrail.on_config();
     RedAntHive.on_config(
       COMMON.hive_drop_chance_percent.get(),
       COMMON.hive_processing_speed_percent.get(),
