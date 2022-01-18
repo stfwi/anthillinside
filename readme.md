@@ -4,6 +4,8 @@
 ----
 ## Version history
 
+    - v1.0.9-b2   [F] Trail thinner, frame rate increased.
+
     - v1.0.9-b1   [A] Plant harvesting extended.
                   [A] Block breaking added (pickaxe).
                   [A] Tree Chopping implemented (axe).
