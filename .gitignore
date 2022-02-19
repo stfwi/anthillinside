@@ -21,14 +21,14 @@ tests
 signing.*
 src/main/java/archive
 src/main/resources/assets/minecraft
-/1.14/src/generated
-/1.15/src/generated
+/1.*/src/generated
 .vscode
 /classes
 /dev
 /tmp
 /archive
 /assets-src
+/versions
 .gimp
 *.xcf
 desktop.ini
