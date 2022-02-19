@@ -1,0 +1,27 @@
+{
+ "homepage": "https://www.curseforge.com/minecraft/mc-mods/anthill-inside/",
+ "1.18.1": {
+  "1.0.9": "[R] Release build v1.0.9.",
+  "1.0.9-b2": "[F] Trail thinner, frame rate increased.",
+  "1.0.9-b1": "[A] Plant harvesting extended.\n[A] Block breaking added (pickaxe).\n[A] Tree Chopping implemented (axe).\n[A] Trail rotation (sneak-click with ants).\n[M] Textures more decent (for players with cribilitis).",
+  "1.0.8": "[F] Forge/gradle update, minor adaptions.",
+  "1.0.8-b1": "[F] Initial 1.18.1 port.",
+  "1.0.7": "[R] Initial 1.17.1 release.\n[F] Minor porting fixes.",
+  "1.0.7-b1": "[U] Initial 1.17.1 port.",
+  "1.0.6": "[A] Bonemeal fertilizing non-experimental.\n[F] Fixed Potion insertion bug.",
+  "1.0.6-b2": "[M] Hive: Adaptive animal feeding cool-down (the more animals already seen, the slower the breeding speed).\n[M] Trail: Itching damage for animals tuned down.\n[M] Hive: Redstone pulse on input/output side added for sending off minecarts after loading/unloading.",
+  "1.0.6-b1": "[A] Hive: Item Disenchanting (Grind Stone) added.\n[A] Trail: Item sorting with item frames added.",
+  "1.0.5": "[A] Hive: Potion brewing added.",
+  "1.0.4": "[F] Fixed Trail Redstone update for notify-only conditions.",
+  "1.0.3": "[F] Fixed Trail Redstone connectivity.",
+  "1.0.2": "[F] Fixed vertical placement issue (thx geometricaldude).\n[A] Added crop farming (experimental).",
+  "1.0.1": "[A] Added shearing and animal feeding.\n[A] Added No-Ants indicator in the GUI.\n[A] Added No-Ingredients indicator for composting.",
+  "1.0.1-b1": "[M] Slightly increased item collection range to Hopper Minecart range.\n[A] Ant Hive color variants added (normal, sand covered, dirt covered).",
+  "1.0.0": "[R] Initial release.\n[F] Fixed Furnace Processing missing fuel container item insertion.\n[F] Tooltip typo fixed.",
+  "1.0.0-b1": "[U] Initial concept implementation."
+ },
+ "promos": {
+  "1.18.1-recommended": "1.0.9",
+  "1.18.1-latest": "1.0.9"
+ }
+}
