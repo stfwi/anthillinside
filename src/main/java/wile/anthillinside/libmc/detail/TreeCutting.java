@@ -11,7 +11,6 @@ package wile.anthillinside.libmc.detail;
 import com.google.common.collect.ImmutableList;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
@@ -25,6 +24,11 @@ import java.util.*;
 
 public class TreeCutting
 {
+  public static boolean canChop(BlockState state)
+  { return isLog(state); }
+
+  // -------------------------------------------------------------------------------------------------------------------
+
   private static final List<Vec3i> hoffsets = ImmutableList.of(
     new Vec3i( 1,0, 0), new Vec3i( 1,0, 1), new Vec3i( 0,0, 1),
     new Vec3i(-1,0, 1), new Vec3i(-1,0, 0), new Vec3i(-1,0,-1),
@@ -32,7 +36,7 @@ public class TreeCutting
   );
 
   private static boolean isLog(BlockState state)
-  { return (state.is(BlockTags.LOGS)) || (state.getBlock().getTags().contains(new ResourceLocation("minecraft","logs"))); }
+  { return (state.is(BlockTags.LOGS)); }
 
   private static boolean isSameLog(BlockState a, BlockState b)
   { return (a.getBlock()==b.getBlock()); }
@@ -40,7 +44,7 @@ public class TreeCutting
   private static boolean isLeaves(BlockState state)
   {
     if(state.getBlock() instanceof LeavesBlock) return true;
-    if(state.getBlock().getTags().contains(new ResourceLocation("minecraft","leaves"))) return true;
+    if(state.is(BlockTags.LEAVES)) return true;
     return false;
   }
 
@@ -68,9 +72,6 @@ public class TreeCutting
     Block.dropResources(world.getBlockState(pos), world, pos);
     world.setBlock(pos, world.getFluidState(pos).createLegacyBlock(), 1|2|8);
   }
-
-  public static boolean canChop(BlockState state)
-  { return isLog(state); }
 
   public static int chopTree(Level world, BlockState broken_state, BlockPos startPos, int max_blocks_to_break, boolean without_target_block)
   {

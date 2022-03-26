@@ -15,9 +15,9 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-import wile.anthillinside.ModAnthillInside;
 import wile.anthillinside.ModConfig;
 import wile.anthillinside.libmc.detail.Auxiliaries;
+import wile.anthillinside.libmc.detail.Registries;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
@@ -28,7 +28,7 @@ import java.util.List;
 public class BaseItem extends Item
 {
   public BaseItem(Item.Properties properties)
-  { super(properties.tab(ModAnthillInside.ITEMGROUP)); }
+  { super(properties.tab(Registries.getCreativeModeTab())); }
 
   @Override
   @OnlyIn(Dist.CLIENT)
@@ -37,6 +37,5 @@ public class BaseItem extends Item
 
   @Override
   public Collection<CreativeModeTab> getCreativeTabs()
-  { return ModConfig.isOptedOut(this) ? (Collections.emptyList()) : (Collections.singletonList(ModAnthillInside.ITEMGROUP)); }
-
+  { return ModConfig.isOptedOut(this) ? (Collections.emptyList()) : (Collections.singletonList(Registries.getCreativeModeTab())); }
 }

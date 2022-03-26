@@ -6,13 +6,8 @@
  */
 package wile.anthillinside;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraftforge.common.MinecraftForge;
@@ -20,15 +15,14 @@ import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import wile.anthillinside.blocks.RedAntHive;
-import wile.anthillinside.libmc.detail.*;
+import wile.anthillinside.libmc.detail.Auxiliaries;
+import wile.anthillinside.libmc.detail.Registries;
 
 
 @Mod("anthillinside")
@@ -43,10 +37,10 @@ public class ModAnthillInside
     Auxiliaries.init(MODID, LOGGER, ModConfig::getServerConfig);
     Auxiliaries.logGitVersion(MODNAME);
     ModLoadingContext.get().registerConfig(net.minecraftforge.fml.config.ModConfig.Type.COMMON, ModConfig.COMMON_CONFIG_SPEC);
+    Registries.init(MODID, "ants");
+    ModContent.init(MODID);
     FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onSetup);
     FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onClientSetup);
-    //FMLJavaModLoadingContext.get().getModEventBus().addListener(ForgeEvents::onConfigLoad);
-    //FMLJavaModLoadingContext.get().getModEventBus().addListener(ForgeEvents::onConfigReload);
     MinecraftForge.EVENT_BUS.register(this);
     MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onBlockBroken);
   }
@@ -66,8 +60,7 @@ public class ModAnthillInside
   private void onClientSetup(final FMLClientSetupEvent event)
   {
     wile.anthillinside.libmc.detail.Overlay.register();
-    ModContent.registerTileEntityRenderers();
-    ModContent.registerContainerGuis();
+    ModContent.registerMenuGuis();
     ModContent.processContentClientSide();
   }
 
@@ -76,32 +69,23 @@ public class ModAnthillInside
   {
     @SubscribeEvent
     public static void onBlocksRegistry(final RegistryEvent.Register<Block> event)
-    { ModContent.allBlocks().forEach(e->event.getRegistry().register(e)); }
+    { Registries.onBlockRegistry((rl, block)->event.getRegistry().register(block)); }
 
     @SubscribeEvent
     public static void onItemRegistry(final RegistryEvent.Register<Item> event)
-    {
-      ModContent.allItems().forEach(e->event.getRegistry().register(e));
-      ItemTags.createOptional(new ResourceLocation(MODID, "fertilizers"));
-    }
+    { Registries.onItemRegistry((rl, item)->event.getRegistry().register(item)); }
 
     @SubscribeEvent
     public static void onTileEntityRegistry(final RegistryEvent.Register<BlockEntityType<?>> event)
-    { ModContent.allTileEntityTypes().forEach(e->event.getRegistry().register(e)); }
-
-    @SubscribeEvent
-    public static void onRegisterEntityTypes(final RegistryEvent.Register<EntityType<?>> event)
-    { ModContent.allEntityTypes().forEach(e->event.getRegistry().register(e)); }
+    { Registries.onBlockEntityRegistry((rl, tet)->event.getRegistry().register(tet)); }
 
     @SubscribeEvent
     public static void onRegisterContainerTypes(final RegistryEvent.Register<MenuType<?>> event)
-    { ModContent.allContainerTypes().forEach(e->event.getRegistry().register(e)); }
+    { Registries.onMenuTypeRegistry((rl, ct)->event.getRegistry().register(ct)); }
 
-//    @SubscribeEvent
-//    public static void onConfigLoad(IConfigEvent event)
-//    {
-//      ModConfig.apply(); // config ModConfig.Loading/ModConfig.Reloading
-//    }
+    //@SubscribeEvent
+    //public static void onConfigLoad(IConfigEvent event)
+    //{ ModConfig.apply(); // config ModConfig.Loading/ModConfig.Reloading }
 
     public static void onBlockBroken(net.minecraftforge.event.world.BlockEvent.BreakEvent event)
     {
@@ -109,14 +93,4 @@ public class ModAnthillInside
       RedAntHive.onGlobalPlayerBlockBrokenEvent(event.getState(), event.getWorld(), event.getPos(), event.getPlayer());
     }
   }
-
-  // -------------------------------------------------------------------------------------------------------------------
-  // Item group / creative tab
-  // -------------------------------------------------------------------------------------------------------------------
-
-  public static final CreativeModeTab ITEMGROUP = (new CreativeModeTab("tab" + MODID) {
-    @OnlyIn(Dist.CLIENT)
-    public ItemStack makeIcon()
-    { return new ItemStack(ModContent.ANTS_ITEM); }
-  });
 }

@@ -45,9 +45,11 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.items.IItemHandler;
 import wile.anthillinside.ModContent;
+import wile.anthillinside.items.AntsItem;
 import wile.anthillinside.libmc.blocks.StandardBlocks;
 import wile.anthillinside.libmc.detail.Auxiliaries;
 import wile.anthillinside.libmc.detail.Inventories;
+import wile.anthillinside.libmc.detail.Registries;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -93,8 +95,9 @@ public class RedAntTrail
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public BlockItem getBlockItem(Block block, Item.Properties builder)
-    { return ModContent.ANTS_ITEM; }
+    { return null; }
 
     @Override
     public boolean hasDynamicDropList()

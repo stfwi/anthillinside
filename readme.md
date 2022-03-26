@@ -4,6 +4,9 @@
 ----
 ## Version history
 
+    - v1.0.10     [U] Updated to 1.18.2.
+                  [F] Fixed Hive GUI crafting grid visibility.
+
     - v1.0.9      [R] Release build v1.0.9.
 
     - v1.0.9-b2   [F] Trail thinner, frame rate increased.

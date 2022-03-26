@@ -16,14 +16,14 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
+import wile.anthillinside.libmc.detail.Registries;
 
 public class AntsItem extends BaseBlockItem
 {
-  public AntsItem(Block trail, Item.Properties properties)
-  { super(trail, properties.setNoRepair()); }
+  public AntsItem(Item.Properties properties)
+  { super(Registries.getBlock("trail"), properties.setNoRepair()); }
 
   public String getDescriptionId()
   { return getOrCreateDescriptionId(); }

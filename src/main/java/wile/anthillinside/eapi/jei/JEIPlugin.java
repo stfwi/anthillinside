@@ -20,6 +20,7 @@ import mezz.jei.api.runtime.IJeiRuntime;
 import wile.anthillinside.libmc.detail.Auxiliaries;
 import wile.anthillinside.ModConfig;
 import wile.anthillinside.ModContent;
+import wile.anthillinside.libmc.detail.Registries;
 
 import java.util.HashSet;
 import java.util.List;
@@ -36,12 +37,12 @@ public class JEIPlugin implements mezz.jei.api.IModPlugin
   public void onRuntimeAvailable(IJeiRuntime jeiRuntime)
   {
     HashSet<Item> blacklisted = new HashSet<>();
-    for(Block e: ModContent.getRegisteredBlocks()) {
+    for(Block e: Registries.getRegisteredBlocks()) {
       if(ModConfig.isOptedOut(e) && (e.asItem().getRegistryName().getPath()).equals((e.getRegistryName().getPath()))) {
         blacklisted.add(e.asItem());
       }
     }
-    for(Item e: ModContent.getRegisteredItems()) {
+    for(Item e: Registries.getRegisteredItems()) {
       if(ModConfig.isOptedOut(e) && (!(e instanceof BlockItem))) {
         blacklisted.add(e);
       }

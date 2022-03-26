@@ -21,8 +21,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.tags.Tag;
+import net.minecraft.tags.TagKey;
 import net.minecraft.util.Mth;
 import net.minecraft.util.Tuple;
 import net.minecraft.world.*;
@@ -48,7 +47,7 @@ import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.entity.*;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -211,10 +210,9 @@ public class RedAntHive
       registerDefaultState(super.defaultBlockState().setValue(FACING, Direction.DOWN).setValue(VARIANT, 0));
     }
 
-    @Nullable
     @Override
-    public BlockEntityType<RedAntHiveTileEntity> getBlockEntityType()
-    { return ModContent.TET_HIVE; }
+    public ResourceLocation getBlockRegistryName()
+    { return getRegistryName(); }
 
     @Override
     public boolean isBlockEntityTicking(Level world, BlockState state)
@@ -509,7 +507,7 @@ public class RedAntHive
 
     public RedAntHiveTileEntity(BlockPos pos, BlockState state)
     {
-      super(ModContent.TET_HIVE, pos, state);
+      super(Registries.getBlockEntityTypeOfBlock(state.getBlock().getRegistryName().getPath()), pos, state);
       main_inventory_           =  new Inventories.StorageInventory(this, NUM_MAIN_INVENTORY_SLOTS).setValidator(main_inventory_validator());
       left_storage_slot_range_  =  new Inventories.InventoryRange(main_inventory_, LEFT_STORAGE_START , LEFT_STORAGE_NUM_SLOTS, LEFT_STORAGE_NUM_ROWS);
       right_storage_slot_range_ =  new Inventories.InventoryRange(main_inventory_, RIGHT_STORAGE_START, RIGHT_STORAGE_NUM_SLOTS, RIGHT_STORAGE_NUM_ROWS);
@@ -1392,7 +1390,8 @@ public class RedAntHive
       final int volume = range.getVolume();
       final int max_count = (range_ref/2) + 1;
       final int max_search_count = 5;
-      final @Nullable Tag<Item> fertilizers = ItemTags.getAllTags().getTag(new ResourceLocation(ModAnthillInside.MODID, "fertilizers"));
+      final TagKey<Item> fertilizers = Registries.getItemTagKey("fertilizers");
+
       int fertilizer_slot = -1;
       if(fertilizers!=null) {
         fertilizer_slot = (left_storage_slot_range_.find((slot,stack)->stack.is(fertilizers) ? Optional.of(slot) : Optional.empty()).orElse(-1));
@@ -1642,7 +1641,7 @@ public class RedAntHive
 
     private RedAntHiveMenu(int windowId, Inventory player_inventory, Container block_inventory, ContainerLevelAccess wpc, ContainerData fields)
     {
-      super(ModContent.CT_HIVE, windowId);
+      super(Registries.getMenuTypeOfBlock("hive"), windowId);
       wpc_ = wpc;
       player_ = player_inventory.player;
       fields_ = fields;
@@ -1941,11 +1940,11 @@ public class RedAntHive
         Items.STONE_PICKAXE, Items.GOLDEN_PICKAXE, Items.IRON_PICKAXE, Items.DIAMOND_PICKAXE, Items.NETHERITE_PICKAXE,
         Items.STONE_AXE, Items.GOLDEN_AXE, Items.IRON_AXE, Items.DIAMOND_AXE, Items.NETHERITE_AXE
       );
-      Collections.addAll(command_items_with_process_bar,
+      Collections.addAll(command_items_result_visible,
         Items.CRAFTING_TABLE, Items.FURNACE, Items.BLAST_FURNACE, Items.SMOKER, Items.COMPOSTER, Items.BREWING_STAND,
         Items.GRINDSTONE
       );
-      Collections.addAll(command_items_with_process_bar,
+      Collections.addAll(command_items_grid_visible,
         Items.CRAFTING_TABLE, Items.FURNACE, Items.BLAST_FURNACE, Items.SMOKER
       );
     }
