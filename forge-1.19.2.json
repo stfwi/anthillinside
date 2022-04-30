@@ -1,7 +1,14 @@
 {
  "homepage": "https://www.curseforge.com/minecraft/mc-mods/anthill-inside/",
- "1.18.2": {
-  "1.0.11": "[M] Updated Trail and Hive textures.\n[M] Removed Redstone signal Ant Trail blocking (not needed, was also sometimes problematic).",
+ "1.19.2": {
+  "1.2.17": "[A] Added particle indication for Queen's Lair evolution.\n[A] Added supported/dropping Ant Trail feature (using scaffolding).",
+  "1.2.16": "[A] Added Queen's Lair (Red Ant Hive breeding block).\n[F] Fixed Axe usage (tree chopping).\n[M] Removed Trail Redstone blocking (but not Redstone diverting).",
+  "1.2.15": "[A] Added possibility to disable Hive drops from Redstone mining.\n[A] Added tool selection config options.\n[M] Textures edited.\n[M] JEI integration enabled.",
+  "1.2.14": "[U] Ported to mc1.19.2 forge.",
+  "1.1.13": "[U] Ported to mc1.19.1 forge.",
+  "1.0.12": "[F] Hive to entity insertion prefers item handler over container interface.",
+  "1.0.11": "[U] Forge updated to 1.19-41.1.0.",
+  "1.0.11-b1": "[U] Initial 1.19 port.",
   "1.0.10": "[U] Updated to 1.18.2.\n[F] Fixed Hive GUI crafting grid visibility.",
   "1.0.9": "[R] Release build v1.0.9.",
   "1.0.9-b2": "[F] Trail thinner, frame rate increased.",
@@ -23,7 +30,7 @@
   "1.0.0-b1": "[U] Initial concept implementation."
  },
  "promos": {
-  "1.18.2-recommended": "1.0.11",
-  "1.18.2-latest": "1.0.11"
+  "1.19.2-recommended": "1.2.17",
+  "1.19.2-latest": "1.2.17"
  }
 }
