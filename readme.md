@@ -4,6 +4,8 @@
 ----
 ## Version history
 
+    ~ v1.0.11-b1  [M]
+
     - v1.0.10     [U] Updated to 1.18.2.
                   [F] Fixed Hive GUI crafting grid visibility.
 
