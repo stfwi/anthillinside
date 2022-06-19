@@ -7,16 +7,12 @@
 package wile.anthillinside.blocks;
 
 import com.google.common.collect.ImmutableList;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -65,7 +61,6 @@ import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
 import wile.anthillinside.ModAnthillInside;
-import wile.anthillinside.ModConfig;
 import wile.anthillinside.ModContent;
 import wile.anthillinside.blocks.RedAntTrail.RedAntTrailBlock;
 import wile.anthillinside.libmc.blocks.StandardBlocks;
@@ -165,22 +160,22 @@ public class RedAntHive
         processing_command_item_mapping.put(item, new ProcessingHandler(item, RedAntHiveTileEntity::processAxe, (te)->te.itemPassThroughExcept(Collections.emptyList())));
       });
     }
-    ModConfig.log("Hive:" +
+    Auxiliaries.logDebug("Hive:" +
       "drop-probability:" + hive_drop_probability_percent + "%" +
       "ant-speed-scaler:" + normal_processing_speed_ant_count_percent + "%" +
       "growth-time:" + hive_growth_latency_s + "s" +
       "sugar-time:" + sugar_boost_time_s + "s"
     );
-    ModConfig.log("Animals:" +
+    Auxiliaries.logDebug("Animals:" +
       "feeding-speed:" + animal_feeding_speed_percent + "%" +
       "entity-limit:" + animal_feeding_entity_limit +
       "xz-radius:" + animal_feeding_xz_radius + "blk"
     );
-    ModConfig.log("Crop farming:" +
+    Auxiliaries.logDebug("Crop farming:" +
       "havesting-speed:" + farming_speed_percent + "%"
     );
-    ModConfig.log(
-      "Ctrl-Items:" + processing_command_item_mapping.keySet().stream().map(e->e.getRegistryName().getPath()).collect(Collectors.joining(","))
+    Auxiliaries.logDebug(
+      "Ctrl-Items:" + processing_command_item_mapping.keySet().stream().map(e->Auxiliaries.getResourceLocation(e).getPath()).collect(Collectors.joining(","))
     );
   }
 
@@ -209,10 +204,6 @@ public class RedAntHive
       super(config, builder, aabbs);
       registerDefaultState(super.defaultBlockState().setValue(FACING, Direction.DOWN).setValue(VARIANT, 0));
     }
-
-    @Override
-    public ResourceLocation getBlockRegistryName()
-    { return getRegistryName(); }
 
     @Override
     public boolean isBlockEntityTicking(Level world, BlockState state)
@@ -248,7 +239,7 @@ public class RedAntHive
             final BlockState adj_state = world.getBlockState(adj_pos);
             if(!adj_state.isSolidRender(world, adj_pos)) continue;
             reference_weight += weight;
-            final String name = adj_state.getBlock().getRegistryName().getPath();
+            final String name = Auxiliaries.getResourceLocation(adj_state.getBlock()).getPath();
             if(name.contains("sand")) {
               variant_votes[2] += weight;
             } else if(name.contains("dirt") || name.contains("grass")) {
@@ -296,7 +287,7 @@ public class RedAntHive
       if(!(ate instanceof RedAntHiveTileEntity te)) return null;
       return new SimpleMenuProvider(
         (int menu_id, Inventory inventory, Player player) -> new RedAntHiveMenu(menu_id, inventory, te.main_inventory_, ContainerLevelAccess.create(world, pos), te.fields),
-        new TranslatableComponent("container." + ModAnthillInside.MODID + ".hive")
+        Component.translatable("container." + ModAnthillInside.MODID + ".hive")
       );
     }
 
@@ -507,7 +498,7 @@ public class RedAntHive
 
     public RedAntHiveTileEntity(BlockPos pos, BlockState state)
     {
-      super(Registries.getBlockEntityTypeOfBlock(state.getBlock().getRegistryName().getPath()), pos, state);
+      super(Registries.getBlockEntityTypeOfBlock(state.getBlock()), pos, state);
       main_inventory_           =  new Inventories.StorageInventory(this, NUM_MAIN_INVENTORY_SLOTS).setValidator(main_inventory_validator());
       left_storage_slot_range_  =  new Inventories.InventoryRange(main_inventory_, LEFT_STORAGE_START , LEFT_STORAGE_NUM_SLOTS, LEFT_STORAGE_NUM_ROWS);
       right_storage_slot_range_ =  new Inventories.InventoryRange(main_inventory_, RIGHT_STORAGE_START, RIGHT_STORAGE_NUM_SLOTS, RIGHT_STORAGE_NUM_ROWS);
@@ -589,7 +580,7 @@ public class RedAntHive
 
     @Override
     public Component getName()
-    { final Block block=getBlockState().getBlock(); return (block!=null) ? (new TranslatableComponent(block.getDescriptionId())) : (new TextComponent("Hive")); }
+    { return Auxiliaries.localizable(getBlockState().getBlock().getDescriptionId()); }
 
     @Override
     public boolean hasCustomName()
@@ -1909,29 +1900,29 @@ public class RedAntHive
     protected final TooltipDisplay tooltip_ = new TooltipDisplay();
     protected final Player player_;
     protected final RedAntHiveTileEntity.StateFlags state_flags_ = new RedAntHiveTileEntity.StateFlags(0);
-    protected final Component EMPTY_TOOLTIP = new TextComponent("");
+    protected final Component EMPTY_TOOLTIP = Component.empty();
     protected final List<Item> command_items_with_process_bar = new ArrayList<>();
     protected final List<Item> command_items_grid_visible = new ArrayList<>();
     protected final List<Item> command_items_result_visible = new ArrayList<>();
 
     public RedAntHiveGui(RedAntHiveMenu container, Inventory player_inventory, Component title)
     {
-      super(container, player_inventory, title, new ResourceLocation(ModAnthillInside.MODID, "textures/gui/hive_gui.png"));
+      super(container, player_inventory, title, "textures/gui/hive_gui.png");
       player_ = player_inventory.player;
       imageWidth = 176;
       imageHeight = 222;
-      gui_background_    = new Guis.BackgroundImage(background_image, imageWidth,imageHeight, new Coord2d(0,0));
-      grid_background_   = new Guis.BackgroundImage(background_image, 54,54, new Coord2d(180,71));
-      result_background_ = new Guis.BackgroundImage(background_image, 22,18, new Coord2d(206,49));
-      progress_bar_      = new HorizontalProgressBar(background_image, 40,8, new Coord2d(180,0), new Coord2d(180,8));
-      powered_indicator_ = new Guis.BackgroundImage(background_image, 9,8, new Coord2d(181,35));
-      sugar_indicator_   = new Guis.BackgroundImage(background_image, 12,12, new Coord2d(230,19));
-      noants_indicator_  = new Guis.BackgroundImage(background_image, 16,16, new Coord2d(228,32));
-      norecipe_indicator_ = new Guis.BackgroundImage(background_image, 16,16, new Coord2d(196,17));
-      noingredients_indicator_ = new Guis.BackgroundImage(background_image, 16,16, new Coord2d(212,17));
-      nofuel_indicator_ = new Guis.BackgroundImage(background_image, 16,16, new Coord2d(180,17));
-      left_filter_enable_ = (new Guis.CheckBox(background_image, 5,6, new Coord2d(182,46), new Coord2d(182,53))).onclick((box)->container.onGuiAction(box.checked() ? "input-filter-on" : "input-filter-off"));
-      passthrough_enable_ = (new Guis.CheckBox(background_image, 11,6, new Coord2d(189,46), new Coord2d(189,53))).onclick((box)->container.onGuiAction(box.checked() ? "pass-through-on" : "pass-through-off"));
+      gui_background_    = new Guis.BackgroundImage(getBackgroundImage(), imageWidth,imageHeight, new Coord2d(0,0));
+      grid_background_   = new Guis.BackgroundImage(getBackgroundImage(), 54,54, new Coord2d(180,71));
+      result_background_ = new Guis.BackgroundImage(getBackgroundImage(), 22,18, new Coord2d(206,49));
+      progress_bar_      = new HorizontalProgressBar(getBackgroundImage(), 40,8, new Coord2d(180,0), new Coord2d(180,8));
+      powered_indicator_ = new Guis.BackgroundImage(getBackgroundImage(), 9,8, new Coord2d(181,35));
+      sugar_indicator_   = new Guis.BackgroundImage(getBackgroundImage(), 12,12, new Coord2d(230,19));
+      noants_indicator_  = new Guis.BackgroundImage(getBackgroundImage(), 16,16, new Coord2d(228,32));
+      norecipe_indicator_ = new Guis.BackgroundImage(getBackgroundImage(), 16,16, new Coord2d(196,17));
+      noingredients_indicator_ = new Guis.BackgroundImage(getBackgroundImage(), 16,16, new Coord2d(212,17));
+      nofuel_indicator_ = new Guis.BackgroundImage(getBackgroundImage(), 16,16, new Coord2d(180,17));
+      left_filter_enable_ = (new Guis.CheckBox(getBackgroundImage(), 5,6, new Coord2d(182,46), new Coord2d(182,53))).onclick((box)->container.onGuiAction(box.checked() ? "input-filter-on" : "input-filter-off"));
+      passthrough_enable_ = (new Guis.CheckBox(getBackgroundImage(), 11,6, new Coord2d(189,46), new Coord2d(189,53))).onclick((box)->container.onGuiAction(box.checked() ? "pass-through-on" : "pass-through-off"));
       Collections.addAll(command_items_with_process_bar,
         Items.CRAFTING_TABLE, Items.FURNACE, Items.BLAST_FURNACE, Items.SMOKER, Items.COMPOSTER, Items.BREWING_STAND,
         Items.GRINDSTONE,
@@ -1994,63 +1985,63 @@ public class RedAntHive
       tooltip_.init(
         new TooltipDisplay.TipRange(
           x0+164,y0+6, 7,9,
-          ()->(new TranslatableComponent(prefix + "help"))
+          ()->(Component.translatable(prefix + "help"))
         ),
         new TooltipDisplay.TipRange(
           powered_indicator_.x, powered_indicator_.y, powered_indicator_.getWidth(), powered_indicator_.getHeight(),
-          ()->(powered_indicator_.visible ? new TranslatableComponent(prefix + "powered") : EMPTY_TOOLTIP)
+          ()->(powered_indicator_.visible ? Component.translatable(prefix + "powered") : EMPTY_TOOLTIP)
         ),
         new TooltipDisplay.TipRange(
           sugar_indicator_.x, sugar_indicator_.y, sugar_indicator_.getWidth(), sugar_indicator_.getHeight(),
-          ()->(sugar_indicator_.visible ? new TranslatableComponent(prefix + "sugartrip") : EMPTY_TOOLTIP)
+          ()->(sugar_indicator_.visible ? Component.translatable(prefix + "sugartrip") : EMPTY_TOOLTIP)
         ),
         new TooltipDisplay.TipRange(
           norecipe_indicator_.x, norecipe_indicator_.y, norecipe_indicator_.getWidth(), norecipe_indicator_.getHeight(),
-          ()->(norecipe_indicator_.visible ? new TranslatableComponent(prefix + "norecipe") : EMPTY_TOOLTIP)
+          ()->(norecipe_indicator_.visible ? Component.translatable(prefix + "norecipe") : EMPTY_TOOLTIP)
         ),
         new TooltipDisplay.TipRange(
           noingredients_indicator_.x, noingredients_indicator_.y, noingredients_indicator_.getWidth(), noingredients_indicator_.getHeight(),
-          ()->(noingredients_indicator_.visible ? new TranslatableComponent(prefix + "noingredients") : EMPTY_TOOLTIP)
+          ()->(noingredients_indicator_.visible ? Component.translatable(prefix + "noingredients") : EMPTY_TOOLTIP)
         ),
         new TooltipDisplay.TipRange(
           nofuel_indicator_.x, nofuel_indicator_.y, nofuel_indicator_.getWidth(), nofuel_indicator_.getHeight(),
-          ()->(nofuel_indicator_.visible ? new TranslatableComponent(prefix + "nofuel") : EMPTY_TOOLTIP)
+          ()->(nofuel_indicator_.visible ? Component.translatable(prefix + "nofuel") : EMPTY_TOOLTIP)
         ),
         new TooltipDisplay.TipRange(
           noants_indicator_.x, noants_indicator_.y, noants_indicator_.getWidth(), noants_indicator_.getHeight(),
-          ()->(noants_indicator_.visible ? new TranslatableComponent(prefix + "noants") : EMPTY_TOOLTIP)
+          ()->(noants_indicator_.visible ? Component.translatable(prefix + "noants") : EMPTY_TOOLTIP)
         ),
         new TooltipDisplay.TipRange(
           x0+12, y0+22, 8,8,
-          ()->(new TranslatableComponent(prefix + "inputside"))
+          ()->(Component.translatable(prefix + "inputside"))
         ),
         new TooltipDisplay.TipRange(
           x0+156, y0+112, 8,8,
-          ()->(new TranslatableComponent(prefix + "outputside"))
+          ()->(Component.translatable(prefix + "outputside"))
         ),
         new TooltipDisplay.TipRange(
           x0+28, y0+126, 11,6,
-          ()->(new TranslatableComponent(prefix + "passthroughlock"))
+          ()->(Component.translatable(prefix + "passthroughlock"))
         ),
         new TooltipDisplay.TipRange(
           x0+20, y0+126, 5,6,
-          ()->(new TranslatableComponent(prefix + "insertionlock"))
+          ()->(Component.translatable(prefix + "insertionlock"))
         ),
         new TooltipDisplay.TipRange(
           x0+26, y0+18, 16,16,
-          ()->(getMenu().input_selection_slot.hasItem() ? EMPTY_TOOLTIP : new TranslatableComponent(prefix + "inputselect"))
+          ()->(getMenu().input_selection_slot.hasItem() ? EMPTY_TOOLTIP : Component.translatable(prefix + "inputselect"))
         ),
         new TooltipDisplay.TipRange(
           x0+134, y0+108, 16,16,
-          ()->(getMenu().output_selection_slot.hasItem() ? EMPTY_TOOLTIP : new TranslatableComponent(prefix + "outputselect"))
+          ()->(getMenu().output_selection_slot.hasItem() ? EMPTY_TOOLTIP : Component.translatable(prefix + "outputselect"))
         ),
         new TooltipDisplay.TipRange(
           x0+70, y0+50, 16,16,
-          ()->(getMenu().command_slot.hasItem() ? EMPTY_TOOLTIP : new TranslatableComponent(prefix + "workselect"))
+          ()->(getMenu().command_slot.hasItem() ? EMPTY_TOOLTIP : Component.translatable(prefix + "workselect"))
         ),
         new TooltipDisplay.TipRange(
           x0+62, y0+18, 52,16,
-          ()->(getMenu().ant_slot_range_.isEmpty() ? new TranslatableComponent(prefix + "antslots") : EMPTY_TOOLTIP )
+          ()->(getMenu().ant_slot_range_.isEmpty() ? Component.translatable(prefix + "antslots") : EMPTY_TOOLTIP )
         )
       ).delay(400);
       update();
@@ -2089,10 +2080,8 @@ public class RedAntHive
     }
 
     @Override
-    protected void renderBg(PoseStack mx, float partialTicks, int mouseX, int mouseY)
+    protected void renderBgWidgets(PoseStack mx, float partialTicks, int mouseX, int mouseY)
     {
-      RenderSystem.setShader(GameRenderer::getPositionTexShader);
-      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
       final int x0=getGuiLeft(), y0=getGuiTop(), w=getXSize(), h=getYSize();
       this.blit(mx, x0, y0, 0, 0, w, h);
       final RedAntHiveMenu container = getMenu();
@@ -2136,7 +2125,6 @@ public class RedAntHive
           }
         }
       }
-      RenderSystem.disableBlend();
     }
   }
 

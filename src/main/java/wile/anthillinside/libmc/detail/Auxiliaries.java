@@ -13,36 +13,40 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Registry;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraft.network.chat.ComponentUtils;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.fml.ModList;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-import org.apache.logging.log4j.Logger;
+import net.minecraftforge.fml.ModList;
+import net.minecraftforge.registries.ForgeRegistries;
+import org.slf4j.Logger;
 import org.lwjgl.glfw.GLFW;
-import wile.anthillinside.ModConfig;
 
 import javax.annotation.Nullable;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -114,7 +118,7 @@ public class Auxiliaries
   { logger.error(msg); }
 
   public static void logDebug(final String msg)
-  { if(ModConfig.withDebugLogging()) logger.info(msg); }
+  { /*logger.debug(msg);*/ }
 
   // -------------------------------------------------------------------------------------------------------------------
   // Localization, text formatting
@@ -124,27 +128,27 @@ public class Auxiliaries
    * Text localization wrapper, implicitly prepends `MODID` to the
    * translation keys. Forces formatting argument, nullable if no special formatting shall be applied..
    */
-  public static TranslatableComponent localizable(String modtrkey, Object... args)
-  { return new TranslatableComponent((modtrkey.startsWith("block.") || (modtrkey.startsWith("item."))) ? (modtrkey) : (modid+"."+modtrkey), args); }
+  public static MutableComponent localizable(String modtrkey, Object... args)
+  { return Component.translatable((modtrkey.startsWith("block.") || (modtrkey.startsWith("item."))) ? (modtrkey) : (modid+"."+modtrkey), args); }
 
-  public static TranslatableComponent localizable(String modtrkey, @Nullable ChatFormatting color, Object... args)
+  public static MutableComponent localizable(String modtrkey, @Nullable ChatFormatting color, Object... args)
   {
-    TranslatableComponent tr = new TranslatableComponent(modid+"."+modtrkey, args);
-    if(color!=null) tr.withStyle(color);
+    final MutableComponent tr = Component.translatable(modid+"."+modtrkey, args);
+    if(color!=null) tr.getStyle().applyFormat(color);
     return tr;
   }
 
-  public static TranslatableComponent localizable(String modtrkey)
+  public static Component localizable(String modtrkey)
   { return localizable(modtrkey, new Object[]{}); }
 
-  public static TranslatableComponent localizable_block_key(String blocksubkey)
-  { return new TranslatableComponent("block."+modid+"."+blocksubkey); }
+  public static Component localizable_block_key(String blocksubkey)
+  { return Component.translatable("block."+modid+"."+blocksubkey); }
 
   @OnlyIn(Dist.CLIENT)
   public static String localize(String translationKey, Object... args)
   {
-    TranslatableComponent tr = new TranslatableComponent(translationKey, args);
-    tr.withStyle(ChatFormatting.RESET);
+    Component tr = Component.translatable(translationKey, args);
+    tr.getStyle().applyFormat(ChatFormatting.RESET);
     final String ft = tr.getString();
     if(ft.contains("${")) {
       // Non-recursive, non-argument lang file entry cross referencing.
@@ -167,7 +171,7 @@ public class Auxiliaries
             if(!r) m = "";
           }
         }
-        mt.appendReplacement(sb, Matcher.quoteReplacement((new TranslatableComponent(m)).getString().trim()));
+        mt.appendReplacement(sb, Matcher.quoteReplacement((Component.translatable(m)).getString().trim()));
       }
       mt.appendTail(sb);
       return sb.toString();
@@ -182,6 +186,15 @@ public class Auxiliaries
   @OnlyIn(Dist.CLIENT)
   public static boolean hasTranslation(String key)
   { return net.minecraft.client.resources.language.I18n.exists(key); }
+
+  public static MutableComponent join(Collection<? extends Component> components, String separator)
+  { return ComponentUtils.formatList(components, Component.literal(separator), Function.identity()); }
+
+  public static MutableComponent join(Component... components)
+  { final MutableComponent tc = Component.empty(); for(Component c:components) { tc.append(c); } return tc; }
+
+  public static boolean isEmpty(Component component)
+  { return component.getSiblings().isEmpty() && component.getString().isEmpty(); }
 
   public static final class Tooltip
   {
@@ -217,7 +230,7 @@ public class Auxiliaries
       if(tip_text.isEmpty()) return false;
       String[] tip_list = tip_text.split("\\r?\\n");
       for(String tip:tip_list) {
-        tooltip.add(new TextComponent(tip.replaceAll("\\s+$","").replaceAll("^\\s+", "")).withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.literal(tip.replaceAll("\\s+$","").replaceAll("^\\s+", "")).withStyle(ChatFormatting.GRAY));
       }
       return true;
     }
@@ -235,7 +248,7 @@ public class Auxiliaries
     public static boolean addInformation(String translation_key, List<Component> tooltip)
     {
       if(!Auxiliaries.hasTranslation(translation_key)) return false;
-      tooltip.add(new TextComponent(localize(translation_key).replaceAll("\\s+$","").replaceAll("^\\s+", "")).withStyle(ChatFormatting.GRAY));
+      tooltip.add(Component.literal(localize(translation_key).replaceAll("\\s+$","").replaceAll("^\\s+", "")).withStyle(ChatFormatting.GRAY));
       return true;
     }
 
@@ -243,16 +256,34 @@ public class Auxiliaries
 
   @SuppressWarnings("unused")
   public static void playerChatMessage(final Player player, final String message)
-  {
-    String s = message.trim();
-    if(!s.isEmpty()) player.sendMessage(new TranslatableComponent(s), new UUID(0,0));
-  }
+  { player.displayClientMessage(Component.translatable(message.trim()), true); }
 
   public static @Nullable Component unserializeTextComponent(String serialized)
   { return Component.Serializer.fromJson(serialized); }
 
   public static String serializeTextComponent(Component tc)
   { return (tc==null) ? ("") : (Component.Serializer.toJson(tc)); }
+
+  // -------------------------------------------------------------------------------------------------------------------
+  // Tag Handling
+  // -------------------------------------------------------------------------------------------------------------------
+
+  @SuppressWarnings("deprecation")
+  public static boolean isInItemTag(Item item, ResourceLocation tag)
+  { return ForgeRegistries.ITEMS.tags().stream().filter(tg->tg.getKey().location().equals(tag)).anyMatch(tk->tk.contains(item)); }
+
+  @SuppressWarnings("deprecation")
+  public static boolean isInBlockTag(Block block, ResourceLocation tag)
+  { return ForgeRegistries.BLOCKS.tags().stream().filter(tg->tg.getKey().location().equals(tag)).anyMatch(tk->tk.contains(block)); }
+
+  @SuppressWarnings("deprecation")
+  public static ResourceLocation getResourceLocation(Item item)
+  { return Registry.ITEM.getKey(item); }
+
+  @SuppressWarnings("deprecation")
+  public static ResourceLocation getResourceLocation(Block block)
+  { return Registry.BLOCK.getKey(block); }
+
 
   // -------------------------------------------------------------------------------------------------------------------
   // Item NBT data

@@ -9,6 +9,7 @@ package wile.anthillinside.blocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
@@ -21,7 +22,6 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.schedule.Activity;
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -45,11 +45,9 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.items.IItemHandler;
 import wile.anthillinside.ModContent;
-import wile.anthillinside.items.AntsItem;
 import wile.anthillinside.libmc.blocks.StandardBlocks;
 import wile.anthillinside.libmc.detail.Auxiliaries;
 import wile.anthillinside.libmc.detail.Inventories;
-import wile.anthillinside.libmc.detail.Registries;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -64,7 +62,7 @@ public class RedAntTrail
   // Block
   //--------------------------------------------------------------------------------------------------------------------
 
-  public static class RedAntTrailBlock extends StandardBlocks.HorizontalWaterLoggable implements StandardBlocks.IBlockItemFactory
+  public static class RedAntTrailBlock extends StandardBlocks.HorizontalWaterLoggable
   {
     public static final BooleanProperty FRONT = BooleanProperty.create("front");
     public static final BooleanProperty LEFT = BooleanProperty.create("left");
@@ -93,11 +91,6 @@ public class RedAntTrail
       });
       registerDefaultState(super.defaultBlockState().setValue(FRONT, true).setValue(UP, false).setValue(LEFT, false).setValue(RIGHT, false).setValue(IN, false));
     }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public BlockItem getBlockItem(Block block, Item.Properties builder)
-    { return null; }
 
     @Override
     public boolean hasDynamicDropList()
@@ -188,7 +181,7 @@ public class RedAntTrail
 
     @Override
     @SuppressWarnings("deprecation")
-    public void tick(BlockState state, ServerLevel world, BlockPos pos, Random rand)
+    public void tick(BlockState state, ServerLevel world, BlockPos pos, RandomSource rand)
     {
       if(!state.getValue(UP)) return;
       final BlockState st = world.getBlockState(pos.above());

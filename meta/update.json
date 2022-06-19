@@ -1,6 +1,7 @@
 {
  "homepage": "https://www.curseforge.com/minecraft/mc-mods/anthill-inside/",
- "1.18.2": {
+ "1.19": {
+  "1.0.11-b1": "[U] Initial 1.19 port.",
   "1.0.10": "[U] Updated to 1.18.2.\n[F] Fixed Hive GUI crafting grid visibility.",
   "1.0.9": "[R] Release build v1.0.9.",
   "1.0.9-b2": "[F] Trail thinner, frame rate increased.",
@@ -22,7 +23,7 @@
   "1.0.0-b1": "[U] Initial concept implementation."
  },
  "promos": {
-  "1.18.2-recommended": "1.0.10",
-  "1.18.2-latest": "1.0.10"
+  "1.19-recommended": "1.0.10",
+  "1.19-latest": "1.0.11-b1"
  }
 }

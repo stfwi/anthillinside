@@ -28,7 +28,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.ComposterBlock;
 import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.common.brewing.BrewingRecipeRegistry;
-import wile.anthillinside.libmc.detail.Inventories.InventoryRange;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -44,7 +43,14 @@ public class Crafting
     protected static final CraftingGrid instance3x3 = new CraftingGrid(3,3);
 
     protected CraftingGrid(int width, int height)
-    { super(new AbstractContainerMenu(null,0) { public boolean stillValid(Player player) { return false; } }, width, height); }
+    { super(
+        new AbstractContainerMenu(null,0) {
+          public boolean stillValid(Player player) { return false; }
+          public ItemStack quickMoveStack(Player player, int slot) {return ItemStack.EMPTY; }
+        }
+        , width, height
+      );
+    }
 
     protected void fill(Container grid)
     { for(int i=0; i<getContainerSize(); ++i) setItem(i, i>=grid.getContainerSize() ? ItemStack.EMPTY : grid.getItem(i)); }
@@ -100,7 +106,7 @@ public class Crafting
     List<ItemStack> used = new ArrayList<>();   //NonNullList.withSize(width*height);
     for(int i=width*height; i>0; --i) used.add(ItemStack.EMPTY);
     Container check_inventory = Inventories.copyOf(item_inventory);
-    InventoryRange source = new InventoryRange(check_inventory);
+    Inventories.InventoryRange source = new Inventories.InventoryRange(check_inventory);
     final List<Ingredient> ingredients = recipe.getIngredients();
     final List<ItemStack> preferred = new ArrayList<>(width*height);
     if(crafting_grid != null) {
@@ -168,6 +174,13 @@ public class Crafting
     } else {
       return Optional.empty();
     }
+  }
+
+  public static <T extends Recipe<?>> int getSmeltingTimeNeeded(RecipeType<T> recipe_type, Level world, ItemStack stack)
+  {
+    if(stack.isEmpty()) return 0;
+    final int t = getFurnaceRecipe(recipe_type, world, stack).map((AbstractCookingRecipe::getCookingTime)).orElse(0);
+    return (t<=0) ? 200 : t;
   }
 
   /**
@@ -353,6 +366,5 @@ public class Crafting
     stack.setRepairCost(getEnchantmentRepairCost(world, on_item));
     return removed;
   }
-
 
 }

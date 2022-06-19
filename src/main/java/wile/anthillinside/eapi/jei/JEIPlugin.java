@@ -7,9 +7,9 @@
  * JEI plugin (see https://github.com/mezz/JustEnoughItems/wiki/Creating-Plugins)
  */
 package wile.anthillinside.eapi.jei;
-/*
+
 public class JEIPlugin {}
-*/
+/*
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -57,3 +57,4 @@ public class JEIPlugin implements mezz.jei.api.IModPlugin
     }
   }
 }
+*/

@@ -9,6 +9,7 @@ package wile.anthillinside;
 import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Rarity;
@@ -21,7 +22,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.registries.ObjectHolder;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
 import wile.anthillinside.blocks.RedAntHive;
 import wile.anthillinside.blocks.RedAntTrail;
 import wile.anthillinside.items.AntsItem;
@@ -50,7 +51,7 @@ public class ModContent
 
   public static void initTags()
   {
-    Registries.addOptionalItemTag("fertilizers", "minecraft:bonemeal");
+    Registries.addOptionaItemTag("fertilizers", new ResourceLocation("minecraft","bonemeal"));
   }
 
   public static void initBlocks()
@@ -67,11 +68,13 @@ public class ModContent
       RedAntHive.RedAntHiveTileEntity::new,
       RedAntHive.RedAntHiveMenu::new
     );
-    Registries.addBlock("trail", ()->new RedAntTrail.RedAntTrailBlock(
-      StandardBlocks.CFG_TRANSLUCENT|StandardBlocks.CFG_HORIZIONTAL|StandardBlocks.CFG_LOOK_PLACEMENT,
-      BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BROWN).strength(0.1f, 3f).sound(SoundType.CROP)
-        .noCollission().noOcclusion().isValidSpawn((s,w,p,e)->false).jumpFactor(1.2f).randomTicks()
-    ));
+    Registries.addBlock("trail",
+      ()->new RedAntTrail.RedAntTrailBlock(
+        StandardBlocks.CFG_TRANSLUCENT|StandardBlocks.CFG_HORIZIONTAL|StandardBlocks.CFG_LOOK_PLACEMENT,
+        BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BROWN).strength(0.1f, 3f).sound(SoundType.CROP).noCollission().noOcclusion().isValidSpawn((s,w,p,e)->false).jumpFactor(1.2f).randomTicks()
+      ),
+      Registries.WITHOUT_ITEM
+    );
   }
 
   public static void initItems()
@@ -88,16 +91,16 @@ public class ModContent
   // Holders for performance critical reference accesses.
   //--------------------------------------------------------------------------------------------------------------------
 
-  @ObjectHolder("anthillinside:ants")
+  @ObjectHolder(registryName="item", value="anthillinside:ants")
   public static final AntsItem ANTS_ITEM = null;
 
-  @ObjectHolder("anthillinside:red_sugar")
+  @ObjectHolder(registryName="item", value="anthillinside:red_sugar")
   public static final RedSugarItem RED_SUGAR_ITEM = null;
 
-  @ObjectHolder("anthillinside:hive")
+  @ObjectHolder(registryName="block", value="anthillinside:hive")
   public static final RedAntHive.RedAntHiveBlock HIVE_BLOCK = null;
 
-  @ObjectHolder("anthillinside:trail")
+  @ObjectHolder(registryName="block", value="anthillinside:trail")
   public static final RedAntTrail.RedAntTrailBlock TRAIL_BLOCK = null;
 
   //--------------------------------------------------------------------------------------------------------------------

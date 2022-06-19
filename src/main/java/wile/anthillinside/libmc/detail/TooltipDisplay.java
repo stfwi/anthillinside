@@ -11,7 +11,7 @@ package wile.anthillinside.libmc.detail;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.*;
 import net.minecraft.util.Mth;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraftforge.api.distmarker.Dist;
@@ -97,10 +97,10 @@ public class TooltipDisplay
     } else if(ranges.stream().noneMatch(
       (tip)->{
         if((x<tip.x0) || (x>tip.x1) || (y<tip.y0) || (y>tip.y1)) return false;
-        String text = tip.text.get().getString();
+        String text = tip.text.get().toString();
         if(text.isEmpty()) return false;
         try {
-          gui.renderTooltip(mx, tip.text.get(), x, y);
+          gui.renderComponentTooltip(mx, tip.text.get().toFlatList(Style.EMPTY), x, y);
         } catch(Exception ex) {
           had_render_exception = true;
           Auxiliaries.logError("Tooltip rendering disabled due to exception: '" + ex.getMessage() + "'");

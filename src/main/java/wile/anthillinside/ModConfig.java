@@ -13,9 +13,10 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraftforge.common.ForgeConfigSpec;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
 import org.apache.commons.lang3.tuple.Pair;
 import wile.anthillinside.blocks.*;
+import wile.anthillinside.libmc.detail.Auxiliaries;
 import wile.anthillinside.libmc.detail.Registries;
 
 import javax.annotation.Nullable;
@@ -135,7 +136,7 @@ public class ModConfig
   { return isOptedOut(block.asItem()); }
 
   public static boolean isOptedOut(final @Nullable Item item)
-  { return (item!=null) && optouts_.contains(item.getRegistryName().getPath()); }
+  { return (item!=null) && optouts_.contains(Auxiliaries.getResourceLocation(item).getPath()); }
 
   public static boolean withExperimental()
   { return with_experimental_features_; }
@@ -186,7 +187,7 @@ public class ModConfig
       Registries.getRegisteredItems().stream().filter((Item item) -> {
         if(item==null) return true;
         try {
-          final String rn = item.getRegistryName().getPath();
+          final String rn = Auxiliaries.getResourceLocation(item).getPath();
           try {
             for(String e : includes) {
               if(rn.matches(e)) {
@@ -207,8 +208,8 @@ public class ModConfig
           LOGGER.error("Exception evaluating the optout config: '"+ex.getMessage()+"'");
         }
         return false;
-      }).forEach(e -> optouts.add(e.getRegistryName().getPath()));
-      Registries.getRegisteredBlocks().stream().filter(e->(e==null)||isOptedOut(e.asItem())).forEach(e->optouts.add(e.getRegistryName().getPath()));
+      }).forEach(e -> optouts.add(Auxiliaries.getResourceLocation(e).getPath()));
+      Registries.getRegisteredBlocks().stream().filter(e->(e==null)||isOptedOut(e.asItem())).forEach(e->optouts.add(Auxiliaries.getResourceLocation(e).getPath()));
       optouts_ = optouts;
     }
     {
