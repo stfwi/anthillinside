@@ -6,7 +6,7 @@
  *
  * General actions which can be done with tools.
  */
-package wile.anthillinside.libmc.detail;
+package wile.anthillinside.libmc;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;

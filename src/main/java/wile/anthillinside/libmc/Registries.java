@@ -6,7 +6,7 @@
  *
  * Common game registry handling.
  */
-package wile.anthillinside.libmc.detail;
+package wile.anthillinside.libmc;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
@@ -26,7 +26,6 @@ import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 public class Registries
 {
@@ -117,11 +116,11 @@ public class Registries
 
   @Nonnull
   public static List<Block> getRegisteredBlocks()
-  { return Collections.unmodifiableList(registered_blocks.values().stream().map(RegistryObject::get).toList()); }
+  { return registered_blocks.values().stream().map(RegistryObject::get).toList(); }
 
   @Nonnull
   public static List<Item> getRegisteredItems()
-  { return Collections.unmodifiableList(registered_items.values().stream().map(RegistryObject::get).toList()); }
+  { return registered_items.values().stream().map(RegistryObject::get).toList(); }
 
   @Nonnull
   public static List<BlockEntityType<?>> getRegisteredBlockEntityTypes()
@@ -155,9 +154,9 @@ public class Registries
     registered_block_entity_types.put(registry_name, BLOCK_ENTITIES.register(registry_name, ()->{
       final Block[] blocks = Arrays.stream(block_names).map(s->{
         Block b = BLOCKS.getEntries().stream().filter((ro)->ro.getId().getPath().equals(s)).findFirst().map(RegistryObject::get).orElse(null);
-        if(b==null) Auxiliaries.logError("registered_blocks does not encompass '" + s + "'");
+        if(b == null) Auxiliaries.logError("registered_blocks does not encompass '" + s + "'");
         return b;
-      }).filter(Objects::nonNull).collect(Collectors.toList()).toArray(new Block[]{});
+      }).filter(Objects::nonNull).toList().toArray(new Block[]{});
       return BlockEntityType.Builder.of(ctor, blocks).build(null);
     }));
   }

@@ -6,8 +6,7 @@
  *
  * Common functionality class for blocks with block entities.
  */
-package wile.anthillinside.libmc.blocks;
-import wile.anthillinside.libmc.detail.Registries;
+package wile.anthillinside.libmc;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;

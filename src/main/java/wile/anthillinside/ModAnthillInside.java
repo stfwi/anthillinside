@@ -6,6 +6,8 @@
  */
 package wile.anthillinside;
 
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -16,8 +18,10 @@ import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
 import wile.anthillinside.blocks.RedAntHive;
-import wile.anthillinside.libmc.detail.Auxiliaries;
-import wile.anthillinside.libmc.detail.Registries;
+import wile.anthillinside.libmc.Auxiliaries;
+import wile.anthillinside.libmc.Networking;
+import wile.anthillinside.libmc.Overlay;
+import wile.anthillinside.libmc.Registries;
 
 
 @Mod("anthillinside")
@@ -48,13 +52,13 @@ public class ModAnthillInside
 
   private void onSetup(final FMLCommonSetupEvent event)
   {
-    wile.anthillinside.libmc.detail.Networking.init(MODID);
+    wile.anthillinside.libmc.Networking.init(MODID);
     ModConfig.apply();
   }
 
   private void onClientSetup(final FMLClientSetupEvent event)
   {
-    wile.anthillinside.libmc.detail.Overlay.register();
+    Networking.OverlayTextMessage.setHandler(Overlay.TextOverlayGui::show);
     ModContent.registerMenuGuis();
     ModContent.processContentClientSide();
   }
@@ -76,4 +80,21 @@ public class ModAnthillInside
       RedAntHive.onGlobalPlayerBlockBrokenEvent(event.getState(), event.getWorld(), event.getPos(), event.getPlayer());
     }
   }
+
+  @OnlyIn(Dist.CLIENT)
+  @Mod.EventBusSubscriber(Dist.CLIENT)
+  public static class ForgeClientEvents
+  {
+    @SubscribeEvent
+    @OnlyIn(Dist.CLIENT)
+    public static void onRenderGui(net.minecraftforge.client.event.RenderGuiOverlayEvent.Post event)
+    { Overlay.TextOverlayGui.INSTANCE.onRenderGui(event.getPoseStack()); }
+
+    @SubscribeEvent
+    @OnlyIn(Dist.CLIENT)
+    @SuppressWarnings("deprecation")
+    public static void onRenderWorldOverlay(net.minecraftforge.client.event.RenderLevelLastEvent event)
+    { Overlay.TextOverlayGui.INSTANCE.onRenderWorldOverlay(event.getPoseStack(), event.getPartialTick()); }
+  }
+
 }

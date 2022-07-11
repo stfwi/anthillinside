@@ -6,8 +6,7 @@
  *
  * Common functionality class for decor blocks.
  */
-package wile.anthillinside.libmc.blocks;
-import wile.anthillinside.libmc.detail.Auxiliaries;
+package wile.anthillinside.libmc;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

@@ -18,7 +18,7 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
-import wile.anthillinside.libmc.detail.Registries;
+import wile.anthillinside.libmc.Registries;
 
 public class AntsItem extends BaseBlockItem
 {

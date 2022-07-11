@@ -7,8 +7,6 @@
 package wile.anthillinside;
 
 import net.minecraft.client.gui.screens.MenuScreens;
-import net.minecraft.client.renderer.ItemBlockRenderTypes;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Item;
@@ -27,10 +25,9 @@ import wile.anthillinside.blocks.RedAntHive;
 import wile.anthillinside.blocks.RedAntTrail;
 import wile.anthillinside.items.AntsItem;
 import wile.anthillinside.items.RedSugarItem;
-import wile.anthillinside.libmc.blocks.StandardBlocks;
-import wile.anthillinside.libmc.blocks.StandardBlocks.IStandardBlock;
-import wile.anthillinside.libmc.detail.Auxiliaries;
-import wile.anthillinside.libmc.detail.Registries;
+import wile.anthillinside.libmc.StandardBlocks;
+import wile.anthillinside.libmc.Auxiliaries;
+import wile.anthillinside.libmc.Registries;
 
 public class ModContent
 {
@@ -117,13 +114,14 @@ public class ModContent
   @OnlyIn(Dist.CLIENT)
   public static void processContentClientSide()
   {
+    //net.minecraft.client.renderer.ItemBlockRenderTypes.TYPE_BY_BLOCK.put(block, net.minecraft.client.renderer.RenderType.cutout());
     for(Block block: Registries.getRegisteredBlocks()) {
-      if(block instanceof IStandardBlock) {
-        switch(((IStandardBlock)block).getRenderTypeHint()) {
-          case CUTOUT: ItemBlockRenderTypes.setRenderLayer(block, RenderType.cutout()); break;
-          case CUTOUT_MIPPED: ItemBlockRenderTypes.setRenderLayer(block, RenderType.cutoutMipped()); break;
-          case TRANSLUCENT: ItemBlockRenderTypes.setRenderLayer(block, RenderType.translucent()); break;
-          case TRANSLUCENT_NO_CRUMBLING: ItemBlockRenderTypes.setRenderLayer(block, RenderType.translucentNoCrumbling()); break;
+      if(block instanceof StandardBlocks.IStandardBlock) {
+        switch(((StandardBlocks.IStandardBlock)block).getRenderTypeHint()) {
+          case CUTOUT: net.minecraft.client.renderer.ItemBlockRenderTypes.setRenderLayer(block, net.minecraft.client.renderer.RenderType.cutout()); break;
+          case CUTOUT_MIPPED: net.minecraft.client.renderer.ItemBlockRenderTypes.setRenderLayer(block, net.minecraft.client.renderer.RenderType.cutoutMipped()); break;
+          case TRANSLUCENT: net.minecraft.client.renderer.ItemBlockRenderTypes.setRenderLayer(block, net.minecraft.client.renderer.RenderType.translucent()); break;
+          case TRANSLUCENT_NO_CRUMBLING: net.minecraft.client.renderer.ItemBlockRenderTypes.setRenderLayer(block, net.minecraft.client.renderer.RenderType.translucentNoCrumbling()); break;
           case SOLID: break;
         }
       }

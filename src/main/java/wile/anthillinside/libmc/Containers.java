@@ -1,4 +1,4 @@
-package wile.anthillinside.libmc.ui;
+package wile.anthillinside.libmc;
 
 import net.minecraft.util.Mth;
 import net.minecraft.world.Container;

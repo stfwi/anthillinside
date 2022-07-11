@@ -12,8 +12,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-import wile.anthillinside.libmc.detail.Auxiliaries;
-import wile.anthillinside.libmc.detail.Registries;
+import wile.anthillinside.libmc.Auxiliaries;
+import wile.anthillinside.libmc.Registries;
 
 import javax.annotation.Nullable;
 import java.util.Collection;

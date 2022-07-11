@@ -16,8 +16,8 @@ import net.minecraftforge.common.ForgeConfigSpec;
 import org.slf4j.Logger;
 import org.apache.commons.lang3.tuple.Pair;
 import wile.anthillinside.blocks.*;
-import wile.anthillinside.libmc.detail.Auxiliaries;
-import wile.anthillinside.libmc.detail.Registries;
+import wile.anthillinside.libmc.Auxiliaries;
+import wile.anthillinside.libmc.Registries;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -164,7 +164,7 @@ public class ModConfig
     final ArrayList<String> includes = new ArrayList<>();
     final ArrayList<String> excludes = new ArrayList<>();
     {
-      String inc = COMMON.pattern_includes.get().toLowerCase().replaceAll(MODID+":", "").replaceAll("[^*_,a-z0-9]", "");
+      String inc = COMMON.pattern_includes.get().toLowerCase().replaceAll(MODID+":", "").replaceAll("[^*_,a-z\\d]", "");
       if(!COMMON.pattern_includes.get().equals(inc)) COMMON.pattern_includes.set(inc);
       String[] incl = inc.split(",");
       for(int i=0; i< incl.length; ++i) {
@@ -173,7 +173,7 @@ public class ModConfig
       }
     }
     {
-      String exc = COMMON.pattern_excludes.get().toLowerCase().replaceAll(MODID+":", "").replaceAll("[^*_,a-z0-9]", "");
+      String exc = COMMON.pattern_excludes.get().toLowerCase().replaceAll(MODID+":", "").replaceAll("[^*_,a-z\\d]", "");
       String[] excl = exc.split(",");
       for(int i=0; i< excl.length; ++i) {
         excl[i] = excl[i].replaceAll("[*]", ".*?");

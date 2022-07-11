@@ -1,4 +1,4 @@
-package wile.anthillinside.libmc.util;
+package wile.anthillinside.libmc;
 
 public class IntegralBitSet
 {

@@ -6,7 +6,7 @@
  *
  * Simple tree cutting algorithm.
  */
-package wile.anthillinside.libmc.detail;
+package wile.anthillinside.libmc;
 
 import com.google.common.collect.ImmutableList;
 import net.minecraft.core.BlockPos;

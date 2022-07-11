@@ -6,7 +6,7 @@
  *
  * Main client/server message handling.
  */
-package wile.anthillinside.libmc.detail;
+package wile.anthillinside.libmc;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;

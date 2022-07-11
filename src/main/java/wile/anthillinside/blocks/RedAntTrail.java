@@ -45,9 +45,9 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.items.IItemHandler;
 import wile.anthillinside.ModContent;
-import wile.anthillinside.libmc.blocks.StandardBlocks;
-import wile.anthillinside.libmc.detail.Auxiliaries;
-import wile.anthillinside.libmc.detail.Inventories;
+import wile.anthillinside.libmc.StandardBlocks;
+import wile.anthillinside.libmc.Auxiliaries;
+import wile.anthillinside.libmc.Inventories;
 
 import javax.annotation.Nullable;
 import java.util.*;

@@ -6,7 +6,7 @@
  *
  * Recipe utility functionality.
  */
-package wile.anthillinside.libmc.detail;
+package wile.anthillinside.libmc;
 
 import net.minecraft.core.NonNullList;
 import net.minecraft.resources.ResourceLocation;
@@ -40,9 +40,9 @@ public class Crafting
 
   public static final class CraftingGrid extends CraftingContainer
   {
-    protected static final CraftingGrid instance3x3 = new CraftingGrid(3,3);
+    private static final CraftingGrid instance3x3 = new CraftingGrid(3,3);
 
-    protected CraftingGrid(int width, int height)
+    private CraftingGrid(int width, int height)
     { super(
         new AbstractContainerMenu(null,0) {
           public boolean stillValid(Player player) { return false; }
@@ -52,7 +52,7 @@ public class Crafting
       );
     }
 
-    protected void fill(Container grid)
+    private void fill(Container grid)
     { for(int i=0; i<getContainerSize(); ++i) setItem(i, i>=grid.getContainerSize() ? ItemStack.EMPTY : grid.getItem(i)); }
 
     public List<CraftingRecipe> getRecipes(Level world, Container grid)
