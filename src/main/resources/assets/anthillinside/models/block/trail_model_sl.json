@@ -1,6 +1,6 @@
 {
-	"credit": "Made with Blockbench",
 	"parent": "block/cube",
+  "render_type": "cutout",
 	"textures": {
 		"s": "anthillinside:block/trail_texture_sr"
 	},

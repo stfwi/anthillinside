@@ -56,9 +56,9 @@ public class Registries
     creative_tab_icon = creative_tab_icon_item_name;
     BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, modid);
     ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, modid);
-    BLOCK_ENTITIES = DeferredRegister.create(ForgeRegistries.BLOCK_ENTITIES, modid);
-    MENUS = DeferredRegister.create(ForgeRegistries.CONTAINERS, modid);
-    ENTITIES = DeferredRegister.create(ForgeRegistries.ENTITIES, modid);
+    BLOCK_ENTITIES = DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, modid);
+    MENUS = DeferredRegister.create(ForgeRegistries.MENU_TYPES, modid);
+    ENTITIES = DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, modid);
     RECIPE_SERIALIZERS = DeferredRegister.create(ForgeRegistries.RECIPE_SERIALIZERS, modid);
     List.of(BLOCKS, ITEMS, BLOCK_ENTITIES, MENUS, ENTITIES, RECIPE_SERIALIZERS).forEach(registrar);
   }
@@ -123,12 +123,12 @@ public class Registries
   { return registered_items.values().stream().map(RegistryObject::get).toList(); }
 
   @Nonnull
-  public static List<BlockEntityType<?>> getRegisteredBlockEntityTypes()
-  { return Collections.unmodifiableList(registered_block_entity_types.values().stream().map(RegistryObject::get).toList()); }
+  public static List<? extends BlockEntityType<?>> getRegisteredBlockEntityTypes()
+  { return registered_block_entity_types.values().stream().map(RegistryObject::get).toList(); }
 
   @Nonnull
-  public static List<EntityType<?>> getRegisteredEntityTypes()
-  { return Collections.unmodifiableList(registered_entity_types.values().stream().map(RegistryObject::get).toList()); }
+  public static List<? extends EntityType<?>> getRegisteredEntityTypes()
+  { return registered_entity_types.values().stream().map(RegistryObject::get).toList(); }
 
   // -------------------------------------------------------------------------------------------------------------
 

@@ -11,7 +11,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Rarity;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.Material;
@@ -114,7 +113,8 @@ public class ModContent
   @OnlyIn(Dist.CLIENT)
   public static void processContentClientSide()
   {
-    //net.minecraft.client.renderer.ItemBlockRenderTypes.TYPE_BY_BLOCK.put(block, net.minecraft.client.renderer.RenderType.cutout());
+    /*
+    -> Now in the model  JSON files. But wait wait. It will be there again in a while. Who knows.
     for(Block block: Registries.getRegisteredBlocks()) {
       if(block instanceof StandardBlocks.IStandardBlock) {
         switch(((StandardBlocks.IStandardBlock)block).getRenderTypeHint()) {
@@ -126,5 +126,6 @@ public class ModContent
         }
       }
     }
+    */
   }
 }

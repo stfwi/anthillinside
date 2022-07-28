@@ -74,10 +74,10 @@ public class ModAnthillInside
     public static void onConfigReload(final ModConfigEvent.Reloading event)
     { try { ModConfig.apply(); } catch(Throwable e) { Auxiliaries.logger().error("Failed to load changed config: " + e.getMessage()); } }
 
-    public static void onBlockBroken(net.minecraftforge.event.world.BlockEvent.BreakEvent event)
+    public static void onBlockBroken(net.minecraftforge.event.level.BlockEvent.BreakEvent event)
     {
       if((event.getState()==null) || (event.getPlayer()==null)) return;
-      RedAntHive.onGlobalPlayerBlockBrokenEvent(event.getState(), event.getWorld(), event.getPos(), event.getPlayer());
+      RedAntHive.onGlobalPlayerBlockBrokenEvent(event.getState(), event.getLevel(), event.getPos(), event.getPlayer());
     }
   }
 
@@ -92,9 +92,12 @@ public class ModAnthillInside
 
     @SubscribeEvent
     @OnlyIn(Dist.CLIENT)
-    @SuppressWarnings("deprecation")
-    public static void onRenderWorldOverlay(net.minecraftforge.client.event.RenderLevelLastEvent event)
-    { Overlay.TextOverlayGui.INSTANCE.onRenderWorldOverlay(event.getPoseStack(), event.getPartialTick()); }
+    public static void onRenderWorldOverlay(net.minecraftforge.client.event.RenderLevelStageEvent event)
+    {
+      if(event.getStage() == net.minecraftforge.client.event.RenderLevelStageEvent.Stage.AFTER_WEATHER) {
+        Overlay.TextOverlayGui.INSTANCE.onRenderWorldOverlay(event.getPoseStack(), event.getPartialTick());
+      }
+    }
   }
 
 }

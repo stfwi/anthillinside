@@ -1,5 +1,6 @@
 {
 	"parent": "block/cube",
+  "render_type": "cutout",
 	"textures": {
 		"o": "anthillinside:block/hive_texture_out",
 		"i": "anthillinside:block/hive_texture_in",
