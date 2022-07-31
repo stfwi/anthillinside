@@ -1,6 +1,7 @@
 {
  "homepage": "https://www.curseforge.com/minecraft/mc-mods/anthill-inside/",
- "1.19": {
+ "1.19.1": {
+  "1.1.13": "[U] Ported to mc1.19.1 forge.",
   "1.0.12": "[F] Hive to entity insertion prefers item handler over container interface.",
   "1.0.11": "[U] Forge updated to 1.19-41.1.0.",
   "1.0.11-b1": "[U] Initial 1.19 port.",
@@ -25,7 +26,7 @@
   "1.0.0-b1": "[U] Initial concept implementation."
  },
  "promos": {
-  "1.19-recommended": "1.0.12",
-  "1.19-latest": "1.0.12"
+  "1.19.1-recommended": "1.1.13",
+  "1.19.1-latest": "1.1.13"
  }
 }
