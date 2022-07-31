@@ -58,6 +58,7 @@ public class ModAnthillInside
 
   private void onClientSetup(final FMLClientSetupEvent event)
   {
+    Overlay.TextOverlayGui.on_config(0.75);
     Networking.OverlayTextMessage.setHandler(Overlay.TextOverlayGui::show);
     ModContent.registerMenuGuis();
     ModContent.processContentClientSide();

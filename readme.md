@@ -4,6 +4,9 @@
 ----
 ## Version history
 
+    - v1.0.12     [F] Hive to entity insertion prefers item handler
+                      over container interface.
+
     - v1.0.11     [U] Forge updated to 1.19-41.1.0.
 
     - v1.0.11-b1  [U] Initial 1.19 port.
