@@ -4,6 +4,8 @@
 ----
 ## Version history
 
+    - v1.2.14     [U] Ported to mc1.19.2 forge.
+
     - v1.1.13     [U] Ported to mc1.19.1 forge.
 
     - v1.0.12     [F] Hive to entity insertion prefers item handler

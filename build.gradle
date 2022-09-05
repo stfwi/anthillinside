@@ -9,7 +9,7 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 //-----------------------------------------------------------------------------
 version = "${version_anthillinside}"
 group = "wile.anthillinside"
-archivesBaseName = "anthillinside-${version_minecraft}"
+archivesBaseName = "anthillinside-${version_minecraft}-forge"
 
 repositories {
   maven { name = "Progwml6 maven"; url = "https://dvs1.progwml6.com/files/maven/" } // JEI files
