@@ -56,9 +56,9 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
 import wile.anthillinside.ModAnthillInside;
 import wile.anthillinside.ModContent;
@@ -94,6 +94,7 @@ public class RedAntHive
   private static int tree_chopping_speed_percent = 100;
   private static final int brewing_fuel_efficiency_percent = 75;
   private static final HashMap<Item, Object> processing_command_item_mapping = new HashMap<>();
+  private static final HashMap<Item, HashSet<Item>> known_items_mapping = new HashMap<>();
 
   private static class ProcessingHandler
   {
@@ -104,13 +105,14 @@ public class RedAntHive
     { this.item = item; this.handler = handler; this.passthrough_handler = passthrough_handler; }
   }
 
-  public static void on_config(int ore_minining_spawn_probability_percent, int ant_speed_scaler_percent,
+  public static void on_config(final HashMap<Item, HashSet<Item>> known_items,
+                               int ore_minining_spawn_probability_percent, int ant_speed_scaler_percent,
                                int sugar_time_s, int growth_latency_s, int feeding_speed_factor_percent,
                                int feeding_entity_limit, int feeding_xz_radius, int farming_speed_factor_percent,
                                int block_breaking_speed_factor_percent, int tree_chopping_speed_factor_percent,
                                int tool_damage_factor_percent
   ){
-    hive_drop_probability_percent = Mth.clamp(ore_minining_spawn_probability_percent, 1, 99);
+    hive_drop_probability_percent = Mth.clamp(ore_minining_spawn_probability_percent, 0, 99);
     normal_processing_speed_ant_count_percent = Mth.clamp(ant_speed_scaler_percent, 10, 190);
     sugar_boost_time_s = Mth.clamp(sugar_time_s, 1, 60);
     hive_growth_latency_s = Mth.clamp(growth_latency_s, 10, 600);
@@ -120,48 +122,51 @@ public class RedAntHive
     farming_speed_percent = (farming_speed_factor_percent < 0) ? (0) : Mth.clamp(farming_speed_factor_percent, 10, 200);
     block_breaking_speed_percent = (block_breaking_speed_factor_percent < 0) ? (0) : Mth.clamp(block_breaking_speed_factor_percent, 10, 200);
     tree_chopping_speed_percent = (tree_chopping_speed_factor_percent < 0) ? (0) : Mth.clamp(tree_chopping_speed_factor_percent, 10, 200);
+    //---------
+    known_items_mapping.clear();
+    known_items_mapping.putAll(known_items);
+    if(known_items_mapping.get(Items.CRAFTING_TABLE).isEmpty()) known_items_mapping.get(Items.CRAFTING_TABLE).add(Items.CRAFTING_TABLE); // Crafting forced default.
+    if(known_items_mapping.get(Items.FURNACE).isEmpty()) known_items_mapping.get(Items.FURNACE).add(Items.FURNACE); // Smelting/cooking forced default.
+    if(known_items_mapping.get(Items.HOPPER).isEmpty()) known_items_mapping.get(Items.HOPPER).add(Items.HOPPER); // At least one hopper.
+    if(known_items_mapping.get(Items.DROPPER).isEmpty()) known_items_mapping.get(Items.DROPPER).add(Items.DROPPER); // At least one dropper.
+    if(known_items_mapping.get(Items.DISPENSER).isEmpty()) known_items_mapping.get(Items.DISPENSER).add(Items.DISPENSER); // At least one dispenser.
+    if(known_items_mapping.get(Items.WHEAT).isEmpty()) known_items_mapping.get(Items.WHEAT).add(Items.WHEAT); // At least one animal food.
+    //---------
     processing_command_item_mapping.clear();
-    processing_command_item_mapping.put(Items.CRAFTING_TABLE, RecipeType.CRAFTING);
-    processing_command_item_mapping.put(Items.FURNACE, RecipeType.SMELTING);
-    processing_command_item_mapping.put(Items.BLAST_FURNACE, RecipeType.BLASTING);
-    processing_command_item_mapping.put(Items.SMOKER, RecipeType.SMOKING);
-    processing_command_item_mapping.put(Items.HOPPER, new ProcessingHandler(Items.HOPPER, (te,done)->te.processHopper(), (te)->false));
-    processing_command_item_mapping.put(Items.COMPOSTER, new ProcessingHandler(Items.COMPOSTER, (te,done)->te.processComposter(), RedAntHiveTileEntity::itemPassThroughComposter));
-    processing_command_item_mapping.put(Items.SHEARS, new ProcessingHandler(Items.SHEARS, (te,done)->te.processShears(), RedAntHiveTileEntity::processHopper));
-    processing_command_item_mapping.put(Items.BREWING_STAND, new ProcessingHandler(Items.BREWING_STAND, RedAntHiveTileEntity::processBrewing, RedAntHiveTileEntity::itemPassThroughBrewing));
-    processing_command_item_mapping.put(Items.GRINDSTONE, new ProcessingHandler(Items.GRINDSTONE, RedAntHiveTileEntity::processGrindstone, RedAntHiveTileEntity::itemPassThroughGrindstone));
-    if(animal_feeding_speed_percent > 0) {
-      processing_command_item_mapping.put(Items.WHEAT, new ProcessingHandler(Items.WHEAT, (te,done)->te.processAnimalFood(Items.WHEAT), (te)->te.itemPassThroughExcept(Items.WHEAT)));
-      processing_command_item_mapping.put(Items.WHEAT_SEEDS, new ProcessingHandler(Items.WHEAT_SEEDS, (te,done)->te.processAnimalFood(Items.WHEAT_SEEDS), (te)->te.itemPassThroughExcept(Items.WHEAT_SEEDS)));
-      processing_command_item_mapping.put(Items.CARROT, new ProcessingHandler(Items.CARROT, (te,done)->te.processAnimalFood(Items.CARROT), (te)->te.itemPassThroughExcept(Items.CARROT)));
-    }
+    known_items_mapping.get(Items.CRAFTING_TABLE).forEach(item -> processing_command_item_mapping.put(item, RecipeType.CRAFTING));
+    known_items_mapping.get(Items.FURNACE).forEach(item -> processing_command_item_mapping.put(item, RecipeType.SMELTING));
+    known_items_mapping.get(Items.BLAST_FURNACE).forEach(item -> processing_command_item_mapping.put(item, RecipeType.BLASTING));
+    known_items_mapping.get(Items.SMOKER).forEach(item -> processing_command_item_mapping.put(item, RecipeType.SMOKING));
+    final ProcessingHandler common_hopper_process = new ProcessingHandler(Items.HOPPER, (te,done)->te.processHopper(), (te)->false);
+    known_items_mapping.get(Items.HOPPER).forEach(item -> processing_command_item_mapping.put(item, common_hopper_process));
+    final ProcessingHandler common_composter_process = new ProcessingHandler(Items.COMPOSTER, (te,done)->te.processComposter(), RedAntHiveTileEntity::itemPassThroughComposter);
+    known_items_mapping.get(Items.COMPOSTER).forEach(item -> processing_command_item_mapping.put(item, common_composter_process));
+    final ProcessingHandler common_shearing_process = new ProcessingHandler(Items.SHEARS, (te,done)->te.processShears(), RedAntHiveTileEntity::processHopper);
+    known_items_mapping.get(Items.SHEARS).forEach(item -> processing_command_item_mapping.put(item, common_shearing_process));
+    final ProcessingHandler common_brewing_process = new ProcessingHandler(Items.BREWING_STAND, RedAntHiveTileEntity::processBrewing, RedAntHiveTileEntity::itemPassThroughBrewing);
+    known_items_mapping.get(Items.BREWING_STAND).forEach(item -> processing_command_item_mapping.put(item, common_brewing_process));
+    final ProcessingHandler common_grinding_process = new ProcessingHandler(Items.GRINDSTONE, RedAntHiveTileEntity::processGrindstone, RedAntHiveTileEntity::itemPassThroughGrindstone);
+    known_items_mapping.get(Items.GRINDSTONE).forEach(item -> processing_command_item_mapping.put(item, common_grinding_process));
     if(farming_speed_percent > 0) {
-      Arrays.stream((new Item[]{
-        Items.STONE_HOE, Items.GOLDEN_HOE, Items.IRON_HOE, Items.DIAMOND_HOE, Items.NETHERITE_HOE
-      })).forEach((item)->{
-        processing_command_item_mapping.put(item, new ProcessingHandler(item, (te,done)->te.processFarming(item), (te)->te.itemPassThroughExcept(Items.BONE_MEAL)));
-      });
+      known_items_mapping.get(Items.IRON_HOE).forEach(item -> processing_command_item_mapping.put(item, new ProcessingHandler(item, (te,done)->te.processFarming(item), (te)->te.itemPassThroughExcept(Items.BONE_MEAL))) );
     }
     if(block_breaking_speed_percent > 0) {
-      Arrays.stream((new Item[]{
-        Items.STONE_PICKAXE, Items.GOLDEN_PICKAXE, Items.IRON_PICKAXE, Items.DIAMOND_PICKAXE, Items.NETHERITE_PICKAXE
-      })).forEach((item)->{
-        processing_command_item_mapping.put(item, new ProcessingHandler(item, RedAntHiveTileEntity::processPickAxe, (te)->te.itemPassThroughExcept(Collections.emptyList())));
-      });
+      known_items_mapping.get(Items.IRON_PICKAXE).forEach(item -> processing_command_item_mapping.put(item, new ProcessingHandler(item, RedAntHiveTileEntity::processPickAxe, (te)->te.itemPassThroughExcept(Collections.emptyList()))) );
     }
     if(tree_chopping_speed_percent > 0) {
-      Arrays.stream((new Item[]{
-        Items.STONE_AXE, Items.GOLDEN_AXE, Items.IRON_AXE, Items.DIAMOND_AXE, Items.NETHERITE_AXE
-      })).forEach((item)->{
-        processing_command_item_mapping.put(item, new ProcessingHandler(item, RedAntHiveTileEntity::processAxe, (te)->te.itemPassThroughExcept(Collections.emptyList())));
-      });
+      known_items_mapping.get(Items.IRON_PICKAXE).forEach(item -> processing_command_item_mapping.put(item, new ProcessingHandler(item, RedAntHiveTileEntity::processAxe, (te)->te.itemPassThroughExcept(Collections.emptyList()))) );
     }
+    if(animal_feeding_speed_percent > 0) {
+      known_items_mapping.get(Items.WHEAT).forEach(item -> processing_command_item_mapping.put(item, new ProcessingHandler(item, (te,done)->te.processAnimalFood(item), (te)->te.itemPassThroughExcept(item))) );
+    }
+    //---------
     Auxiliaries.logDebug("Hive:" +
       "drop-probability:" + hive_drop_probability_percent + "%" +
       "ant-speed-scaler:" + normal_processing_speed_ant_count_percent + "%" +
       "growth-time:" + hive_growth_latency_s + "s" +
       "sugar-time:" + sugar_boost_time_s + "s"
     );
+    Auxiliaries.logDebug("NOTE: Hive drop probability from Redstone mining configured to 0 (OFF). Ensure that you have a recipe or mechanic for making Hives accessible to players.");
     Auxiliaries.logDebug("Animals:" +
       "feeding-speed:" + animal_feeding_speed_percent + "%" +
       "entity-limit:" + animal_feeding_entity_limit +
@@ -181,6 +186,7 @@ public class RedAntHive
 
   public static void onGlobalPlayerBlockBrokenEvent(BlockState state, LevelAccessor iworld, BlockPos pos, Player player)
   {
+    if(hive_drop_probability_percent <= 0) return;
     if((!state.is(Blocks.REDSTONE_ORE) && (!state.is(Blocks.DEEPSLATE_REDSTONE_ORE))) || (iworld.isClientSide()) || !(iworld instanceof Level world)) return;
     if(iworld.getRandom().nextInt(100) >= hive_drop_probability_percent) return;
     Inventories.dropStack(world, Vec3.atCenterOf(pos), new ItemStack(ModContent.HIVE_BLOCK.asItem()));
@@ -480,9 +486,11 @@ public class RedAntHive
         } else if((index >= GRID_STORAGE_START) && (index < GRID_STORAGE_START+GRID_STORAGE_NUM_SLOTS)) {
           return (stack.getItem() != ANTS_ITEM);
         } else if((index >= INP_STORAGE_START) && (index < INP_STORAGE_START+INP_STORAGE_NUM_SLOTS)) {
-          return (stack.getItem() == Items.HOPPER);
+          return known_items_mapping.get(Items.HOPPER).contains(stack.getItem());
         } else if((index >= OUT_STORAGE_START) && (index < OUT_STORAGE_START+OUT_STORAGE_NUM_SLOTS)) {
-          return (stack.getItem() == Items.HOPPER) || (stack.getItem() == Items.DROPPER) || (stack.getItem() == Items.DISPENSER);
+          return known_items_mapping.get(Items.HOPPER).contains(stack.getItem())
+              || known_items_mapping.get(Items.DROPPER).contains(stack.getItem())
+              || known_items_mapping.get(Items.DISPENSER).contains(stack.getItem());
         } else if((index >= CMD_RESULT_START) && (index < CMD_RESULT_START+CMD_RESULT_NUM_SLOTS)) {
           return false;
         }
@@ -568,7 +576,7 @@ public class RedAntHive
     @Override
     public <T> LazyOptional<T> getCapability(net.minecraftforge.common.capabilities.Capability<T> capability, @Nullable Direction facing)
     {
-      if(capability==CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) return item_handler_.cast();
+      if(capability==ForgeCapabilities.ITEM_HANDLER) return item_handler_.cast();
       return super.getCapability(capability, facing);
     }
 
@@ -615,10 +623,10 @@ public class RedAntHive
       public void set(int id, int value)
       {
         switch(id) {
-          case 0: RedAntHiveTileEntity.this.state_flags_.value(value); return;
-          case 1: RedAntHiveTileEntity.this.max_progress_ = Math.max(value, 0); return;
-          case 2: RedAntHiveTileEntity.this.progress_ = Mth.clamp(value ,0, max_progress_); return;
-          default:
+          case 0 -> RedAntHiveTileEntity.this.state_flags_.value(value);
+          case 1 -> RedAntHiveTileEntity.this.max_progress_ = Math.max(value, 0);
+          case 2 -> RedAntHiveTileEntity.this.progress_ = Mth.clamp(value, 0, max_progress_);
+          default -> {}
         }
       }
     };
@@ -814,7 +822,7 @@ public class RedAntHive
       final Item control_item = getOutputControlSlot().getItem();
       final Direction output_facing = getBlockState().getValue(RedAntHiveBlock.FACING);
       final BlockPos output_position = getBlockPos().relative(output_facing);
-      if(control_item == Items.HOPPER) {
+      if(known_items_mapping.get(Items.HOPPER).contains(control_item)) {
         if(Inventories.insertionPossible(getLevel(), output_position, output_facing.getOpposite(), true)) {
           for(int slot=0; slot<right_storage_slot_range_.size(); ++slot) {
             ItemStack ostack = right_storage_slot_range_.getItem(slot);
@@ -842,11 +850,11 @@ public class RedAntHive
           Inventories.dropStack(getLevel(), Vec3.atCenterOf(output_position).add(0,-.4,0), right_storage_slot_range_.extract(1), new Vec3(0, -0.2, 0), 0.1, 0.1);
           return true;
         }
-      } else if((control_item == Items.DROPPER) || (control_item == Items.DISPENSER)) {
+      } else if(known_items_mapping.get(Items.DROPPER).contains(control_item) || known_items_mapping.get(Items.DISPENSER).contains(control_item)) {
         final BlockState state = getLevel().getBlockState(output_position);
         if(state.isCollisionShapeFullBlock(getLevel(), output_position)) return false;
         ItemStack stack = right_storage_slot_range_.extract(1, true);
-        if(control_item == Items.DISPENSER) {
+        if(known_items_mapping.get(Items.DISPENSER).contains(control_item)) {
           Vec3 drop_pos = Vec3.atCenterOf(output_position).add(Vec3.atLowerCornerOf(output_facing.getOpposite().getNormal()).scale(0.3));
           Vec3 speed = Vec3.atLowerCornerOf(output_facing.getNormal()).scale(0.6);
           Inventories.dropStack(getLevel(), drop_pos, stack, speed, 0.1, 0.2);
@@ -868,7 +876,7 @@ public class RedAntHive
           level.neighborChanged(getBlockPos().relative(input_facing), getBlockState().getBlock(), getBlockPos());
         }
       }
-      if(getInputControlSlot().getItem() != Items.HOPPER) return false;
+      if(!known_items_mapping.get(Items.HOPPER).contains(getInputControlSlot().getItem())) return false;
       final int instack_size = 1 + (ant_count_/96);
       final boolean filtered = state_flags_.filteredinsert();
       boolean dirty = false;
@@ -1078,7 +1086,7 @@ public class RedAntHive
       if(last_recipe_.isEmpty()) return false;
       final CraftingRecipe recipe = Crafting.getCraftingRecipe(getLevel(), new ResourceLocation(last_recipe_)).orElse(null);
       if(recipe==null) return false;
-      final List<Ingredient> ingredients = recipe.getIngredients().stream().filter(ing->(ing!=Ingredient.EMPTY)).collect(Collectors.toList());
+      final List<Ingredient> ingredients = recipe.getIngredients().stream().filter(ing->(ing!=Ingredient.EMPTY)).toList();
       if(ingredients.isEmpty()) return false;
       for(int i=0; i<left_storage_slot_range_.size(); ++i) {
         final ItemStack stack = left_storage_slot_range_.getItem(i);
@@ -1108,7 +1116,7 @@ public class RedAntHive
         return true;
       } else {
         final Inventories.InventoryRange input_slots = left_storage_slot_range_;
-        final List<Item> allowed_fuel = grid_storage_slot_range_.stream().filter(e->!e.isEmpty()).map(ItemStack::getItem).collect(Collectors.toList());
+        final List<Item> allowed_fuel = grid_storage_slot_range_.stream().filter(e->!e.isEmpty()).map(ItemStack::getItem).toList();
         Tuple<Integer, AbstractCookingRecipe> recipe_search;
         // Determine recipe or abort
         {
@@ -1187,7 +1195,7 @@ public class RedAntHive
 
     private boolean itemPassThroughFurnace(RecipeType<?> recipe_type)
     {
-      final List<Item> allowed_fuel = grid_storage_slot_range_.stream().filter(e->!e.isEmpty()).map(ItemStack::getItem).collect(Collectors.toList());
+      final List<Item> allowed_fuel = grid_storage_slot_range_.stream().filter(e->!e.isEmpty()).map(ItemStack::getItem).toList();
       final List<Integer> unmatching_slots = left_storage_slot_range_.collect((slot,stack)->{
         // Recipes for items that are not fuel.
         if(stack.isEmpty() || (stack.getItem()==RED_SUGAR_ITEM)) return Optional.empty();
@@ -1285,7 +1293,7 @@ public class RedAntHive
             if(drops.isEmpty()) {
               drops = Collections.singletonList(new ItemStack(state.getBlock().asItem()));
             }
-            final boolean drop_on_ground = (!getInputControlSlot().is(Items.HOPPER));
+            final boolean drop_on_ground = !known_items_mapping.get(Items.HOPPER).contains(getInputControlSlot().getItem());
             for(ItemStack drop:drops) {
               if(!drop_on_ground) drop = insertLeft(drop);
               if(!drop.isEmpty()) ToolActions.BlockBreaking.dropOnGround(drop, pos, world);
@@ -1548,7 +1556,7 @@ public class RedAntHive
               .map(e->Crafting.getEnchantmentBook(level, e.getKey(), e.getValue()))
               .filter(e->!e.isEmpty())
               .limit(cache_slot_range_.size()-1)
-              .collect(Collectors.toList());
+              .toList();
             //.forEach(stack->{ not accepted due to not final `additional_processing_time`})
             for(ItemStack enchanted_book:enchanted_books) {
               if(input_slots.extract(new ItemStack(Items.BOOK,1)).isEmpty()) break;
@@ -1860,11 +1868,11 @@ public class RedAntHive
       boolean changed = false;
       final int slotId = nbt.contains("slot") ? nbt.getInt("slot") : -1;
       switch(nbt.getString("action")) {
-        case "input-filter-on":  { te_.enableInsertionFilter(true);  changed = true; break; }
-        case "input-filter-off": { te_.enableInsertionFilter(false); changed = true; break; }
-        case "pass-through-on":  { te_.getStateFlags().nopassthrough(false); changed = true; break; }
-        case "pass-through-off": { te_.getStateFlags().nopassthrough(true); changed = true; break; }
-        default: break;
+        case "input-filter-on"  -> { te_.enableInsertionFilter(true); changed = true; }
+        case "input-filter-off" -> { te_.enableInsertionFilter(false); changed = true; }
+        case "pass-through-on"  -> { te_.getStateFlags().nopassthrough(false); changed = true; }
+        case "pass-through-off" -> { te_.getStateFlags().nopassthrough(true); changed = true; }
+        default -> {}
       }
       if(changed) {
         block_inventory_.setChanged();
@@ -1919,21 +1927,31 @@ public class RedAntHive
       nofuel_indicator_ = new Guis.BackgroundImage(getBackgroundImage(), 16,16, new Coord2d(180,17));
       left_filter_enable_ = (new Guis.CheckBox(getBackgroundImage(), 5,6, new Coord2d(182,46), new Coord2d(182,53))).onclick((box)->container.onGuiAction(box.checked() ? "input-filter-on" : "input-filter-off"));
       passthrough_enable_ = (new Guis.CheckBox(getBackgroundImage(), 11,6, new Coord2d(189,46), new Coord2d(189,53))).onclick((box)->container.onGuiAction(box.checked() ? "pass-through-on" : "pass-through-off"));
-      Collections.addAll(command_items_with_process_bar,
-        Items.CRAFTING_TABLE, Items.FURNACE, Items.BLAST_FURNACE, Items.SMOKER, Items.COMPOSTER, Items.BREWING_STAND,
-        Items.GRINDSTONE,
-        Items.WHEAT, Items.WHEAT_SEEDS, Items.CARROT,
-        Items.STONE_HOE, Items.GOLDEN_HOE, Items.IRON_HOE, Items.DIAMOND_HOE, Items.NETHERITE_HOE,
-        Items.STONE_PICKAXE, Items.GOLDEN_PICKAXE, Items.IRON_PICKAXE, Items.DIAMOND_PICKAXE, Items.NETHERITE_PICKAXE,
-        Items.STONE_AXE, Items.GOLDEN_AXE, Items.IRON_AXE, Items.DIAMOND_AXE, Items.NETHERITE_AXE
-      );
-      Collections.addAll(command_items_result_visible,
-        Items.CRAFTING_TABLE, Items.FURNACE, Items.BLAST_FURNACE, Items.SMOKER, Items.COMPOSTER, Items.BREWING_STAND,
-        Items.GRINDSTONE
-      );
-      Collections.addAll(command_items_grid_visible,
-        Items.CRAFTING_TABLE, Items.FURNACE, Items.BLAST_FURNACE, Items.SMOKER
-      );
+      // Command items with process bar visibility.
+      Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.CRAFTING_TABLE).toArray(new Item[0]));
+      Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.FURNACE).toArray(new Item[0]));
+      Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.BLAST_FURNACE).toArray(new Item[0]));
+      Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.SMOKER).toArray(new Item[0]));
+      Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.COMPOSTER).toArray(new Item[0]));
+      Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.BREWING_STAND).toArray(new Item[0]));
+      Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.GRINDSTONE).toArray(new Item[0]));
+      Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.IRON_HOE).toArray(new Item[0]));
+      Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.IRON_PICKAXE).toArray(new Item[0]));
+      Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.IRON_AXE).toArray(new Item[0]));
+      Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.WHEAT).toArray(new Item[0]));
+      // Command items with result visibility.
+      Collections.addAll(command_items_result_visible, known_items_mapping.get(Items.CRAFTING_TABLE).toArray(new Item[0]));
+      Collections.addAll(command_items_result_visible, known_items_mapping.get(Items.FURNACE).toArray(new Item[0]));
+      Collections.addAll(command_items_result_visible, known_items_mapping.get(Items.BLAST_FURNACE).toArray(new Item[0]));
+      Collections.addAll(command_items_result_visible, known_items_mapping.get(Items.SMOKER).toArray(new Item[0]));
+      Collections.addAll(command_items_result_visible, known_items_mapping.get(Items.COMPOSTER).toArray(new Item[0]));
+      Collections.addAll(command_items_result_visible, known_items_mapping.get(Items.BREWING_STAND).toArray(new Item[0]));
+      Collections.addAll(command_items_result_visible, known_items_mapping.get(Items.GRINDSTONE).toArray(new Item[0]));
+      // Command items with item grid visibility.
+      Collections.addAll(command_items_grid_visible, known_items_mapping.get(Items.CRAFTING_TABLE).toArray(new Item[0]));
+      Collections.addAll(command_items_grid_visible, known_items_mapping.get(Items.FURNACE).toArray(new Item[0]));
+      Collections.addAll(command_items_grid_visible, known_items_mapping.get(Items.BLAST_FURNACE).toArray(new Item[0]));
+      Collections.addAll(command_items_grid_visible, known_items_mapping.get(Items.SMOKER).toArray(new Item[0]));
     }
 
     private void update()

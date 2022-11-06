@@ -1,6 +1,7 @@
 {
  "homepage": "https://www.curseforge.com/minecraft/mc-mods/anthill-inside/",
  "1.19.2": {
+  "1.2.15": "[A] Added possibility to disable Hive drops from Redstone mining.\n[A] Added tool selection config options.",
   "1.2.14": "[U] Ported to mc1.19.2 forge.",
   "1.1.13": "[U] Ported to mc1.19.1 forge.",
   "1.0.12": "[F] Hive to entity insertion prefers item handler over container interface.",
@@ -27,7 +28,7 @@
   "1.0.0-b1": "[U] Initial concept implementation."
  },
  "promos": {
-  "1.19.2-recommended": "1.2.14",
-  "1.19.2-latest": "1.2.14"
+  "1.19.2-recommended": "1.2.15",
+  "1.19.2-latest": "1.2.15"
  }
 }

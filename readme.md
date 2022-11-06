@@ -4,6 +4,9 @@
 ----
 ## Version history
 
+    - v1.2.15     [A] Added possibility to disable Hive drops from Redstone mining.
+                  [A] Added tool selection config options.
+
     - v1.2.14     [U] Ported to mc1.19.2 forge.
 
     - v1.1.13     [U] Ported to mc1.19.1 forge.
