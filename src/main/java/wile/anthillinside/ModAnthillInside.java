@@ -9,6 +9,7 @@ package wile.anthillinside;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.CreativeModeTabEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
@@ -40,6 +41,7 @@ public class ModAnthillInside
     ModContent.init(MODID);
     FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onSetup);
     FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onClientSetup);
+    FMLJavaModLoadingContext.get().getModEventBus().addListener(this::addCreativeTab);
     MinecraftForge.EVENT_BUS.register(this);
     MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onBlockBroken);
   }
@@ -62,6 +64,12 @@ public class ModAnthillInside
     Networking.OverlayTextMessage.setHandler(Overlay.TextOverlayGui::show);
     ModContent.registerMenuGuis();
     ModContent.processContentClientSide();
+  }
+
+  private void addCreativeTab(CreativeModeTabEvent.BuildContents event)
+  {
+    if(event.getTab() != Registries.getCreativeModeTab()) return;
+    Registries.getRegisteredItems().forEach(event::accept);
   }
 
   @Mod.EventBusSubscriber(bus=Mod.EventBusSubscriber.Bus.MOD)

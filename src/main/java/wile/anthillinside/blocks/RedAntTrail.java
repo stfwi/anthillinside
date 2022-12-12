@@ -387,7 +387,7 @@ public class RedAntTrail
       List<ItemFrame> frames = world.getEntitiesOfClass(ItemFrame.class, new AABB(pos));
       if(frames.isEmpty()) return Optional.empty();
       for(ItemFrame frame:frames) {
-        if(!frame.getItem().sameItemStackIgnoreDurability(match_stack)) continue;
+        if(!frame.getItem().sameItem(match_stack)) continue;
         return Optional.of(frame.getDirection());
       }
       return Optional.empty();

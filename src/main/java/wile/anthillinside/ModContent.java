@@ -75,12 +75,8 @@ public class ModContent
 
   public static void initItems()
   {
-    Registries.addItem("red_sugar", ()->new RedSugarItem(
-      (new Item.Properties()).tab(Registries.getCreativeModeTab()).rarity(Rarity.UNCOMMON)
-    ));
-    Registries.addItem("ants", ()->new AntsItem(
-      (new Item.Properties()).tab(Registries.getCreativeModeTab()).rarity(Rarity.UNCOMMON)
-    ));
+    Registries.addItem("red_sugar", ()->new RedSugarItem((new Item.Properties()).rarity(Rarity.UNCOMMON)));
+    Registries.addItem("ants", ()->new AntsItem((new Item.Properties()).rarity(Rarity.UNCOMMON)));
   }
 
   //--------------------------------------------------------------------------------------------------------------------

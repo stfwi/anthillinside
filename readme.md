@@ -4,8 +4,11 @@
 ----
 ## Version history
 
-    - v1.2.15     [A] Added possibility to disable Hive drops from Redstone mining.
+    - v1.3.15     [U] Updated to mc1.19.3 forge.
+                  [A] Added possibility to disable Hive drops from Redstone mining.
                   [A] Added tool selection config options.
+                  [E] Known issues: No dedicated Mod Creative Tab yet, no JEI
+                      integration yet.
 
     - v1.2.14     [U] Ported to mc1.19.2 forge.
 

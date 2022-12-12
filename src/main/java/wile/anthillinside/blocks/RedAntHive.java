@@ -2002,27 +2002,27 @@ public class RedAntHive
           ()->(Component.translatable(prefix + "help"))
         ),
         new TooltipDisplay.TipRange(
-          powered_indicator_.x, powered_indicator_.y, powered_indicator_.getWidth(), powered_indicator_.getHeight(),
+          powered_indicator_.getX(), powered_indicator_.getY(), powered_indicator_.getWidth(), powered_indicator_.getHeight(),
           ()->(powered_indicator_.visible ? Component.translatable(prefix + "powered") : EMPTY_TOOLTIP)
         ),
         new TooltipDisplay.TipRange(
-          sugar_indicator_.x, sugar_indicator_.y, sugar_indicator_.getWidth(), sugar_indicator_.getHeight(),
+          sugar_indicator_.getX(), sugar_indicator_.getY(), sugar_indicator_.getWidth(), sugar_indicator_.getHeight(),
           ()->(sugar_indicator_.visible ? Component.translatable(prefix + "sugartrip") : EMPTY_TOOLTIP)
         ),
         new TooltipDisplay.TipRange(
-          norecipe_indicator_.x, norecipe_indicator_.y, norecipe_indicator_.getWidth(), norecipe_indicator_.getHeight(),
+          norecipe_indicator_.getX(), norecipe_indicator_.getY(), norecipe_indicator_.getWidth(), norecipe_indicator_.getHeight(),
           ()->(norecipe_indicator_.visible ? Component.translatable(prefix + "norecipe") : EMPTY_TOOLTIP)
         ),
         new TooltipDisplay.TipRange(
-          noingredients_indicator_.x, noingredients_indicator_.y, noingredients_indicator_.getWidth(), noingredients_indicator_.getHeight(),
+          noingredients_indicator_.getX(), noingredients_indicator_.getY(), noingredients_indicator_.getWidth(), noingredients_indicator_.getHeight(),
           ()->(noingredients_indicator_.visible ? Component.translatable(prefix + "noingredients") : EMPTY_TOOLTIP)
         ),
         new TooltipDisplay.TipRange(
-          nofuel_indicator_.x, nofuel_indicator_.y, nofuel_indicator_.getWidth(), nofuel_indicator_.getHeight(),
+          nofuel_indicator_.getX(), nofuel_indicator_.getY(), nofuel_indicator_.getWidth(), nofuel_indicator_.getHeight(),
           ()->(nofuel_indicator_.visible ? Component.translatable(prefix + "nofuel") : EMPTY_TOOLTIP)
         ),
         new TooltipDisplay.TipRange(
-          noants_indicator_.x, noants_indicator_.y, noants_indicator_.getWidth(), noants_indicator_.getHeight(),
+          noants_indicator_.getX(), noants_indicator_.getY(), noants_indicator_.getWidth(), noants_indicator_.getHeight(),
           ()->(noants_indicator_.visible ? Component.translatable(prefix + "noants") : EMPTY_TOOLTIP)
         ),
         new TooltipDisplay.TipRange(

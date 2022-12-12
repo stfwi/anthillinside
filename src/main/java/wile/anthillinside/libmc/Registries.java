@@ -31,7 +31,7 @@ public class Registries
 {
   private static String modid = null;
   private static String creative_tab_icon = "";
-  private static CreativeModeTab creative_tab = null;
+  private static CreativeModeTab creative_tab = null; // ---- @todo: creative tab Forge PR in triage ---
   private static final Map<String, TagKey<Block>> registered_block_tag_keys = new HashMap<>();
   private static final Map<String, TagKey<Item>> registered_item_tag_keys = new HashMap<>();
 
@@ -63,15 +63,23 @@ public class Registries
     List.of(BLOCKS, ITEMS, BLOCK_ENTITIES, MENUS, ENTITIES, RECIPE_SERIALIZERS).forEach(registrar);
   }
 
-
   public static CreativeModeTab getCreativeModeTab()
   {
-    if(creative_tab==null) {
-      creative_tab = (new CreativeModeTab("tab" + modid) {
-        public ItemStack makeIcon() { return new ItemStack(getItem(creative_tab_icon)); }
-      });
-    }
-    return creative_tab;
+    //    if(creative_tab==null) {
+    //      creative_tab = (new CreativeModeTab("tab" + modid) {
+    //        public ItemStack makeIcon() { return new ItemStack(getItem(creative_tab_icon)); }
+    //      });
+    //    }
+    //    return creative_tab;
+
+    boolean forge_pr_is_in_progress = true;
+    if(!forge_pr_is_in_progress) {}
+    // -- Forge PR in progress
+    // {
+    //  net.minecraftforge.common.CreativeModeTabRegistry.
+    //   CreativeModeTab.builder(CreativeModeTab.Row.TOP, 0).title(Component.translatable("itemGroup.buildingBlocks")).icon(() -> {return new ItemStack(Blocks.BRICKS);})
+    //
+    return CreativeModeTabs.REDSTONE_BLOCKS;
   }
 
   // -------------------------------------------------------------------------------------------------------------
@@ -138,7 +146,7 @@ public class Registries
   public static <T extends Block> void addBlock(String registry_name, Supplier<T> block_supplier)
   {
     registered_blocks.put(registry_name, BLOCKS.register(registry_name, block_supplier));
-    registered_items.put(registry_name, ITEMS.register(registry_name, ()->new BlockItem(registered_blocks.get(registry_name).get(), (new Item.Properties()).tab(getCreativeModeTab()))));
+    registered_items.put(registry_name, ITEMS.register(registry_name, ()->new BlockItem(registered_blocks.get(registry_name).get(), new Item.Properties())));
   }
 
   public static final Supplier<Item> WITHOUT_ITEM = ()->Items.AIR;
@@ -189,7 +197,7 @@ public class Registries
   // -------------------------------------------------------------------------------------------------------------
 
   public static <TB extends Block, TI extends Item> void addBlock(String registry_name, Supplier<TB> block_supplier, BiFunction<Block, Item.Properties, Item> item_builder)
-  { addBlock(registry_name, block_supplier, ()->item_builder.apply(registered_blocks.get(registry_name).get(), (new Item.Properties()).tab(getCreativeModeTab()))); }
+  { addBlock(registry_name, block_supplier, ()->item_builder.apply(registered_blocks.get(registry_name).get(), new Item.Properties())); }
 
   public static void addBlock(String registry_name, Supplier<? extends Block> block_supplier, BlockEntityType.BlockEntitySupplier<?> block_entity_ctor)
   {
