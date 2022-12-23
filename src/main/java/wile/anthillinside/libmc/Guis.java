@@ -202,12 +202,12 @@ public class Guis
     public UiWidget hide()
     { visible = false; return this; }
 
+    @Override
     public void render(PoseStack mx, int mouseX, int mouseY, float partialTicks)
     {
       if(!visible) return;
       isHovered = (mouseX >= getX()) && (mouseY >= getY()) && (mouseX < getX()+width) && (mouseY < getY()+height);
       renderButton(mx, mouseX, mouseY, partialTicks);
-      renderToolTip(mx, mouseX, mouseY);
     }
 
     @Override

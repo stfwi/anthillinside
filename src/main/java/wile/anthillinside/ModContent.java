@@ -56,10 +56,7 @@ public class ModContent
       ()->new RedAntHive.RedAntHiveBlock(
         StandardBlocks.CFG_CUTOUT|StandardBlocks.CFG_WATERLOGGABLE|StandardBlocks.CFG_LOOK_PLACEMENT,
         BlockBehaviour.Properties.of(Material.STONE, MaterialColor.STONE).strength(0.3f, 6f).sound(SoundType.STONE),
-        new AABB[]{
-          Auxiliaries.getPixeledAABB(1,1,0,15,15, 1),
-          Auxiliaries.getPixeledAABB(0,0,1,16,16,16),
-        }
+        new AABB[]{ Auxiliaries.getPixeledAABB(0,0,0,16,16, 16) }
       ),
       RedAntHive.RedAntHiveTileEntity::new,
       RedAntHive.RedAntHiveMenu::new
