@@ -9,10 +9,11 @@ package wile.anthillinside.blocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.Animal;
@@ -24,6 +25,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.schedule.Activity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -31,6 +33,7 @@ import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.SupportType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
@@ -43,14 +46,15 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.items.IItemHandler;
+import org.jetbrains.annotations.Nullable;
 import wile.anthillinside.ModContent;
 import wile.anthillinside.libmc.StandardBlocks;
 import wile.anthillinside.libmc.Auxiliaries;
 import wile.anthillinside.libmc.Inventories;
 
-import javax.annotation.Nullable;
+
 import java.util.*;
+import java.util.stream.Stream;
 
 
 public class RedAntTrail
@@ -69,10 +73,11 @@ public class RedAntTrail
     public static final BooleanProperty RIGHT = BooleanProperty.create("right");
     public static final BooleanProperty UP = BooleanProperty.create("up");
     public static final BooleanProperty IN = BooleanProperty.create("in");
+    public static final BooleanProperty DROP = BooleanProperty.create("drop");
 
-    public RedAntTrailBlock(long config, BlockBehaviour.Properties builder)
+    public RedAntTrailBlock(long config, BlockBehaviour.Properties props)
     {
-      super(config, builder, (states)->{
+      super(config, props.isRedstoneConductor((s,w,p)->false), (states)->{
         final HashMap<BlockState, VoxelShape> shapes = new HashMap<>();
         final AABB base_aabb = Auxiliaries.getPixeledAABB(0,0,0,16,0.2,16);
         final AABB up_aabb   = Auxiliaries.getPixeledAABB(0,0,0,16,16,0.2);
@@ -89,7 +94,7 @@ public class RedAntTrail
         }
         return shapes;
       });
-      registerDefaultState(super.defaultBlockState().setValue(FRONT, true).setValue(UP, false).setValue(LEFT, false).setValue(RIGHT, false).setValue(IN, false));
+      registerDefaultState(super.defaultBlockState().setValue(FRONT, true).setValue(UP, false).setValue(LEFT, false).setValue(RIGHT, false).setValue(IN, false).setValue(DROP, false));
     }
 
     @Override
@@ -98,15 +103,15 @@ public class RedAntTrail
 
     @Override
     public Item asItem()
-    { return ModContent.ANTS_ITEM; }
+    { return ModContent.references.ANTS_ITEM; }
 
     @Override
     public List<ItemStack> dropList(BlockState state, Level world, final BlockEntity te, boolean explosion)
-    { return Collections.singletonList(new ItemStack(asItem())); }
+    { return !state.getValue(DROP) ? Collections.singletonList(new ItemStack(asItem())) : List.of(new ItemStack(asItem()), new ItemStack(Items.SCAFFOLDING)); }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder)
-    { super.createBlockStateDefinition(builder); builder.add(FRONT, LEFT, RIGHT, UP, IN); }
+    { super.createBlockStateDefinition(builder); builder.add(FRONT, LEFT, RIGHT, UP, IN, DROP); }
 
     @Override
     @Nullable
@@ -115,7 +120,7 @@ public class RedAntTrail
       BlockState state = super.getStateForPlacement(context);
       if(state == null) return null;
       if((!state.getValue(UP)) && (context.getClickedFace().getAxis().isVertical()) && (!Block.canSupportRigidBlock(context.getLevel(), context.getClickedPos().below()))) return null;
-      return updatedState(state, context.getLevel(), context.getClickedPos());
+      return updatedState(state.setValue(DROP, false), context.getLevel(), context.getClickedPos());
     }
 
     @Override
@@ -148,21 +153,43 @@ public class RedAntTrail
     @SuppressWarnings("deprecation")
     public boolean canSurvive(BlockState state, LevelReader world, BlockPos pos)
     {
-      if(Block.isFaceFull(world.getBlockState(pos.below()).getShape(world, pos.below()), Direction.UP)) return true;
-      if(!state.getValue(UP)) return false;
-      Direction facing = state.getValue(HORIZONTAL_FACING);
-      if(!Block.isFaceFull(world.getBlockState(pos.relative(facing)).getShape(world, pos.relative(facing)), facing.getOpposite())) return false;
-      return true;
+      if(state.getValue(DROP)) return true;
+      final BlockState state_below = world.getBlockState(pos.below());
+      if(state_below.isFaceSturdy(world, pos.below(), Direction.UP, SupportType.RIGID)) return true;
+      final Direction facing = state.getValue(HORIZONTAL_FACING);
+      return state.getValue(UP)
+        ? Block.isFaceFull(world.getBlockState(pos.relative(facing)).getShape(world, pos.relative(facing)), facing.getOpposite())
+        : Stream.of(pos.relative(facing), pos.relative(facing.getOpposite())).allMatch((np) ->
+            world.getBlockState(np).getBlock() == this && Block.isFaceFull(world.getBlockState(np.below()).getShape(world, np.below()), Direction.UP)
+          );
     }
 
     @Override
     @SuppressWarnings("deprecation")
     public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult rtr)
     {
-      Direction dir = rtr.getDirection().getOpposite();
-      return world.getBlockState(pos.relative(dir)).use(world, player, hand, new BlockHitResult(
-        rtr.getLocation(), rtr.getDirection(), pos.relative(dir), false
-      ));
+      Direction facing = rtr.getDirection().getOpposite();
+      ItemStack stack = player.getItemInHand(hand);
+      if(facing == Direction.DOWN && !stack.isEmpty() && stack.is(Items.SCAFFOLDING)) {
+        if(world.isClientSide()) {
+          return InteractionResult.SUCCESS;
+        } else {
+          if(state.getValue(DROP)) {
+            world.setBlock(pos, state.setValue(DROP, false), 10);
+            world.playSound(null, player.getX(), player.getY() + 0.5, player.getZ(), SoundEvents.PAINTING_PLACE, SoundSource.PLAYERS, 0.2f, 1.0f);
+            Inventories.give(player, new ItemStack(Items.SCAFFOLDING, 1));
+          } else {
+            world.setBlock(pos, state.setValue(DROP, true), 10);
+            world.playSound(null, player.getX(), player.getY() + 0.5, player.getZ(), SoundEvents.PAINTING_PLACE, SoundSource.PLAYERS, 0.2f, 1.0f);
+            stack.shrink(1);
+          }
+          return InteractionResult.CONSUME;
+        }
+      } else {
+        return world.getBlockState(pos.relative(facing)).use(world, player, hand, new BlockHitResult(
+          rtr.getLocation(), rtr.getDirection(), pos.relative(facing), false)
+        );
+      }
     }
 
     @Override
@@ -201,10 +228,6 @@ public class RedAntTrail
     { return false; }
 
     @Override
-    public boolean canConnectRedstone(BlockState state, BlockGetter world, BlockPos pos, @Nullable Direction side)
-    { return true; }
-
-    @Override
     public boolean isPathfindable(BlockState state, BlockGetter world, BlockPos pos, PathComputationType type)
     { return (!state.getValue(UP)) || super.isPathfindable(state, world, pos, type); }
 
@@ -214,25 +237,28 @@ public class RedAntTrail
     {
       if((state == null) || (!(world instanceof Level))) return state;
       final Direction facing = state.getValue(HORIZONTAL_FACING);
-      boolean down_solid = Block.canSupportRigidBlock(world, pos.below());
-      boolean up_is_cube = world.getBlockState(pos.above()).isRedstoneConductor(world, pos.above());
-      final boolean up = isFaceFull(world.getBlockState(pos.relative(facing)).getShape(world, pos.relative(facing)), facing.getOpposite())
-        && ((!down_solid) || (world.getBlockState(pos.above()).is(this)) || ((!up_is_cube) && (world.getBlockState(pos.relative(facing).above()).is(this))));
-      boolean left = false, right = false;
-      boolean front = down_solid;
-      boolean in = false;
+      final BlockState front_state = world.getBlockState(pos.relative(facing));
       final BlockState right_state = world.getBlockState(pos.relative(facing.getClockWise()));
       final BlockState left_state = world.getBlockState(pos.relative(facing.getCounterClockWise()));
-      if(((Level)world).hasNeighborSignal(pos)) {
-        if(right_state.is(this) && (right_state.getValue(HORIZONTAL_FACING) == facing.getClockWise())) right = true;
-        if(left_state.is(this) && (left_state.getValue(HORIZONTAL_FACING) == facing.getCounterClockWise())) left = true;
-        if(!right && !left) front = false;
-      } else if(!right && !left && !up) {
+      final boolean down_solid = Block.canSupportRigidBlock(world, pos.below());
+      final boolean up_is_cube = world.getBlockState(pos.above()).isRedstoneConductor(world, pos.above());
+      final boolean up = isFaceFull(front_state.getShape(world, pos.relative(facing)), facing.getOpposite())
+        && ((!down_solid) || (world.getBlockState(pos.above()).is(this)) || ((!up_is_cube) && (world.getBlockState(pos.relative(facing).above()).is(this))));
+      boolean left=false, right=false, front=down_solid, in=false;
+      if(!up && (front_state.getBlock() != this)) {
+        if(right_state.is(this) && right_state.getValue(HORIZONTAL_FACING) == facing.getClockWise()) right = true;
+        if(left_state.is(this) && left_state.getValue(HORIZONTAL_FACING) == facing.getCounterClockWise()) left = true;
+        front = down_solid && !right && !left;
+      } else if(world.hasNeighborSignal(pos)) {
+        if(right_state.is(this) && right_state.getValue(HORIZONTAL_FACING) == facing.getClockWise()) right = true;
+        if(left_state.is(this) && left_state.getValue(HORIZONTAL_FACING) == facing.getCounterClockWise()) left = true;
+        if(!right && !left) front = true;
+      } else if (!right && !left && !up) {
         front = true;
       }
       if(down_solid) {
-        if(right_state.is(this) && (right_state.getValue(HORIZONTAL_FACING) == facing.getCounterClockWise())) in = true;
-        if(left_state.is(this) && (left_state.getValue(HORIZONTAL_FACING) == facing.getClockWise())) in = true;
+        if(right_state.is(this) && right_state.getValue(HORIZONTAL_FACING) == facing.getCounterClockWise()) in = true;
+        if(left_state.is(this) && left_state.getValue(HORIZONTAL_FACING) == facing.getClockWise()) in = true;
       }
       state = state.setValue(FRONT, front).setValue(RIGHT, right).setValue(LEFT, left).setValue(UP, up).setValue(IN, in);
       return state;
@@ -241,98 +267,91 @@ public class RedAntTrail
     public void moveEntity(BlockState state, Level world, BlockPos pos, Entity any_entity)
     {
       if((!any_entity.isAlive()) || (!(any_entity instanceof final ItemEntity entity))) return;
-      if(entity.getItem().isEmpty() || entity.getItem().getItem() == ModContent.ANTS_ITEM) return;
+      if(entity.getItem().isEmpty() || entity.getItem().getItem() == ModContent.references.ANTS_ITEM) return;
       final boolean up = state.getValue(UP);
-      if(!up && !entity.isOnGround()) return;
+      if(!up && !entity.onGround()) return;
       final Direction block_facing = state.getValue(HORIZONTAL_FACING);
       final boolean front = state.getValue(FRONT);
-      boolean right = state.getValue(RIGHT);
-      boolean left = state.getValue(LEFT);
+      final boolean right = state.getValue(RIGHT);
+      final boolean left = state.getValue(LEFT);
       boolean outgoing = false, check_insertion_front = false, check_insertion_up = false;
-      Vec3 motion = Vec3.atLowerCornerOf(block_facing.getNormal());
       final Vec3 dp = entity.position().subtract(pos.getX()+0.5, pos.getY()+0.5, pos.getZ()+0.5).scale(2);
       final double progress = dp.get(block_facing.getAxis()) * Vec3.atLowerCornerOf(block_facing.getNormal()).get(block_facing.getAxis());
+      Vec3 motion = Vec3.atLowerCornerOf(block_facing.getNormal()).scale(0.65);
+      Direction insertion_facing;
+      BlockState ahead_state;
+      Direction dir;
 
       // Right diversion
       if(right) {
-        final Direction facing_right = block_facing.getClockWise();
-        final BlockState right_state = world.getBlockState(pos.relative(facing_right));
-        if(right_state.is(this)) {
-          final Direction dir = right_state.getValue(HORIZONTAL_FACING);
-          if(dir == facing_right) {
-            motion = Vec3.atLowerCornerOf(facing_right.getNormal()).scale((progress < 0.4) ? 0.7 : 1.5);
+        insertion_facing = block_facing.getClockWise();
+        ahead_state = world.getBlockState(pos.relative(insertion_facing));
+        if(ahead_state.is(this)) {
+          dir = ahead_state.getValue(HORIZONTAL_FACING);
+          if(dir == insertion_facing) {
+            motion = Vec3.atLowerCornerOf(insertion_facing.getNormal()).scale((progress < 0.4) ? 0.5 : 1.6);
             outgoing = true;
           }
         }
       }
       // Left diversion
       else if(left) {
-        final Direction facing_left  = block_facing.getCounterClockWise();
-        final BlockState left_state = world.getBlockState(pos.relative(facing_left));
-        if(left_state.is(this)) {
-          final Direction dir = left_state.getValue(HORIZONTAL_FACING);
-          if(dir == facing_left) {
-            motion = Vec3.atLowerCornerOf(facing_left.getNormal()).scale((progress < 0.4) ? 0.7 : 1.5);
+        insertion_facing  = block_facing.getCounterClockWise();
+        ahead_state = world.getBlockState(pos.relative(insertion_facing));
+        if(ahead_state.is(this)) {
+          dir = ahead_state.getValue(HORIZONTAL_FACING);
+          if(dir == insertion_facing) {
+            motion = Vec3.atLowerCornerOf(insertion_facing.getNormal()).scale((progress < 0.4) ? 0.5 : 1.6);
             outgoing = true;
           }
         }
       }
       // Itemframe sorting, only if not overridden using redstone.
       else if(front || up) {
-        final Direction sorting_direction = itemFrameDiversion(world, pos, entity.getItem()).orElse(null);
-        if(sorting_direction != null) {
-          if((sorting_direction != block_facing) && (sorting_direction != block_facing.getOpposite()) && (sorting_direction != Direction.UP)) {
-            if(sorting_direction == Direction.DOWN) {
-              // check insertion
-              if(!world.isClientSide()) {
-                if(tryInsertItemEntity(world, pos, Direction.DOWN, entity)) {
-                  entity.setDeltaMovement(entity.getDeltaMovement().scale(0.7));
-                  return;
-                }
-              }
-            } else {
-              motion = Vec3.atLowerCornerOf(sorting_direction.getNormal());
-              outgoing = true;
+        insertion_facing = this.itemFrameDiversion(world, pos, entity.getItem()).orElse(null);
+        if (insertion_facing != null && insertion_facing != block_facing && insertion_facing != block_facing.getOpposite() && insertion_facing != Direction.UP) {
+          if (insertion_facing == Direction.DOWN) {
+            if (!world.isClientSide() && this.tryInsertItemEntity(world, pos, Direction.DOWN, entity)) {
+              entity.setDeltaMovement(entity.getDeltaMovement().scale(0.7));
+              return;
             }
+          } else {
+            motion = Vec3.atLowerCornerOf(insertion_facing.getNormal());
+            outgoing = true;
           }
         }
       }
-
       // Motion update
       if(!outgoing && !front && !up) {
         motion = motion.scale(0);
       } else {
         if(!outgoing) {
           // Centering motion
-          Vec3 centering_motion = new Vec3((block_facing.getAxis()== Direction.Axis.X ? 0 : -0.2*Math.signum(dp.x)), 0, (block_facing.getAxis()== Direction.Axis.Z ? 0 : -0.2*Math.signum(dp.z)));
+          final Vec3 centering_motion = new Vec3(block_facing.getAxis() == Direction.Axis.X ? 0.0 : -0.2 * Math.signum(dp.x), 0.02, block_facing.getAxis() == Direction.Axis.Z ? 0.0 : -0.2 * Math.signum(dp.z));
           motion = motion.add(centering_motion);
-          // Straight line speed-up/slow down
-          final BlockState ahead_state = world.getBlockState(pos.relative(block_facing));
+          ahead_state = world.getBlockState(pos.relative(block_facing));
           if(ahead_state.is(this)) {
-            final Direction dir = ahead_state.getValue(HORIZONTAL_FACING);
+            dir = ahead_state.getValue(HORIZONTAL_FACING);
             if(dir == block_facing.getOpposite()) {
               motion = motion.scale(0.5);
+            } else if(!ahead_state.getValue(RIGHT) && !ahead_state.getValue(LEFT)) {
+              motion = motion.scale(2.0);
             } else {
-              motion = motion.scale(2);
+              motion = motion.scale(1.6);
             }
           }
         }
         double y_speed = 0.1;
         if(!up) {
           y_speed = -0.1 * Math.min(dp.y, 0.5);
-          if((progress > 0.5) && front) check_insertion_front = true;
+          if(progress > 0.5 && front) check_insertion_front = true;
         } else {
-          if(front) {
-            motion = motion.scale(0.6);
-          }
+          if(front) motion = motion.scale(0.6);
           if(world.getBlockState(pos.above()).is(this)) {
             if(progress > 0.5) y_speed = 0.2;
-            if(outgoing) {
-              motion = new Vec3(motion.x, 0, motion.z);
-              y_speed = 0.08;
-            }
+            if(outgoing) { motion = new Vec3(motion.x(), 0.0, motion.z); y_speed = 0.08; }
           } else {
-            if(front && (Math.abs(dp.get(block_facing.getClockWise().getAxis())) > 0.4)) {
+            if(front && Math.abs(dp.get(block_facing.getClockWise().getAxis())) > 0.4) {
               motion = new Vec3(motion.x, -0.1, motion.z);
               y_speed = 0.08;
             } else if(world.getBlockState(pos.above().relative(block_facing)).is(this)) {
@@ -341,39 +360,43 @@ public class RedAntTrail
             if(dp.y >= 0.4) check_insertion_up = true;
           }
         }
+        if(progress > 0.8 && front) y_speed /= 2.0;
         if(motion.y < -0.1) motion = new Vec3(motion.x, -0.1, motion.z);
-        motion = motion.scale(((!up) && (dp.y > 0)) ? (2e-2) : (7e-2)).add(0, y_speed, 0);
+        motion = motion.scale(!up && dp.y > 0.0 ? 0.02 : 0.07).add(0.0, y_speed, 0.0);
       }
-
       // Container insertion
-      if((check_insertion_front || check_insertion_up) && (!world.isClientSide())) {
-        if(!entity.getItem().isEmpty()){
-          final Direction insertion_facing = check_insertion_up ? Direction.UP : block_facing;
+      if(!world.isClientSide()) {
+        if(progress < 0.4 && state.getValue(DROP) && tryInsertItemEntity(world, pos, Direction.DOWN, entity)) {
+          check_insertion_up = false;
+          check_insertion_front = false;
+        }
+        if((check_insertion_front || check_insertion_up) && !entity.getItem().isEmpty()) {
+          insertion_facing = check_insertion_up ? Direction.UP : block_facing;
           tryInsertItemEntity(world, pos, insertion_facing, entity);
         }
       }
       // Entity motion
-      if(!up && state.getValue(WATERLOGGED)) motion = motion.add(0,-0.1,0);
+      if(!up && state.getValue(WATERLOGGED)) motion = motion.add(0.0, -0.1, 0.0);
       motion = entity.getDeltaMovement().scale(0.5).add(motion);
       entity.setDeltaMovement(motion);
-      if(up) entity.resetFallDistance();
+      entity.setOnGround(false);
     }
 
     public void itchEntity(BlockState state, Level world, BlockPos pos, Entity entity)
     {
-      if((world.getRandom().nextDouble() > 8e-3) || (!entity.isAlive()) || (!entity.isOnGround())
+      if((world.getRandom().nextDouble() > 8e-3) || (!entity.isAlive()) || (!entity.onGround())
          || (world.isClientSide()) || (entity.isShiftKeyDown()) || (!entity.canChangeDimensions()) || (entity.isInWaterOrRain()) || (entity.hasImpulse)
          || (!(entity instanceof LivingEntity))
       ) {
         return;
       }
       if(entity instanceof Monster) {
-        entity.hurt(DamageSource.CACTUS, 2f);
+        entity.hurt(entity.damageSources().cactus(), 2f);
       } else if(entity instanceof Player) {
-        if(world.getRandom().nextDouble() > 1e-1) return;
-        entity.hurt(DamageSource.CACTUS, 0.1f);
+        if(world.getRandom().nextDouble() > 5e-2) return;
+        entity.hurt(entity.damageSources().cactus(), 0.1f);
       } else {
-        entity.hurt(DamageSource.CACTUS, 0.0f);
+        entity.hurt(entity.damageSources().cactus(), 0.0f);
         if(entity instanceof Villager) {
           ((Villager)entity).getBrain().setActiveActivityIfPossible(Activity.PANIC);
         } else if(entity instanceof Animal) {
@@ -387,7 +410,7 @@ public class RedAntTrail
       List<ItemFrame> frames = world.getEntitiesOfClass(ItemFrame.class, new AABB(pos));
       if(frames.isEmpty()) return Optional.empty();
       for(ItemFrame frame:frames) {
-        if(!frame.getItem().sameItem(match_stack)) continue;
+        if(!frame.getItem().is(match_stack.getItem())) continue;
         return Optional.of(frame.getDirection());
       }
       return Optional.empty();
@@ -395,16 +418,16 @@ public class RedAntTrail
 
     private boolean tryInsertItemEntity(Level world, BlockPos pos, Direction insertion_facing, ItemEntity entity)
     {
-      final IItemHandler ih = Inventories.itemhandler(world, pos.relative(insertion_facing), insertion_facing.getOpposite());
-      if(ih == null) return false;
-      ItemStack stack = entity.getItem().copy();
-      final ItemStack remaining = Inventories.insert(ih, stack, false);
-      if(remaining.getCount() >= stack.getCount()) return false;
+      final ItemStack stack = entity.getItem();
+      final int stack_size = stack.getCount();
+      final ItemStack remaining = Inventories.insert(world, pos.relative(insertion_facing), insertion_facing.getOpposite(), stack, false);
       if(stack.isEmpty()) {
         entity.remove(Entity.RemovalReason.DISCARDED);
         return true;
-      } else {
+      } else if(remaining.getCount() < stack_size) {
         entity.setItem(remaining);
+        return true;
+      } else {
         return false;
       }
     }

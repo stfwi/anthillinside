@@ -8,19 +8,20 @@
  */
 package wile.anthillinside.libmc;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
@@ -36,20 +37,16 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.level.storage.loot.LootContext;
+import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 
-
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -66,7 +63,7 @@ public class StandardBlocks
   public static final long CFG_HORIZIONTAL                = 0x0000000000000010L; // horizontal block, affects bounding box calculation at construction time and placement
   public static final long CFG_LOOK_PLACEMENT             = 0x0000000000000020L; // placed in direction the player is looking when placing.
   public static final long CFG_FACING_PLACEMENT           = 0x0000000000000040L; // placed on the facing the player has clicked.
-  public static final long CFG_OPPOSITE_PLACEMENT         = 0x0000000000000080L; // placed placed in the opposite direction of the face the player clicked.
+  public static final long CFG_OPPOSITE_PLACEMENT         = 0x0000000000000080L; // placed in the opposite direction of the face the player clicked.
   public static final long CFG_FLIP_PLACEMENT_IF_SAME     = 0x0000000000000100L; // placement direction flipped if an instance of the same class was clicked
   public static final long CFG_FLIP_PLACEMENT_SHIFTCLICK  = 0x0000000000000200L; // placement direction flipped if player is sneaking
   public static final long CFG_STRICT_CONNECTIONS         = 0x0000000000000400L; // blocks do not connect to similar blocks around (implementation details may vary a bit)
@@ -116,7 +113,7 @@ public class StandardBlocks
     { return config; }
 
     @Override
-    @OnlyIn(Dist.CLIENT)
+    @Environment(EnvType.CLIENT)
     public void appendHoverText(ItemStack stack, @Nullable BlockGetter world, List<Component> tooltip, TooltipFlag flag)
     { Auxiliaries.Tooltip.addInformation(stack, world, tooltip, flag, true); }
 
@@ -129,9 +126,6 @@ public class StandardBlocks
     public boolean isPathfindable(BlockState state, BlockGetter world, BlockPos pos, PathComputationType type)
     { return ((config & CFG_AI_PASSABLE)!=0) && (super.isPathfindable(state, world, pos, type)); }
 
-    public boolean hasSignalConnector(BlockState state, BlockGetter world, BlockPos pos, @Nullable Direction side)
-    { return state.isSignalSource(); }
-
     @Override
     @SuppressWarnings("deprecation")
     public void onRemove(BlockState state, Level world, BlockPos pos, BlockState newState, boolean isMoving)
@@ -143,7 +137,7 @@ public class StandardBlocks
 
     @Override
     @SuppressWarnings("deprecation")
-    public List<ItemStack> getDrops(BlockState state, LootContext.Builder builder)
+    public List<ItemStack> getDrops(BlockState state, LootParams.Builder builder)
     {
       final ServerLevel world = builder.getLevel();
       final Float explosion_radius = builder.getOptionalParameter(LootContextParams.EXPLOSION_RADIUS);
@@ -185,6 +179,9 @@ public class StandardBlocks
     @Override // SimpleWaterloggedBlock
     public Optional<SoundEvent> getPickupSound()
     { return ((config & CFG_WATERLOGGABLE)!=0) ? (SimpleWaterloggedBlock.super.getPickupSound()) : Optional.empty(); }
+
+    public boolean shouldCheckWeakPower(BlockState state, LevelReader world, BlockPos pos, Direction side) // Forge Compliancy
+    { return state.isRedstoneConductor(world, pos); }
   }
 
   public static class Cutout extends BaseBlock implements IStandardBlock
@@ -218,6 +215,7 @@ public class StandardBlocks
     public BlockState getStateForPlacement(BlockPlaceContext context)
     {
       BlockState state = super.getStateForPlacement(context);
+      if(state==null) return null;
       if((config & CFG_WATERLOGGABLE)!=0) {
         FluidState fs = context.getLevel().getFluidState(context.getClickedPos());
         state = state.setValue(WATERLOGGED,fs.getType()==Fluids.WATER);
@@ -226,13 +224,8 @@ public class StandardBlocks
     }
 
     @Override
-    public boolean isPossibleToRespawnInThis()
+    public boolean isPossibleToRespawnInThis(BlockState state)
     { return false; }
-
-    @Override
-    @SuppressWarnings("deprecation")
-    public PushReaction getPistonPushReaction(BlockState state)
-    { return PushReaction.NORMAL; }
 
     @Override
     public boolean propagatesSkylightDown(BlockState state, BlockGetter reader, BlockPos pos)
@@ -244,7 +237,6 @@ public class StandardBlocks
     }
 
     @Override
-    @SuppressWarnings("deprecation")
     public FluidState getFluidState(BlockState state)
     {
       if((config & CFG_WATERLOGGABLE)!=0) {
@@ -254,7 +246,6 @@ public class StandardBlocks
     }
 
     @Override
-    @SuppressWarnings("deprecation")
     public BlockState updateShape(BlockState state, Direction facing, BlockState facingState, LevelAccessor world, BlockPos pos, BlockPos facingPos)
     {
       if((config & CFG_WATERLOGGABLE)!=0) {
@@ -307,7 +298,7 @@ public class StandardBlocks
 
     public Directed(long config, BlockBehaviour.Properties properties, final AABB[] unrotatedAABBs)
     {
-      this(config, properties, (states)->{
+      this(config, properties.isValidSpawn((s,w,p,e)->false), (states)->{
         final boolean is_horizontal = ((config & CFG_HORIZIONTAL)!=0);
         Map<BlockState,VoxelShape> vshapes = new HashMap<>();
         for(BlockState state:states) {
@@ -321,11 +312,7 @@ public class StandardBlocks
     { this(config, properties, new AABB[]{unrotatedAABB}); }
 
     @Override
-    public boolean isPossibleToRespawnInThis()
-    { return false; }
-
-    @Override
-    public boolean isValidSpawn(BlockState state, BlockGetter world, BlockPos pos, SpawnPlacements.Type type, @Nullable EntityType<?> entityType)
+    public boolean isPossibleToRespawnInThis(BlockState state)
     { return false; }
 
     @Override
@@ -386,14 +373,10 @@ public class StandardBlocks
     }
 
     public AxisAligned(long config, BlockBehaviour.Properties properties, final AABB unrotatedAABB)
-    { this(config, properties, new AABB[]{unrotatedAABB}); }
+    { this(config, properties.isValidSpawn((s,w,p,e)->false), new AABB[]{unrotatedAABB}); }
 
     @Override
-    public boolean isPossibleToRespawnInThis()
-    { return false; }
-
-    @Override
-    public boolean isValidSpawn(BlockState state, BlockGetter world, BlockPos pos, SpawnPlacements.Type type, @Nullable EntityType<?> entityType)
+    public boolean isPossibleToRespawnInThis(BlockState state)
     { return false; }
 
     @Override
@@ -418,7 +401,9 @@ public class StandardBlocks
       } else {
         facing = context.getClickedFace();
       }
-      return super.getStateForPlacement(context).setValue(AXIS, facing.getAxis());
+      final BlockState state = super.getStateForPlacement(context);
+      if(state==null) return null;
+      return state.setValue(AXIS, facing.getAxis());
     }
 
     @Override
@@ -627,7 +612,11 @@ public class StandardBlocks
     @Override
     @Nullable
     public BlockState getStateForPlacement(BlockPlaceContext context)
-    { return super.getStateForPlacement(context).setValue(NORTH, false).setValue(EAST, false).setValue(SOUTH, false).setValue(WEST, false); }
+    {
+      final BlockState state = super.getStateForPlacement(context);
+      if(state==null) return null;
+      return state.setValue(NORTH, false).setValue(EAST, false).setValue(SOUTH, false).setValue(WEST, false);
+    }
 
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context)

@@ -9,11 +9,12 @@ package wile.anthillinside.items;
 
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import wile.anthillinside.libmc.StandardItems;
 
-public class RedSugarItem extends BaseItem
+public class RedSugarItem extends StandardItems.BaseItem
 {
   public RedSugarItem(Item.Properties properties)
-  { super(properties.setNoRepair()); }
+  { super(properties); }
 
   @Override
   public int getEnchantmentValue()

@@ -14,16 +14,16 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
 import wile.anthillinside.libmc.Registries;
+import wile.anthillinside.libmc.StandardItems;
 
-public class AntsItem extends BaseBlockItem
+public class AntsItem extends StandardItems.BaseBlockItem
 {
   public AntsItem(Item.Properties properties)
-  { super(Registries.getBlock("trail"), properties.setNoRepair()); }
+  { super(Registries.getBlock("trail"), properties); }
 
   public String getDescriptionId()
   { return getOrCreateDescriptionId(); }
@@ -45,22 +45,15 @@ public class AntsItem extends BaseBlockItem
   { return false; }
 
   @Override
-  public boolean canApplyAtEnchantingTable(ItemStack stack, Enchantment enchantment)
-  { return false; }
-
-  @Override
-  @SuppressWarnings("deprecation")
   public InteractionResult onItemUseFirst(ItemStack stack, UseOnContext context)
   {
-    if(context.getPlayer().isCrouching()) {
-      final Level world = context.getLevel();
-      final BlockPos pos = context.getClickedPos();
-      final BlockState state = world.getBlockState(pos);
-      if(!(state.getBlock() instanceof final wile.anthillinside.blocks.RedAntTrail.RedAntTrailBlock trail)) return InteractionResult.PASS;
-      world.setBlock(pos, trail.updatedState(state.rotate(Rotation.CLOCKWISE_90), world, pos), 1|2);
-      world.playSound(null, pos, SoundEvents.ITEM_FRAME_ROTATE_ITEM, SoundSource.BLOCKS, 0.7f,1.8f);
-      return InteractionResult.sidedSuccess(world.isClientSide);
-    }
-    return InteractionResult.PASS;
+    if(!context.getPlayer().isCrouching()) return InteractionResult.PASS;
+    final Level world = context.getLevel();
+    final BlockPos pos = context.getClickedPos();
+    final BlockState state = world.getBlockState(pos);
+    if(!(state.getBlock() instanceof final wile.anthillinside.blocks.RedAntTrail.RedAntTrailBlock trail)) return InteractionResult.PASS;
+    world.setBlock(pos, trail.updatedState(state.rotate(Rotation.CLOCKWISE_90), world, pos), 1|2);
+    world.playSound(null, pos, SoundEvents.ITEM_FRAME_ROTATE_ITEM, SoundSource.BLOCKS, 0.7f,1.8f);
+    return InteractionResult.sidedSuccess(world.isClientSide);
   }
 }

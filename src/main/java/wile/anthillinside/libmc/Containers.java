@@ -1,12 +1,12 @@
 package wile.anthillinside.libmc;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.util.Mth;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 
 import java.util.function.BiConsumer;
 
@@ -41,7 +41,7 @@ public class Containers
     @Override
     public void set(ItemStack stack)
     {
-      if(stack.sameItem(getItem())) {
+      if(stack.is(getItem().getItem())) {
         super.set(stack);
       } else {
         final ItemStack before = getItem().copy();
@@ -52,13 +52,13 @@ public class Containers
 
     @Override
     public boolean mayPlace(ItemStack stack)
-    { return enabled && this.container.canPlaceItem(this.getSlotIndex(), stack); }
+    { return enabled && this.container.canPlaceItem(this.getContainerSlot(), stack); }
 
     @Override
     public int getMaxStackSize(ItemStack stack)
     { return Math.min(getMaxStackSize(), stack_limit_); }
 
-    @OnlyIn(Dist.CLIENT)
+    @Environment(EnvType.CLIENT)
     public boolean isActive()
     { return enabled; }
   }
@@ -89,7 +89,7 @@ public class Containers
     public boolean mayPickup(Player player)
     { return false; }
 
-    @OnlyIn(Dist.CLIENT)
+    @Environment(EnvType.CLIENT)
     public boolean isActive()
     { return enabled; }
   }
@@ -111,7 +111,7 @@ public class Containers
     public boolean mayPickup(Player player)
     { return false; }
 
-    @OnlyIn(Dist.CLIENT)
+    @Environment(EnvType.CLIENT)
     public boolean isActive()
     { return false; }
   }

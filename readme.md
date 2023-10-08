@@ -4,7 +4,8 @@
 ----
 ## Version history
 
-    ~ v1.3.16     [F]
+    - v1.4.16     [U] Initial Fabric port for mc1.20.1.
+                  [B] Known issue: Config not implemented yet.
 
     - v1.3.15     [U] Updated to mc1.19.3 forge.
                   [A] Added possibility to disable Hive drops from Redstone mining.

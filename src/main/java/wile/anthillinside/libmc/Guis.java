@@ -10,14 +10,15 @@ package wile.anthillinside.libmc;
 
 import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -26,8 +27,6 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 
 import java.util.Arrays;
 import java.util.function.Consumer;
@@ -40,7 +39,7 @@ public class Guis
   // Gui base
   // -------------------------------------------------------------------------------------------------------------------
 
-  @OnlyIn(Dist.CLIENT)
+  @Environment(EnvType.CLIENT)
   public static abstract class ContainerGui<T extends AbstractContainerMenu> extends AbstractContainerScreen<T>
   {
     protected final ResourceLocation background_image_;
@@ -74,58 +73,58 @@ public class Guis
     }
 
     @Override
-    public void render(PoseStack mx, int mouseX, int mouseY, float partialTicks)
+    public void render(GuiGraphics gg, int mouseX, int mouseY, float partialTicks)
     {
-      renderBackground(mx);
-      super.render(mx, mouseX, mouseY, partialTicks);
-      if(!tooltip_.render(mx, this, mouseX, mouseY)) renderTooltip(mx, mouseX, mouseY);
+      renderBackground(gg);
+      super.render(gg, mouseX, mouseY, partialTicks);
+      if(!tooltip_.render(gg, this, mouseX, mouseY)) renderTooltip(gg, mouseX, mouseY);
     }
 
     @Override
-    protected void renderLabels(PoseStack mx, int x, int y)
+    protected void renderLabels(GuiGraphics gg, int x, int y)
     {}
 
     @Override
-    @SuppressWarnings("deprecation")
-    protected final void renderBg(PoseStack mx, float partialTicks, int mouseX, int mouseY)
+    protected final void renderBg(GuiGraphics gg, float partialTicks, int mouseX, int mouseY)
     {
       RenderSystem.setShader(GameRenderer::getPositionTexShader);
       RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
       RenderSystem.enableBlend();
       RenderSystem.defaultBlendFunc();
       RenderSystem.enableDepthTest();
-      gui_background_.draw(mx, this);
-      renderBgWidgets(mx, partialTicks, mouseX, mouseY);
+      gui_background_.draw(gg, this);
+      renderBgWidgets(gg, partialTicks, mouseX, mouseY);
       RenderSystem.disableBlend();
     }
 
     public final ResourceLocation getBackgroundImage()
     { return background_image_; }
 
-    protected void renderBgWidgets(PoseStack mx, float partialTicks, int mouseX, int mouseY)
+    public final int getGuiLeft()
+    { return leftPos; }
+
+    public final int getGuiTop()
+    { return topPos; }
+
+    protected void renderBgWidgets(GuiGraphics gg, float partialTicks, int mouseX, int mouseY)
     {}
 
-    protected void renderItemTemplate(PoseStack mx, ItemStack stack, int x, int y)
+    protected void renderItemTemplate(GuiGraphics gg, ItemStack stack, int x, int y)
     {
-      final ItemRenderer ir = itemRenderer;
-      final int main_zl = getBlitOffset();
-      final float zl = ir.blitOffset;
       final int x0 = getGuiLeft();
       final int y0 = getGuiTop();
-      ir.blitOffset = -80;
-      ir.renderGuiItem(stack, x0+x, y0+y);
-      RenderSystem.disableColorLogicOp(); //RenderSystem.disableColorMaterial();
-      RenderSystem.enableDepthTest(); //RenderSystem.enableAlphaTest();
+      RenderSystem.disableColorLogicOp();
+      RenderSystem.enableDepthTest();
       RenderSystem.defaultBlendFunc();
+      RenderSystem.setShaderColor(0.8f, 0.8f, 0.8f, 0.4f);
       RenderSystem.enableBlend();
-      ir.blitOffset = zl;
-      setBlitOffset(100);
+      gg.renderItem(stack, x0+x, y0+y);
       RenderSystem.colorMask(true, true, true, true);
-      RenderSystem.setShaderColor(0.7f, 0.7f, 0.7f, 0.8f);
+      RenderSystem.setShaderColor(0.7f, 0.7f, 0.7f, 0.4f);
       RenderSystem.setShaderTexture(0, background_image_);
-      blit(mx, x0+x, y0+y, x, y, 16, 16);
+      gg.blit(background_image_, x0+x, y0+y, x, y, 16, 16);
       RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
-      setBlitOffset(main_zl);
+      RenderSystem.disableBlend();
     }
   }
 
@@ -133,7 +132,7 @@ public class Guis
   // Gui elements
   // -------------------------------------------------------------------------------------------------------------------
 
-  @OnlyIn(Dist.CLIENT)
+  @Environment(EnvType.CLIENT)
   public static class Coord2d
   {
     public static final Coord2d ORIGIN = new Coord2d(0,0);
@@ -143,7 +142,7 @@ public class Guis
     public String toString() { return "["+x+","+y+"]"; }
   }
 
-  @OnlyIn(Dist.CLIENT)
+  @Environment(EnvType.CLIENT)
   public static class UiWidget extends net.minecraft.client.gui.components.AbstractWidget
   {
     protected static final Component EMPTY_TEXT = Component.literal("");
@@ -159,16 +158,16 @@ public class Guis
     public UiWidget init(Screen parent)
     {
       this.parent_ = parent;
-      this.setX(this.getX() + ((parent instanceof AbstractContainerScreen<?>) ? ((AbstractContainerScreen<?>)parent).getGuiLeft() : 0));
-      this.setY(this.getY() + ((parent instanceof AbstractContainerScreen<?>) ? ((AbstractContainerScreen<?>)parent).getGuiTop() : 0));
+      this.setX(getX() + ((parent instanceof ContainerGui<?>) ? ((ContainerGui<?>)parent).getGuiLeft() : 0));
+      this.setY(getY() + ((parent instanceof ContainerGui<?>) ? ((ContainerGui<?>)parent).getGuiTop() : 0));
       return this;
     }
 
     public UiWidget init(Screen parent, Coord2d position)
     {
       this.parent_ = parent;
-      this.setX(position.x + ((parent instanceof AbstractContainerScreen<?>) ? ((AbstractContainerScreen<?>)parent).getGuiLeft() : 0));
-      this.setY(position.y + ((parent instanceof AbstractContainerScreen<?>) ? ((AbstractContainerScreen<?>)parent).getGuiTop() : 0));
+      this.setX(position.x + ((parent instanceof ContainerGui<?>) ? ((ContainerGui<?>)parent).getGuiLeft() : 0));
+      this.setY(position.y + ((parent instanceof ContainerGui<?>) ? ((ContainerGui<?>)parent).getGuiTop() : 0));
       return this;
     }
 
@@ -188,7 +187,7 @@ public class Guis
     {
       final Window win = mc_.getWindow();
       return Coord2d.of(
-        Mth.clamp(((int)(mc_.mouseHandler.xpos() * (double)win.getGuiScaledWidth() / (double)win.getScreenWidth()))-getY(), -1, this.width+1),
+        Mth.clamp(((int)(mc_.mouseHandler.xpos() * (double)win.getGuiScaledWidth() / (double)win.getScreenWidth()))-getX(), -1, this.width+1),
         Mth.clamp(((int)(mc_.mouseHandler.ypos() * (double)win.getGuiScaledHeight() / (double)win.getScreenHeight()))-getY(), -1, this.height+1)
       );
     }
@@ -202,36 +201,34 @@ public class Guis
     public UiWidget hide()
     { visible = false; return this; }
 
-    @Override
-    public void render(PoseStack mx, int mouseX, int mouseY, float partialTicks)
+    public void render(GuiGraphics gg, int mouseX, int mouseY, float partialTicks)
     {
       if(!visible) return;
       isHovered = (mouseX >= getX()) && (mouseY >= getY()) && (mouseX < getX()+width) && (mouseY < getY()+height);
-      renderButton(mx, mouseX, mouseY, partialTicks);
+      renderWidget(gg, mouseX, mouseY, partialTicks);
     }
 
     @Override
-    public void renderButton(PoseStack mxs, int mouseX, int mouseY, float partialTicks)
+    protected void updateWidgetNarration(NarrationElementOutput neo)
+    {}
+
+    @Override
+    protected void renderWidget(GuiGraphics gg, int mouseX, int mouseY, float partialTicks)
     {
-      super.renderButton(mxs, mouseX, mouseY, partialTicks);
-      if(isHovered) renderToolTip(mxs, mouseX, mouseY);
+      if(isHovered) renderToolTip(gg, mouseX, mouseY);
     }
 
     @SuppressWarnings("all")
-    protected void renderToolTip(PoseStack mx, int mouseX, int mouseY)
+    public void renderToolTip(GuiGraphics gg, int mouseX, int mouseY)
     {
       if(!visible || (!active) || (tooltip_ == NO_TOOLTIP)) return;
       final Component tip = tooltip_.apply(this);
       if(tip.getString().trim().isEmpty()) return;
-      parent_.renderTooltip(mx, Arrays.asList(tip.getVisualOrderText()), mouseX, mouseY);
+      gg.renderTooltip(mc_.font, Arrays.asList(tip.getVisualOrderText()), mouseX, mouseY);
     }
-
-    @Override
-    public void updateWidgetNarration(NarrationElementOutput element_output)
-    {}
   }
 
-  @OnlyIn(Dist.CLIENT)
+  @Environment(EnvType.CLIENT)
   public static class HorizontalProgressBar extends UiWidget
   {
     private final Coord2d texture_position_base_;
@@ -271,27 +268,23 @@ public class Guis
     {}
 
     @Override
-    protected void renderBg(PoseStack mx, Minecraft mc, int x, int y)
-    {}
-
-    @Override
-    public void renderButton(PoseStack mxs, int mouseX, int mouseY, float partialTicks)
+    protected void renderWidget(GuiGraphics gg, int mouseX, int mouseY, float partialTicks)
     {
       RenderSystem.setShaderTexture(0, atlas_);
       RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, this.alpha);
       RenderSystem.enableBlend();
       RenderSystem.defaultBlendFunc();
       RenderSystem.enableDepthTest();
-      blit(mxs, getX(), getY(), texture_position_base_.x, texture_position_base_.y, width, height);
+      gg.blit(atlas_, getX(), getY(), texture_position_base_.x, texture_position_base_.y, width, height);
       if((progress_max_ > 0) && (progress_ > 0)) {
         int w = Mth.clamp((int)Math.round((progress_ * width) / progress_max_), 0, width);
-        blit(mxs, getX(), getY(), texture_position_filled_.x, texture_position_filled_.y, w, height);
+        gg.blit(atlas_, getX(), getY(), texture_position_filled_.x, texture_position_filled_.y, w, height);
       }
-      if(isHovered) renderToolTip(mxs, mouseX, mouseY);
+      if(isHovered) renderToolTip(gg, mouseX, mouseY);
     }
   }
 
-  @OnlyIn(Dist.CLIENT)
+  @Environment(EnvType.CLIENT)
   public static class BackgroundImage extends UiWidget
   {
     private final ResourceLocation atlas_;
@@ -308,15 +301,15 @@ public class Guis
       visible = true;
     }
 
-    public void draw(PoseStack mx, Screen parent)
+    public void draw(GuiGraphics gg, Screen parent)
     {
       if(!visible) return;
       RenderSystem.setShaderTexture(0, atlas_);
-      parent.blit(mx, getX(), getY(), atlas_position_.x, atlas_position_.y, width, height);
+      gg.blit(atlas_, getX(), getY(), atlas_position_.x, atlas_position_.y, width, height);
     }
   }
 
-  @OnlyIn(Dist.CLIENT)
+  @Environment(EnvType.CLIENT)
   public static class CheckBox extends UiWidget
   {
     private final Coord2d texture_position_off_;
@@ -347,7 +340,7 @@ public class Guis
     { checked_ = !checked_; on_click_.accept(this); }
 
     @Override
-    public void renderButton(PoseStack mxs, int mouseX, int mouseY, float partialTicks)
+    protected void renderWidget(GuiGraphics gg, int mouseX, int mouseY, float partialTicks)
     {
       RenderSystem.setShader(GameRenderer::getPositionTexShader);
       RenderSystem.setShaderTexture(0, atlas_);
@@ -356,12 +349,12 @@ public class Guis
       RenderSystem.defaultBlendFunc();
       RenderSystem.enableDepthTest();
       Coord2d pos = checked_ ? texture_position_on_ : texture_position_off_;
-      blit(mxs, getX(), getY(), pos.x, pos.y, width, height);
-      if(isHovered) renderToolTip(mxs, mouseX, mouseY);
+      gg.blit(atlas_, getX(), getY(), pos.x, pos.y, width, height);
+      if(isHovered) renderToolTip(gg, mouseX, mouseY);
     }
   }
 
-  @OnlyIn(Dist.CLIENT)
+  @Environment(EnvType.CLIENT)
   public static class ImageButton extends UiWidget
   {
     private final Coord2d texture_position_;
@@ -384,7 +377,7 @@ public class Guis
     { on_click_.accept(this); }
 
     @Override
-    public void renderButton(PoseStack mxs, int mouseX, int mouseY, float partialTicks)
+    protected void renderWidget(GuiGraphics gg, int mouseX, int mouseY, float partialTicks)
     {
       RenderSystem.setShader(GameRenderer::getPositionTexShader);
       RenderSystem.setShaderTexture(0, atlas_);
@@ -393,12 +386,12 @@ public class Guis
       RenderSystem.defaultBlendFunc();
       RenderSystem.enableDepthTest();
       Coord2d pos = texture_position_;
-      blit(mxs, getX(), getY(), pos.x, pos.y, width, height);
-      if(isHovered) renderToolTip(mxs, mouseX, mouseY);
+      gg.blit(atlas_, getX(), getY(), pos.x, pos.y, width, height);
+      if(isHovered) renderToolTip(gg, mouseX, mouseY);
     }
   }
 
-  @OnlyIn(Dist.CLIENT)
+  @Environment(EnvType.CLIENT)
   public static class Image extends UiWidget
   {
     private final Coord2d texture_position_;
@@ -416,7 +409,7 @@ public class Guis
     {}
 
     @Override
-    public void renderButton(PoseStack mxs, int mouseX, int mouseY, float partialTicks)
+    protected void renderWidget(GuiGraphics gg, int mouseX, int mouseY, float partialTicks)
     {
       RenderSystem.setShader(GameRenderer::getPositionTexShader);
       RenderSystem.setShaderTexture(0, atlas_);
@@ -425,12 +418,12 @@ public class Guis
       RenderSystem.defaultBlendFunc();
       RenderSystem.enableDepthTest();
       Coord2d pos = texture_position_;
-      blit(mxs, getX(), getY(), pos.x, pos.y, width, height);
-      if(isHovered) renderToolTip(mxs, mouseX, mouseY);
+      gg.blit(atlas_, getX(), getY(), pos.x, pos.y, width, height);
+      if(isHovered) renderToolTip(gg, mouseX, mouseY);
     }
   }
 
-  @OnlyIn(Dist.CLIENT)
+  @Environment(EnvType.CLIENT)
   public static class TextBox extends net.minecraft.client.gui.components.EditBox
   {
     public TextBox(int x, int y, int width, int height, Component title, Font font) { super(font, x, y, width, height, title); setBordered(false); }

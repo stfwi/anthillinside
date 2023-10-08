@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "anthillinside",
+  "version": "${version}",
+
+  "name": "Anthill Inside",
+  "description": "Adds 'natural' automation with Redstone Ants. Pratchett Readers know the term.",
+  "authors": [ "wilechaote" ],
+  "contact": {
+    "homepage": "https://github.com/stfwi/anthillinside/",
+    "sources": "https://github.com/stfwi/anthillinside/"
+  },
+  "license": "MIT",
+  "icon": "assets/anthillinside/logo.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "wile.anthillinside.ModAnthillInside"
+    ],
+    "client": [
+      "wile.anthillinside.ModAnthillInsideClient"
+    ]
+  },
+  "mixins": [
+    "anthillinside.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.14.6",
+    "fabric": "*",
+    "minecraft": "~1.20.1",
+    "java": ">=17"
+  },
+  "suggests": {
+    "another-mod": "*"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "SRS",
+    "SAS",
+    "SSS"
+  ],
+  "key": {
+    "S": { "item": "minecraft:stone" },
+    "A": { "item": "anthillinside:ants" },
+    "R": { "item": "minecraft:redstone_block" }
+  },
+  "result": {
+    "item": "anthillinside:queens_lair",
+    "count": 1
+  }
+}
