@@ -40,10 +40,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TieredItem;
 import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.item.crafting.AbstractCookingRecipe;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
@@ -559,6 +556,7 @@ public class RedAntHive
       sugar_ticks_ = nbt.getInt("sugar_ticks");
       fuel_left_ = nbt.getInt("fuel_left");
       last_recipe_ = nbt.getString("last_recipe");
+      if(!ResourceLocation.isValidResourceLocation(last_recipe_)) last_recipe_ = "";
     }
 
     protected void writenbt(CompoundTag nbt, boolean update_packet)
@@ -970,7 +968,7 @@ public class RedAntHive
       } else if(progress_ < 0) {
         // re-check delay, currently nothing processible, don't waste CPU.
         progress_ = Math.min(0, progress_ + TICK_INTERVAL);
-        if(progress_ < 0) return itemPassThrough(cat);
+        if(progress_ < 0) return inventoryManagement() || itemPassThrough(cat);
         // Flush cache when the delay just expired.
         cache_slot_range_.move(right_storage_slot_range_);
         return true;
@@ -979,7 +977,7 @@ public class RedAntHive
         if((progress_ > 1) || (!state_flags_.powered())) {
           progress_ = Math.min(max_progress_, progress_ + Math.max(TICK_INTERVAL, (int)((1.0+ant_speed_) * TICK_INTERVAL)));
         }
-        itemPassThrough(cat);
+        if(inventoryManagement() || itemPassThrough(cat)) return true;
       } else {
         // processing by recipe type
         boolean is_done = (progress_ >= max_progress_) && (max_progress_ > 0);
@@ -997,6 +995,32 @@ public class RedAntHive
         }
       }
       return true;
+    }
+
+    private boolean inventoryManagement()
+    {
+      if((!isSlowTimerTick()) || (!state_flags_.filteredinsert())) return false;
+      // Fill up filter slots.
+      return left_filter_slot_range_.iterate((fslot,fstack)->{
+        if(fstack.isEmpty()) return false;
+        final ItemStack sstack = left_storage_slot_range_.get(fslot);
+        final int missing = (sstack.isEmpty()) ? (fstack.getMaxStackSize()) : (sstack.getMaxStackSize() - sstack.getCount());
+        if(missing <= 0) return false;
+        if((!fstack.isStackable()) && (!sstack.isEmpty())) return false; // in case getMaxStackSize<->isStackable inconsistent.
+        final ItemStack found = left_storage_slot_range_.extract(new ItemStack(fstack.getItem(), missing), false, (slot,stack)->{
+          if(slot.equals(fslot)) return false;
+          if(left_filter_slot_range_.get(slot).is(fstack.getItem())) return false;
+          return true;
+        });
+        if(found.isEmpty()) return false;
+        if(sstack.isEmpty()) {
+          left_storage_slot_range_.set(fslot, found);
+        } else {
+          sstack.grow(found.getCount());
+          left_storage_slot_range_.set(fslot, sstack);
+        }
+        return true;
+      });
     }
 
     private boolean itemPassThrough(Object type)
@@ -1076,14 +1100,17 @@ public class RedAntHive
         CraftingRecipe selected_recipe = null;
         List<ItemStack> selected_placement = Collections.emptyList();
         for(CraftingRecipe recipe:crafting_recipes) {
+          selected_recipe = recipe;
           final List<ItemStack> placement = Crafting.get3x3Placement(getLevel(), recipe, left_storage_slot_range_, grid_storage_slot_range_);
           if(placement.isEmpty()) continue;
-          selected_recipe = recipe;
           selected_placement = placement;
           break;
         }
         if(selected_placement.isEmpty()) {
           state_flags_.noingr(true);
+          if(last_recipe_.isEmpty() && (selected_recipe != null)) {
+            last_recipe_ = Crafting.getRecipeId(level, selected_recipe).map(ResourceLocation::toString).orElse("");
+          }
           return false;
         }
         cache_slot_range_.clearContent();
@@ -1091,7 +1118,7 @@ public class RedAntHive
           cache_slot_range_.setItem(i, left_storage_slot_range_.extract(selected_placement.get(i)));
         }
         setResultSlot(Crafting.get3x3CraftingResult(getLevel(), cache_slot_range_, selected_recipe));
-        last_recipe_ = selected_recipe.getId().toString();
+        last_recipe_ = Crafting.getRecipeId(level, selected_recipe).map(ResourceLocation::toString).orElse("");
         progress_ = 0;
         max_progress_ = 60 + (4*cache_slot_range_.stream().mapToInt(ItemStack::getCount).sum());
         return true;
@@ -1203,7 +1230,7 @@ public class RedAntHive
           setResultSlot(recipe.getResultItem(getLevel().registryAccess()));
           fuel_left_ -= fuel_time_needed;
           max_progress_ = recipe.getCookingTime();
-          last_recipe_ = recipe.getId().toString();
+          last_recipe_ =  Crafting.getRecipeId(level, recipe).map(ResourceLocation::toString).orElse("");
           progress_ = 0;
           cache_slot_range_.setItem(0, input_slots.getItem(smelting_input_slot).split(1));
           return true;
@@ -2154,3 +2181,4 @@ public class RedAntHive
   }
 
 }
+

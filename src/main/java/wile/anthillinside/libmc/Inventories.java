@@ -614,11 +614,15 @@ public class Inventories
     { return extract(request_stack, false); }
 
     public ItemStack extract(final ItemStack request_stack, boolean simulate)
+    { return extract(request_stack, simulate, (i,s)->true); }
+
+    public ItemStack extract(final ItemStack request_stack, boolean simulate, BiPredicate<Integer, ItemStack> pred)
     {
       if(request_stack.isEmpty()) return ItemStack.EMPTY;
       List<ItemStack> matches = new ArrayList<>();
       for(int i=0; i<size_; ++i) {
         final ItemStack stack = getItem(i);
+        if(!pred.test(i, stack)) continue;
         if((!stack.isEmpty()) && (areItemStacksIdentical(stack, request_stack))) {
           if(stack.hasTag()) {
             final CompoundTag nbt = stack.getOrCreateTag();

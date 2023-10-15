@@ -4,6 +4,9 @@
 ----
 ## Version history
 
+    - v1.5.17     [U] Initial Fabric port for mc1.20.2.
+                  [B] Known issue: Config not implemented yet.
+
     - v1.4.16     [U] Initial Fabric port for mc1.20.1.
                   [B] Known issue: Config not implemented yet.
 

@@ -123,7 +123,7 @@ public class ToolActions
               }
             }
             if(fetched_seed) {
-              int init_val = crop.defaultBlockState().getValue(CropBlock.AGE);
+              final int init_val = crop.getAge(crop.defaultBlockState());
               world.setBlock(pos, crop.getStateForAge(init_val),1|2);
             }
           }
