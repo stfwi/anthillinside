@@ -1,0 +1,10 @@
+{
+  "parent": "anthillinside:block/queens_lair_model0",
+  "render_type": "cutout",
+  "textures": {
+		"o": "anthillinside:block/hive_texture_dirt_out",
+		"i": "anthillinside:block/hive_texture_dirt_in",
+    "s": "anthillinside:block/hive_texture_dirt",
+		"particle": "anthillinside:block/hive_texture_dirt"
+  }
+}

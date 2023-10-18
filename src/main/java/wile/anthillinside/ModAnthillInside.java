@@ -9,7 +9,7 @@ package wile.anthillinside;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.CreativeModeTabEvent;
+import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
@@ -41,7 +41,7 @@ public class ModAnthillInside
     ModContent.init(MODID);
     FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onSetup);
     FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onClientSetup);
-    FMLJavaModLoadingContext.get().getModEventBus().addListener(this::addCreativeTab);
+    FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onCreativeModeTabContents);
     MinecraftForge.EVENT_BUS.register(this);
     MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onBlockBroken);
   }
@@ -55,7 +55,6 @@ public class ModAnthillInside
   private void onSetup(final FMLCommonSetupEvent event)
   {
     wile.anthillinside.libmc.Networking.init(MODID);
-    ModConfig.apply();
   }
 
   private void onClientSetup(final FMLClientSetupEvent event)
@@ -66,10 +65,8 @@ public class ModAnthillInside
     ModContent.processContentClientSide();
   }
 
-  private void addCreativeTab(CreativeModeTabEvent.BuildContents event)
+  private void onCreativeModeTabContents(BuildCreativeModeTabContentsEvent event)
   {
-    if(event.getTab() != Registries.getCreativeModeTab()) return;
-    Registries.getRegisteredItems().forEach(event::accept);
   }
 
   @Mod.EventBusSubscriber(bus=Mod.EventBusSubscriber.Bus.MOD)
@@ -97,7 +94,7 @@ public class ModAnthillInside
     @SubscribeEvent
     @OnlyIn(Dist.CLIENT)
     public static void onRenderGui(net.minecraftforge.client.event.RenderGuiOverlayEvent.Post event)
-    { Overlay.TextOverlayGui.INSTANCE.onRenderGui(event.getPoseStack()); }
+    { Overlay.TextOverlayGui.INSTANCE.onRenderGui(event.getGuiGraphics()); }
 
     @SubscribeEvent
     @OnlyIn(Dist.CLIENT)

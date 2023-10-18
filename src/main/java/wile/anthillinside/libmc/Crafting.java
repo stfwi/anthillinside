@@ -16,10 +16,12 @@ import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.CraftingContainer;
+import net.minecraft.world.inventory.TransientCraftingContainer;
 import net.minecraft.world.item.EnchantedBookItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.PotionItem;
+import net.minecraft.world.item.alchemy.PotionBrewing;
 import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
@@ -27,9 +29,8 @@ import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.ComposterBlock;
 import net.minecraftforge.common.ForgeHooks;
-import net.minecraftforge.common.brewing.BrewingRecipeRegistry;
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.util.*;
 import java.util.function.BiPredicate;
 
@@ -38,18 +39,18 @@ public class Crafting
 {
   // -------------------------------------------------------------------------------------------------------------------
 
-  public static final class CraftingGrid extends CraftingContainer
+  public static final class CraftingGrid extends TransientCraftingContainer
   {
     private static final CraftingGrid instance3x3 = new CraftingGrid(3,3);
 
     private CraftingGrid(int width, int height)
     { super(
-        new AbstractContainerMenu(null,0) {
-          public boolean stillValid(Player player) { return false; }
-          public ItemStack quickMoveStack(Player player, int slot) {return ItemStack.EMPTY; }
-        }
-        , width, height
-      );
+            new AbstractContainerMenu(null,0) {
+              public boolean stillValid(Player player) { return false; }
+              public ItemStack quickMoveStack(Player player, int slot) {return ItemStack.EMPTY; }
+            }
+            , width, height
+    );
     }
 
     private void fill(Container grid)
@@ -62,8 +63,14 @@ public class Crafting
     { fill(grid); return recipe.getRemainingItems(this); }
 
     public ItemStack getCraftingResult(Level world, Container grid, CraftingRecipe recipe)
-    { fill(grid); return recipe.assemble(this); }
+    { fill(grid); return recipe.assemble(this, world.registryAccess()); }
   }
+
+  /**
+   * Returns the registry name of a recipe.
+   */
+  public static Optional<ResourceLocation> getRecipeId(Level world, Recipe<?> recipe)
+  { return Optional.of(recipe.getId()); }
 
   /**
    * Returns a Crafting recipe by registry name.
@@ -135,9 +142,9 @@ public class Crafting
     }
     if(recipe instanceof ShapedRecipe shaped) {
       List<ItemStack> placement = NonNullList.withSize(width*height, ItemStack.EMPTY);
-      for(int row=0; row<shaped.getRecipeHeight(); ++row) {
-        for(int col=0; col<shaped.getRecipeWidth(); ++col) {
-          placement.set(width*row+col, used.get(row*shaped.getRecipeWidth()+col));
+      for(int row=0; row<shaped.getHeight(); ++row) {
+        for(int col=0; col<shaped.getWidth(); ++col) {
+          placement.set(width*row+col, used.get(row*shaped.getWidth()+col));
         }
       }
       return placement;
@@ -230,13 +237,13 @@ public class Crafting
    * Returns true if the item can be used as brewing ingredient.
    */
   public static boolean isBrewingIngredient(Level world, ItemStack stack)
-  { return BrewingRecipeRegistry.isValidIngredient(stack); }
+  { return (!isBrewingPotion(world, stack)) && PotionBrewing.isIngredient(stack); }
 
   /**
-   * Returns true if the item can be used as brewing bottle.
+   * Returns true if the given item is a potion (or water bottle).
    */
-  public static boolean isBrewingInput(Level world, ItemStack stack)
-  { return BrewingRecipeRegistry.isValidInput(stack); }
+  public static boolean isBrewingPotion(Level world, ItemStack stack)
+  { return (stack.getItem() instanceof PotionItem); }
 
   /**
    * Returns the burn time for brewing of the given stack.
@@ -286,17 +293,29 @@ public class Crafting
     {
       for(int potion_slot = 0; potion_slot<potion_inventory.getContainerSize(); ++potion_slot) {
         final ItemStack pstack = potion_inventory.getItem(potion_slot);
-        if(!isBrewingInput(world, pstack)) continue;
+        if(!isBrewingPotion(world, pstack)) continue;
         for(int ingredient_slot = 0; ingredient_slot<ingredient_inventory.getContainerSize(); ++ingredient_slot) {
           final ItemStack istack = ingredient_inventory.getItem(ingredient_slot);
-          if((!isBrewingIngredient(world, istack)) || (ingredient_slot == potion_slot) || (isBrewingFuel(world, istack))) continue;
-          final ItemStack result = BrewingRecipeRegistry.getOutput(pstack, istack);
-          if(result.isEmpty()) continue;
+          if((ingredient_slot == potion_slot) || (!isBrewingIngredient(world, istack)) || (isBrewingFuel(world, istack))) continue;
+          if(!PotionBrewing.hasMix(pstack, istack)) continue;
+          final ItemStack result = PotionBrewing.mix(istack, pstack);
+          if(result.isEmpty() || (Inventories.areItemStacksIdentical(result, pstack))) continue; // mix may return the stack itself without changes.
           return new BrewingOutput(result, potion_inventory, ingredient_inventory, potion_slot, ingredient_slot, DEFAULT_BREWING_TIME);
         }
       }
       return BrewingOutput.EMPTY;
     }
+
+    private static class BrewingAdapter extends PotionBrewing
+    {
+      // For checking, unfortunately the detailed functions are protected in PotionBrewing, hence this adapter.
+      public static boolean isConainerIngredient(ItemStack stack) { return PotionBrewing.isContainerIngredient(stack); }
+      public static boolean isPotionIngredient(ItemStack stack) { return PotionBrewing.isPotionIngredient(stack); }
+      public static boolean hasPotionMix(ItemStack source, ItemStack ingredient) { return PotionBrewing.hasPotionMix(source, ingredient); }
+      public static boolean hasContainerMix(ItemStack source, ItemStack ingredient) { return PotionBrewing.hasContainerMix(source, ingredient); }
+      public static boolean hasMix(ItemStack source, ItemStack ingredient) { return PotionBrewing.hasMix(source, ingredient); }
+    }
+
   }
 
   // -------------------------------------------------------------------------------------------------------------------
@@ -305,6 +324,12 @@ public class Crafting
   { return ComposterBlock.COMPOSTABLES.getOrDefault(stack.getItem(),0); }
 
   // -------------------------------------------------------------------------------------------------------------------
+
+  /**
+   * Returns true if the given stack is an enchanted item.
+   */
+  public static boolean isEnchanted(Level world, ItemStack stack)
+  { return !getEnchantmentsOnItem(world, stack).isEmpty(); }
 
   /**
    * Returns the enchtments bound to the given stack.
@@ -316,7 +341,7 @@ public class Crafting
    * Returns an enchanted book with the given enchantment, emtpy stack if not applicable.
    */
   public static ItemStack getEnchantmentBook(Level world, Enchantment enchantment, int level)
-  { return ((!enchantment.isAllowedOnBooks()) || (level <= 0)) ? ItemStack.EMPTY : EnchantedBookItem.createForEnchantment(new EnchantmentInstance(enchantment, level)); }
+  { return (level <= 0) ? ItemStack.EMPTY : EnchantedBookItem.createForEnchantment(new EnchantmentInstance(enchantment, level)); }
 
   /**
    * Returns the accumulated repair cost for the given enchantments.
@@ -337,7 +362,7 @@ public class Crafting
     final Map<Enchantment, Integer> on_item = getEnchantmentsOnItem(world, stack);
     if(on_item.keySet().stream().anyMatch(ench-> ench.isCompatibleWith(enchantment))) return false;
     final ItemStack book = EnchantedBookItem.createForEnchantment(new EnchantmentInstance(enchantment, level));
-    if((!(stack.isBookEnchantable(book) && enchantment.isAllowedOnBooks())) && (!stack.canApplyAtEnchantingTable(enchantment)) && (!enchantment.canEnchant(stack))) return false;
+    if(!enchantment.canEnchant(stack)) return false;
     final int existing_level = on_item.getOrDefault(enchantment, 0);
     if(existing_level > 0) level = Mth.clamp(level+existing_level, 1, enchantment.getMaxLevel());
     on_item.put(enchantment, level);

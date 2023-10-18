@@ -1,65 +1,87 @@
 // @file build.gradle
-// Anthill Inside mod gradle build relay.
 plugins {
   id 'eclipse'
+  id 'idea'
   id 'maven-publish'
-  id 'net.minecraftforge.gradle' version '5.1.+'
+  id 'net.neoforged.gradle' version '[6.0.13,6.2)'
 }
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 //-----------------------------------------------------------------------------
-version = "${version_anthillinside}"
-group = "wile.anthillinside"
-archivesBaseName = "anthillinside-${version_minecraft}-forge"
+version = "${version_mod}"
+group = "wile.${meta_modid}"
+base { archivesName = "${meta_modid}-${version_minecraft}-neoforge" }
 
 repositories {
   maven { name = "Progwml6 maven"; url = "https://dvs1.progwml6.com/files/maven/" } // JEI files
-  maven { name = "ModMaven"; url = "https://modmaven.k-4u.nl" } // JEI files, fallback
+  maven { name = "ModMaven"; url = "modmaven.k-4u.nl" } // JEI files, fallback
   flatDir { dir 'libs' } // Mod jar dependencies in ./libs
 }
 
 minecraft {
   mappings channel: "official", version: "${version_minecraft}"
+  copyIdeResources = true
   runs {
     client {
       workingDirectory project.file('run')
       property 'forge.logging.markers', '' // SCAN,REGISTRIES,REGISTRYDUMP
       property 'forge.logging.console.level', 'info'
-      mods { anthillinside { source sourceSets.main } } }
+      mods { "${meta_modid}" { source sourceSets.main } }
+    }
     server {
       workingDirectory project.file('run')
       property 'forge.logging.markers', '' // SCAN,REGISTRIES,REGISTRYDUMP
       property 'forge.logging.console.level', 'info'
-      mods { anthillinside { source sourceSets.main } }
+      mods { "${meta_modid}" { source sourceSets.main } }
+    }
+    data {
+      workingDirectory project.file('run-data')
+      args '--mod', meta_modid, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
     }
   }
 }
 
 dependencies {
-  minecraft "net.minecraftforge:forge:${version_forge_minecraft}"
-  //compileOnly fg.deobf("mezz.jei:jei-${version_minecraft}-forge-api:${version_jei}")
-  //runtimeOnly fg.deobf("mezz.jei:jei-${version_minecraft}-forge:${version_jei}")
+  minecraft "net.neoforged:forge:${version_minecraft}-${version_neoforge}"
 }
 
-processResources {
+tasks.named('processResources', ProcessResources).configure {
+  var property_replacements = [
+    meta_modid:meta_modid, meta_modname:meta_modname, meta_author:meta_author, meta_license:meta_license,
+    meta_description:meta_description, meta_issues:meta_issues, meta_updateurl:meta_updateurl,
+    meta_download:meta_download,
+    version_mod: version_mod,
+    version_minecraft:version_minecraft,
+    version_neoforge:version_neoforge,
+    version_range_loader:version_range_loader,
+    version_range_neoforge:version_range_neoforge,
+    version_range_minecraft: version_range_minecraft,
+    version_pack_format: version_pack_format,
+  ]
+  inputs.properties property_replacements
+  filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+    expand property_replacements + [project: project]
+  }
+
   outputs.upToDateWhen { false }
-  doLast { file("${sourceSets.main.output.resourcesDir}/.gitversion-anthillinside").text = 'git log "-1" "--format=%h"'.execute().in.text.trim() }
-}
-
-jar {
-  manifest {
-    attributes([
-      "Specification-Title": "anthillinside",
-      "Specification-Vendor": "wilechaote",
-      "Specification-Version": "1", // We are version 1 of ourselves
-      "Implementation-Title": project.name,
-      "Implementation-Version": "${version_anthillinside}",
-      "Implementation-Vendor" :"wilechaote",
-      "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-    ])
+  doLast {
+    file("${sourceSets.main.output.resourcesDir}/.gitversion-${meta_modid}").text = 'git log "-1" "--format=%h"'.execute().in.text.trim()
   }
 }
 
-jar.finalizedBy('reobfJar')
+tasks.named('jar', Jar).configure {
+  manifest {
+    attributes([
+      "Specification-Title": "${meta_modid}",
+      "Specification-Vendor": "${meta_author}",
+      "Specification-Version": "1", // We are version 1 of ourselves
+      "Implementation-Title": project.name,
+      "Implementation-Version": "${version_mod}",
+      "Implementation-Vendor" :"${meta_author}",
+      "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+    ])
+  }
+  finalizedBy 'reobfJar'
+}
 
 // Signing
 import net.minecraftforge.gradle.common.tasks.SignJar

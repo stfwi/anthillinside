@@ -13,8 +13,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -38,7 +36,7 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.level.storage.loot.LootContext;
+import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.BooleanOp;
@@ -47,7 +45,6 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -143,7 +140,7 @@ public class StandardBlocks
 
     @Override
     @SuppressWarnings("deprecation")
-    public List<ItemStack> getDrops(BlockState state, LootContext.Builder builder)
+    public List<ItemStack> getDrops(BlockState state, LootParams.Builder builder)
     {
       final ServerLevel world = builder.getLevel();
       final Float explosion_radius = builder.getOptionalParameter(LootContextParams.EXPLOSION_RADIUS);
@@ -226,7 +223,7 @@ public class StandardBlocks
     }
 
     @Override
-    public boolean isPossibleToRespawnInThis()
+    public boolean isPossibleToRespawnInThis(BlockState state)
     { return false; }
 
     @Override
@@ -318,14 +315,10 @@ public class StandardBlocks
     }
 
     public Directed(long config, BlockBehaviour.Properties properties, final AABB unrotatedAABB)
-    { this(config, properties, new AABB[]{unrotatedAABB}); }
+    { this(config, properties.isValidSpawn((s,w,p,e)->false), new AABB[]{unrotatedAABB}); }
 
     @Override
-    public boolean isPossibleToRespawnInThis()
-    { return false; }
-
-    @Override
-    public boolean isValidSpawn(BlockState state, BlockGetter world, BlockPos pos, SpawnPlacements.Type type, @Nullable EntityType<?> entityType)
+    public boolean isPossibleToRespawnInThis(BlockState state)
     { return false; }
 
     @Override
@@ -370,7 +363,7 @@ public class StandardBlocks
 
     public AxisAligned(long config, BlockBehaviour.Properties properties, final Supplier<ArrayList<VoxelShape>> shape_supplier)
     {
-      super(config, properties);
+      super(config, properties.isValidSpawn((s,w,p,e)->false));
       registerDefaultState(super.defaultBlockState().setValue(AXIS, Direction.Axis.X));
       vshapes = shape_supplier.get();
     }
@@ -378,10 +371,10 @@ public class StandardBlocks
     public AxisAligned(long config, BlockBehaviour.Properties properties, final AABB[] unrotatedAABBs)
     {
       this(config, properties, ()-> new ArrayList<>(Arrays.asList(
-        Auxiliaries.getUnionShape(Auxiliaries.getRotatedAABB(unrotatedAABBs, Direction.EAST, false)),
-        Auxiliaries.getUnionShape(Auxiliaries.getRotatedAABB(unrotatedAABBs, Direction.UP, false)),
-        Auxiliaries.getUnionShape(Auxiliaries.getRotatedAABB(unrotatedAABBs, Direction.SOUTH, false)),
-        Shapes.block()
+              Auxiliaries.getUnionShape(Auxiliaries.getRotatedAABB(unrotatedAABBs, Direction.EAST, false)),
+              Auxiliaries.getUnionShape(Auxiliaries.getRotatedAABB(unrotatedAABBs, Direction.UP, false)),
+              Auxiliaries.getUnionShape(Auxiliaries.getRotatedAABB(unrotatedAABBs, Direction.SOUTH, false)),
+              Shapes.block()
       )));
     }
 
@@ -389,11 +382,7 @@ public class StandardBlocks
     { this(config, properties, new AABB[]{unrotatedAABB}); }
 
     @Override
-    public boolean isPossibleToRespawnInThis()
-    { return false; }
-
-    @Override
-    public boolean isValidSpawn(BlockState state, BlockGetter world, BlockPos pos, SpawnPlacements.Type type, @Nullable EntityType<?> entityType)
+    public boolean isPossibleToRespawnInThis(BlockState state)
     { return false; }
 
     @Override
@@ -600,13 +589,13 @@ public class StandardBlocks
           // how the hack to extend a shape, these are the above with y+4px.
           VoxelShape shape = ((base_aabb.getXsize()==0) || (base_aabb.getYsize()==0) || (base_aabb.getZsize()==0)) ? Shapes.empty() : Shapes.create(base_aabb);
           if(state.getValue(NORTH)) shape = Shapes.joinUnoptimized(shape,Auxiliaries.getUnionShape(Auxiliaries.getMappedAABB(Auxiliaries.getRotatedAABB(side_aabb,
-            Direction.NORTH, true), bb->bb.expandTowards(0, railing_height_extension, 0))), BooleanOp.OR);
+                  Direction.NORTH, true), bb->bb.expandTowards(0, railing_height_extension, 0))), BooleanOp.OR);
           if(state.getValue(EAST))  shape = Shapes.joinUnoptimized(shape,Auxiliaries.getUnionShape(Auxiliaries.getMappedAABB(Auxiliaries.getRotatedAABB(side_aabb,
-            Direction.EAST, true), bb->bb.expandTowards(0, railing_height_extension, 0))), BooleanOp.OR);
+                  Direction.EAST, true), bb->bb.expandTowards(0, railing_height_extension, 0))), BooleanOp.OR);
           if(state.getValue(SOUTH)) shape = Shapes.joinUnoptimized(shape,Auxiliaries.getUnionShape(Auxiliaries.getMappedAABB(Auxiliaries.getRotatedAABB(side_aabb,
-            Direction.SOUTH, true), bb->bb.expandTowards(0, railing_height_extension, 0))), BooleanOp.OR);
+                  Direction.SOUTH, true), bb->bb.expandTowards(0, railing_height_extension, 0))), BooleanOp.OR);
           if(state.getValue(WEST))  shape = Shapes.joinUnoptimized(shape,Auxiliaries.getUnionShape(Auxiliaries.getMappedAABB(Auxiliaries.getRotatedAABB(side_aabb,
-            Direction.WEST, true), bb->bb.expandTowards(0, railing_height_extension, 0))), BooleanOp.OR);
+                  Direction.WEST, true), bb->bb.expandTowards(0, railing_height_extension, 0))), BooleanOp.OR);
           if(shape.isEmpty()) shape = Shapes.block();
           build_collision_shapes.put(state.setValue(WATERLOGGED, false), shape);
           build_collision_shapes.put(state.setValue(WATERLOGGED, true), shape);

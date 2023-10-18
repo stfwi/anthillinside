@@ -1,0 +1,12 @@
+{
+  "variants": {
+    "health=0": { "model": "anthillinside:block/queens_lair_model0" },
+    "health=1": { "model": "anthillinside:block/queens_lair_model1" },
+    "health=2": { "model": "anthillinside:block/queens_lair_model1" },
+    "health=3": { "model": "anthillinside:block/queens_lair_model1" },
+    "health=4": { "model": "anthillinside:block/queens_lair_model1" },
+    "health=5": { "model": "anthillinside:block/queens_lair_model1" },
+    "health=6": { "model": "anthillinside:block/queens_lair_model1" },
+    "health=7": { "model": "anthillinside:block/queens_lair_model2" }
+  }
+}

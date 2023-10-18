@@ -14,21 +14,26 @@ import net.minecraft.SharedConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentUtils;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -284,22 +289,17 @@ public class Auxiliaries
   // Tag Handling
   // -------------------------------------------------------------------------------------------------------------------
 
-  @SuppressWarnings("deprecation")
   public static boolean isInItemTag(Item item, ResourceLocation tag)
   { return ForgeRegistries.ITEMS.tags().stream().filter(tg->tg.getKey().location().equals(tag)).anyMatch(tk->tk.contains(item)); }
 
-  @SuppressWarnings("deprecation")
   public static boolean isInBlockTag(Block block, ResourceLocation tag)
   { return ForgeRegistries.BLOCKS.tags().stream().filter(tg->tg.getKey().location().equals(tag)).anyMatch(tk->tk.contains(block)); }
 
-  @SuppressWarnings("deprecation")
   public static ResourceLocation getResourceLocation(Item item)
   { return ForgeRegistries.ITEMS.getKey(item); }
 
-  @SuppressWarnings("deprecation")
   public static ResourceLocation getResourceLocation(Block block)
   { return ForgeRegistries.BLOCKS.getKey(block); }
-
 
   // -------------------------------------------------------------------------------------------------------------------
   // Item NBT data
@@ -531,6 +531,24 @@ public class Auxiliaries
 
     public Stream<BlockPos> stream()
     { return java.util.stream.StreamSupport.stream(spliterator(), false); }
+  }
+
+
+  public static void particles(Level world, BlockPos pos, ParticleOptions type)
+  { particles(world, Vec3.atCenterOf(pos).add(0.0, 0.4, 0.0), type, 1); }
+
+  public static void particles(Level world, Vec3 pos, ParticleOptions type, float velocity)
+  {
+    final RandomSource rand = world.getRandom();
+    if(!(world instanceof ServerLevel sl)) return;
+    sl.sendParticles(type,
+    pos.x()+rand.nextGaussian()*0.2, pos.y()+rand.nextGaussian()*0.2, pos.z()+rand.nextGaussian()*0.2,
+    1,
+    rand.nextDouble() * 2e-2,
+    rand.nextDouble() * 2e-2,
+    rand.nextDouble() * 2e-2,
+    velocity * 0.1
+    );
   }
 
   // -------------------------------------------------------------------------------------------------------------------

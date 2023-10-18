@@ -8,9 +8,12 @@
  */
 package wile.anthillinside.libmc;
 
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.decoration.PaintingVariant;
+import net.minecraft.world.flag.FeatureFlagSet;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.*;
 import net.minecraft.world.item.crafting.RecipeSerializer;
@@ -31,7 +34,6 @@ public class Registries
 {
   private static String modid = null;
   private static String creative_tab_icon = "";
-  private static CreativeModeTab creative_tab = null; // ---- @todo: creative tab Forge PR in triage ---
   private static final Map<String, TagKey<Block>> registered_block_tag_keys = new HashMap<>();
   private static final Map<String, TagKey<Item>> registered_item_tag_keys = new HashMap<>();
 
@@ -41,6 +43,7 @@ public class Registries
   private static final Map<String, RegistryObject<EntityType<?>>> registered_entity_types = new HashMap<>();
   private static final Map<String, RegistryObject<MenuType<?>>> registered_menu_types = new HashMap<>();
   private static final Map<String, RegistryObject<RecipeSerializer<?>>> recipe_serializers = new HashMap<>();
+  private static final Map<String, RegistryObject<PaintingVariant>> paintings = new HashMap<>();
 
   private static DeferredRegister<Block> BLOCKS;
   private static DeferredRegister<Item> ITEMS;
@@ -48,6 +51,9 @@ public class Registries
   private static DeferredRegister<MenuType<?>> MENUS;
   private static DeferredRegister<EntityType<?>> ENTITIES;
   private static DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS;
+  private static DeferredRegister<PaintingVariant> PAINTINGS;
+  private static DeferredRegister<CreativeModeTab> CREATIVE_TABS;
+  private static RegistryObject<CreativeModeTab> CREATIVE_TAB_MAIN;
   private static List<DeferredRegister<?>> MOD_REGISTRIES;
 
   public static void init(String mod_id, String creative_tab_icon_item_name, Consumer<DeferredRegister<?>> registrar)
@@ -60,26 +66,18 @@ public class Registries
     MENUS = DeferredRegister.create(ForgeRegistries.MENU_TYPES, modid);
     ENTITIES = DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, modid);
     RECIPE_SERIALIZERS = DeferredRegister.create(ForgeRegistries.RECIPE_SERIALIZERS, modid);
-    List.of(BLOCKS, ITEMS, BLOCK_ENTITIES, MENUS, ENTITIES, RECIPE_SERIALIZERS).forEach(registrar);
-  }
-
-  public static CreativeModeTab getCreativeModeTab()
-  {
-    //    if(creative_tab==null) {
-    //      creative_tab = (new CreativeModeTab("tab" + modid) {
-    //        public ItemStack makeIcon() { return new ItemStack(getItem(creative_tab_icon)); }
-    //      });
-    //    }
-    //    return creative_tab;
-
-    boolean forge_pr_is_in_progress = true;
-    if(!forge_pr_is_in_progress) {}
-    // -- Forge PR in progress
-    // {
-    //  net.minecraftforge.common.CreativeModeTabRegistry.
-    //   CreativeModeTab.builder(CreativeModeTab.Row.TOP, 0).title(Component.translatable("itemGroup.buildingBlocks")).icon(() -> {return new ItemStack(Blocks.BRICKS);})
-    //
-    return CreativeModeTabs.REDSTONE_BLOCKS;
+    PAINTINGS = DeferredRegister.create(ForgeRegistries.PAINTING_VARIANTS, modid);
+    CREATIVE_TABS = DeferredRegister.create(net.minecraft.core.registries.Registries.CREATIVE_MODE_TAB, mod_id);
+    List.of(BLOCKS, ITEMS, BLOCK_ENTITIES, MENUS, ENTITIES, RECIPE_SERIALIZERS, PAINTINGS, CREATIVE_TABS).forEach(registrar);
+    CREATIVE_TAB_MAIN = CREATIVE_TABS.register("tab"+mod_id, ()->CreativeModeTab.builder()
+      .icon(()->new ItemStack(getItem(creative_tab_icon)))
+      .title(Component.translatable("itemGroup.tab" + mod_id))
+      .displayItems((params, output)->{
+        getRegisteredBlocks().forEach(output::accept);
+        getRegisteredItems().forEach(output::accept);
+      })
+      .build()
+    );
   }
 
   // -------------------------------------------------------------------------------------------------------------
@@ -140,6 +138,8 @@ public class Registries
 
   // -------------------------------------------------------------------------------------------------------------
 
+  public static final Supplier<Item> WITHOUT_ITEM = ()->Items.AIR;
+
   public static <T extends Item> void addItem(String registry_name, Supplier<T> supplier)
   { registered_items.put(registry_name, ITEMS.register(registry_name, supplier)); }
 
@@ -148,8 +148,6 @@ public class Registries
     registered_blocks.put(registry_name, BLOCKS.register(registry_name, block_supplier));
     registered_items.put(registry_name, ITEMS.register(registry_name, ()->new BlockItem(registered_blocks.get(registry_name).get(), new Item.Properties())));
   }
-
-  public static final Supplier<Item> WITHOUT_ITEM = ()->Items.AIR;
 
   public static <TB extends Block, TI extends Item> void addBlock(String registry_name, Supplier<TB> block_supplier, Supplier<TI> item_supplier)
   {
@@ -173,10 +171,13 @@ public class Registries
   { registered_entity_types.put(registry_name, ENTITIES.register(registry_name, supplier)); }
 
   public static <T extends MenuType<?>> void addMenuType(String registry_name, MenuType.MenuSupplier<?> supplier)
-  { registered_menu_types.put(registry_name, MENUS.register(registry_name, ()->new MenuType<>(supplier))); }
+  { registered_menu_types.put(registry_name, MENUS.register(registry_name, ()->new MenuType<>(supplier, FeatureFlagSet.of()))); }
 
   public static void addRecipeSerializer(String registry_name, Supplier<? extends RecipeSerializer<?>> serializer_supplier)
   { recipe_serializers.put(registry_name, RECIPE_SERIALIZERS.register(registry_name, serializer_supplier)); }
+
+  public static void addPainting(String registry_name, int width, int height)
+  { paintings.put(registry_name, PAINTINGS.register(registry_name, () -> new PaintingVariant(width, height))); }
 
   public static void addOptionalBlockTag(String tag_name, ResourceLocation... default_blocks)
   {
@@ -202,6 +203,12 @@ public class Registries
   public static void addBlock(String registry_name, Supplier<? extends Block> block_supplier, BlockEntityType.BlockEntitySupplier<?> block_entity_ctor)
   {
     addBlock(registry_name, block_supplier);
+    addBlockEntityType("tet_"+registry_name, block_entity_ctor, registry_name);
+  }
+
+  public static void addBlock(String registry_name, Supplier<? extends Block> block_supplier, BiFunction<Block, Item.Properties, Item> item_builder, BlockEntityType.BlockEntitySupplier<?> block_entity_ctor)
+  {
+    addBlock(registry_name, block_supplier, item_builder);
     addBlockEntityType("tet_"+registry_name, block_entity_ctor, registry_name);
   }
 

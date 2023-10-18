@@ -1,31 +1,31 @@
 # @file mods.toml
 # @spec TOML v0.5.0 (https://github.com/toml-lang/toml)
 modLoader="javafml" # forge FML java
-loaderVersion="[43,)"
-issueTrackerURL="https://github.com/stfwi/anthillinside/issues/"
-license="MIT"
+loaderVersion="${version_range_loader}"
+issueTrackerURL="${meta_issues}"
+license="${meta_license}"
 
 [[mods]]
-modId="anthillinside"
-version="${file.jarVersion}"
-displayName="Anthill Inside"
-description="Adds 'natural' automation with Redstone Ants. Pratchett Readers know the term."
-authors="wilechaote"
+modId="${meta_modid}"
+version="${version_mod}"
+displayName="${meta_modname}"
+description='''${meta_description}'''
+authors="${meta_author}"
 credits=""
-updateJSONURL="https://raw.githubusercontent.com/stfwi/anthillinside/versions/forge-1.19.2.json"
-displayURL="https://www.curseforge.com/minecraft/mc-mods/anthill-inside"
+updateJSONURL="${meta_updateurl}"
+displayURL="${meta_download}"
 logoFile="logo.png"
 
-[[dependencies.anthillinside]]
+[[dependencies.${meta_modid}]]
   modId="forge"
   mandatory=true
-  versionRange="[44.0.11,)"
+  versionRange="${version_range_neoforge}"
   ordering="NONE"
   side="BOTH"
 
-[[dependencies.anthillinside]]
+[[dependencies.${meta_modid}]]
   modId="minecraft"
   mandatory=true
-  versionRange="[1.19.3]"
+  versionRange="[${version_minecraft}]"
   ordering="NONE"
   side="BOTH"

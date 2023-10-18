@@ -21,6 +21,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.nbt.Tag;
@@ -46,11 +47,85 @@ import java.util.stream.Stream;
 
 public class Inventories
 {
+  @SuppressWarnings("all")
+  public static class ItemPort
+  {
+    public static final ItemPort EMPTY = new ItemPort(null, null);
+
+    final @Nullable IItemHandler storage_;
+    final @Nullable Object storage_owner_;
+
+    private ItemPort(@Nullable IItemHandler storage, @Nullable Object owner)
+    { storage_ = storage; storage_owner_ = owner; }
+
+    /**
+     * Returns an ItemPort froma container located in the level (optinally at a specified side),
+     * or ItemPort.EMPTY if no container exists there.
+     */
+    public static ItemPort of(Level world, BlockPos pos, @Nullable Direction side, boolean including_entities)
+    {
+      final BlockState state = world.getBlockState(pos);
+      final BlockEntity te = (state.hasBlockEntity()) ? (world.getBlockEntity(pos)) : (null);
+      IItemHandler ih = (te==null) ? (null) : (te.getCapability(ForgeCapabilities.ITEM_HANDLER, side).orElse(null));
+      if(ih != null) return new ItemPort(ih, te);
+      if(!including_entities) return ItemPort.EMPTY;
+      final Entity entity = world.getEntitiesOfClass(Entity.class, new AABB(pos), (e)->(e instanceof Container)).stream().findFirst().orElse(null);
+      if(entity == null) return ItemPort.EMPTY;
+      ih = itemhandler(entity,side);
+      return (ih==null) ? ItemPort.EMPTY : new ItemPort(ih, entity);
+    }
+
+    public static ItemPort of(@Nullable Entity entity)
+    {
+      if(entity==null) return ItemPort.EMPTY;
+      final IItemHandler ih = itemhandler(entity,null);
+      return  (ih==null) ? ItemPort.EMPTY : new ItemPort(ih, entity);
+    }
+
+    /**
+     * Returns the block entity or entity owning the inventory/container.
+     * Has to be instanceof checked and casted.
+     */
+    public @Nullable Object owner()
+    { return storage_owner_; }
+
+    public boolean isStorageEmpty()
+    {
+      if(storage_==null) return true;
+      for(int i=0; i<storage_.getSlots(); ++i) { if(!storage_.getStackInSlot(i).isEmpty()) return false; }
+      return true;
+    }
+
+    public boolean allowsInsertion()
+    { return (storage_!=null); }
+
+    public boolean allowsExtraction()
+    { return (storage_!=null); }
+
+    public ItemStack extract(@Nullable ItemStack ref_stack, int limit, boolean simulate)
+    {
+      if((storage_==null) || (!allowsExtraction())) return ItemStack.EMPTY;
+      return Inventories.extract(storage_, ref_stack, limit, simulate);
+    }
+
+    public ItemStack insert(ItemStack stack)
+    { return insert(stack, false); }
+
+    public ItemStack insert(ItemStack stack, boolean simulate)
+    {
+      if((storage_==null) || (!allowsInsertion()) || (stack.isEmpty())) return stack;
+      return Inventories.insert(storage_, stack, simulate);
+    }
+  }
+
   public static boolean areItemStacksIdentical(ItemStack a, ItemStack b)
-  { return (a.getItem()==b.getItem()) && ItemStack.tagMatches(a, b); }
+  { return (a.getItem()==b.getItem()) && ItemStack.isSameItemSameTags(a, b); }
 
   public static boolean areItemStacksDifferent(ItemStack a, ItemStack b)
-  { return (a.getItem()!=b.getItem()) || (!ItemStack.tagMatches(a, b)); }
+  { return (a.getItem()!=b.getItem()) || (!ItemStack.isSameItemSameTags(a, b)); }
+
+  public static boolean isItemStackableOn(ItemStack a, ItemStack b)
+  { return (!a.isEmpty()) && (ItemStack.isSameItem(a,b)) && (a.hasTag() == b.hasTag()) && (!a.hasTag() || a.getTag().equals(b.getTag())) && a.areCapsCompatible(b); }
 
   public static IItemHandler itemhandler(Level world, BlockPos pos, @Nullable Direction side)
   {
@@ -72,20 +147,14 @@ public class Inventories
     return (entity==null) ? (null) : (itemhandler(entity,side));
   }
 
+  public static IItemHandler itemhandler(Entity entity)
+  { return (entity instanceof Container) ? (new InvWrapper((Container)entity)) : null; }
+
   public static IItemHandler itemhandler(Player player)
   { return new PlayerMainInvWrapper(player.getInventory()); }
 
-  public static IItemHandler itemhandler(Entity entity)
-  { return itemhandler(entity, null); }
-
   public static IItemHandler itemhandler(Entity entity, @Nullable Direction side)
-  {
-    if(entity==null) return null;
-    final IItemHandler ih = entity.getCapability(ForgeCapabilities.ITEM_HANDLER, side).orElse(null);
-    if(ih!=null) return ih;
-    if(entity instanceof Container container) return (new InvWrapper(container));
-    return null;
-  }
+  { return (entity instanceof Container) ? (new InvWrapper((Container)entity)) : null; }
 
   public static boolean insertionPossible(Level world, BlockPos pos, @Nullable Direction side, boolean including_entities)
   { return itemhandler(world, pos, side, including_entities) != null; }
@@ -226,7 +295,7 @@ public class Inventories
       final int slot_limit = inv_.getMaxStackSize();
       if(!sst.isEmpty()) {
         if(sst.getCount() >= Math.min(sst.getMaxStackSize(), slot_limit)) return stack;
-        if(!ItemHandlerHelper.canItemStacksStack(stack, sst)) return stack;
+        if(!isItemStackableOn(stack, sst)) return stack;
         final int limit = Math.min(stack.getMaxStackSize(), slot_limit) - sst.getCount();
         if(stack.getCount() <= limit) {
           if(!simulate) {
@@ -660,6 +729,9 @@ public class Inventories
     { return extract(amount, false); }
 
     public ItemStack extract(int amount, boolean random)
+    { return extract(amount, false, false); }
+
+    public ItemStack extract(int amount, boolean random, boolean simulate)
     {
       ItemStack out_stack = ItemStack.EMPTY;
       int offset = random ? (int)(Math.random()*size_) : 0;
@@ -670,40 +742,50 @@ public class Inventories
         if(out_stack.isEmpty()) {
           if(stack.getCount() < amount) {
             out_stack = stack;
-            setItem(i, ItemStack.EMPTY);
+            if(!simulate) setItem(i, ItemStack.EMPTY);
             if(!out_stack.isStackable()) break;
             amount -= out_stack.getCount();
           } else {
-            out_stack = stack.split(amount);
+            if(!simulate) {
+              out_stack = stack.split(amount);
+            } else {
+              out_stack = stack.copy();
+              out_stack.setCount(amount);
+            }
             break;
           }
         } else if(areItemStacksIdentical(stack, out_stack)) {
           if(stack.getCount() <= amount) {
             out_stack.grow(stack.getCount());
             amount -= stack.getCount();
-            setItem(i, ItemStack.EMPTY);
+            if(!simulate) setItem(i, ItemStack.EMPTY);
           } else {
             out_stack.grow(amount);
-            stack.shrink(amount);
-            if(stack.isEmpty()) setItem(i, ItemStack.EMPTY);
+            if(!simulate) {
+              stack.shrink(amount);
+              if(stack.isEmpty()) setItem(i, ItemStack.EMPTY);
+            }
             break;
           }
         }
       }
-      if(!out_stack.isEmpty()) setChanged();
+      if((!out_stack.isEmpty()) && (!simulate)) setChanged();
       return out_stack;
     }
 
-    /**
-     * Moves as much items from the slots in range [offset_, end_slot] of the inventory_ into a new stack.
-     * Implicitly shrinks the inventory_ stacks and the `request_stack`.
-     */
     public ItemStack extract(final ItemStack request_stack)
+    { return extract(request_stack, false); }
+
+    public ItemStack extract(final ItemStack request_stack, boolean simulate)
+    { return extract(request_stack, simulate, (i,s)->true); }
+
+    public ItemStack extract(final ItemStack request_stack, boolean simulate, BiPredicate<Integer, ItemStack> pred)
     {
       if(request_stack.isEmpty()) return ItemStack.EMPTY;
       List<ItemStack> matches = new ArrayList<>();
       for(int i=0; i<size_; ++i) {
         final ItemStack stack = getItem(i);
+        if(!pred.test(i, stack)) continue;
         if((!stack.isEmpty()) && (areItemStacksIdentical(stack, request_stack))) {
           if(stack.hasTag()) {
             final CompoundTag nbt = stack.getOrCreateTag();
@@ -716,15 +798,24 @@ public class Inventories
       }
       matches.sort(Comparator.comparingInt(ItemStack::getCount));
       if(matches.isEmpty()) return ItemStack.EMPTY;
-      int n_left = request_stack.getCount();
-      ItemStack fetched_stack = matches.get(0).split(n_left);
-      n_left -= fetched_stack.getCount();
-      for(int i=1; (i<matches.size()) && (n_left>0); ++i) {
-        ItemStack stack = matches.get(i).split(n_left);
-        n_left -= stack.getCount();
-        fetched_stack.grow(stack.getCount());
+      if(!simulate) {
+        int n_left = request_stack.getCount();
+        ItemStack fetched_stack = matches.get(0).split(n_left);
+        n_left -= fetched_stack.getCount();
+        for(int i=1; (i<matches.size()) && (n_left>0); ++i) {
+          ItemStack stack = matches.get(i).split(n_left);
+          n_left -= stack.getCount();
+          fetched_stack.grow(stack.getCount());
+        }
+        return checked(fetched_stack);
+      } else {
+        int amount = 0;
+        for(ItemStack match: matches) amount += match.getCount();
+        if(amount == 0) return ItemStack.EMPTY;
+        final ItemStack stack = request_stack.copy();
+        if(amount < stack.getCount()) stack.setCount(amount);
+        return stack;
       }
-      return checked(fetched_stack);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -989,17 +1080,17 @@ public class Inventories
     if(position_noise > 0) {
       position_noise = Math.min(position_noise, 0.8);
       pos = pos.add(
-        position_noise * (world.getRandom().nextDouble()-.5),
-        position_noise * (world.getRandom().nextDouble()-.5),
-        position_noise * (world.getRandom().nextDouble()-.5)
+              position_noise * (world.getRandom().nextDouble()-.5),
+              position_noise * (world.getRandom().nextDouble()-.5),
+              position_noise * (world.getRandom().nextDouble()-.5)
       );
     }
     if(velocity_noise > 0) {
       velocity_noise = Math.min(velocity_noise, 1.0);
       velocity = velocity.add(
-        (velocity_noise) * (world.getRandom().nextDouble()-.5),
-        (velocity_noise) * (world.getRandom().nextDouble()-.5),
-        (velocity_noise) * (world.getRandom().nextDouble()-.5)
+              (velocity_noise) * (world.getRandom().nextDouble()-.5),
+              (velocity_noise) * (world.getRandom().nextDouble()-.5),
+              (velocity_noise) * (world.getRandom().nextDouble()-.5)
       );
     }
     ItemEntity e = new ItemEntity(world, pos.x, pos.y, pos.z, stack);

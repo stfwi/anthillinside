@@ -1,8 +1,9 @@
 {
 	"parent": "block/cube",
-  "render_type": "cutout",
+  "render_type": "minecraft:translucent",
 	"textures": {
-		"s": "anthillinside:block/trail_texture_sr"
+		"particle": "anthillinside:block/trail_texture_s",
+    "s": "anthillinside:block/trail_texture_sr"
 	},
 	"elements": [
 		{

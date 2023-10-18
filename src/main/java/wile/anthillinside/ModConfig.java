@@ -259,6 +259,10 @@ public class ModConfig
     add_known_items.accept(Items.IRON_AXE, COMMON.axes.get());
     add_known_items.accept(Items.IRON_PICKAXE, COMMON.pickaxes.get());
     {
+      known_items.putIfAbsent(Items.BONE_MEAL, new HashSet<>());
+      known_items.get(Items.BONE_MEAL).add(Items.BONE_MEAL);
+    }
+    {
       // Animal food not configurable now.
       known_items.putIfAbsent(Items.WHEAT, new HashSet<>());
       known_items.get(Items.WHEAT).add(Items.WHEAT);

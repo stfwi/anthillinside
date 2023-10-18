@@ -13,13 +13,12 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
-import net.minecraft.world.level.material.Material;
-import net.minecraft.world.level.material.MaterialColor;
 import net.minecraft.world.phys.AABB;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.registries.ObjectHolder;
 import org.slf4j.Logger;
+import wile.anthillinside.blocks.QueensLair;
 import wile.anthillinside.blocks.RedAntHive;
 import wile.anthillinside.blocks.RedAntTrail;
 import wile.anthillinside.items.AntsItem;
@@ -55,11 +54,8 @@ public class ModContent
     Registries.addBlock("hive",
       ()->new RedAntHive.RedAntHiveBlock(
         StandardBlocks.CFG_CUTOUT|StandardBlocks.CFG_WATERLOGGABLE|StandardBlocks.CFG_LOOK_PLACEMENT,
-        BlockBehaviour.Properties.of(Material.STONE, MaterialColor.STONE).strength(0.3f, 6f).sound(SoundType.STONE),
-        new AABB[]{
-          Auxiliaries.getPixeledAABB(1,1,0,15,15, 1),
-          Auxiliaries.getPixeledAABB(0,0,1,16,16,16),
-        }
+        BlockBehaviour.Properties.of().strength(0.3f, 6f).sound(SoundType.STONE),
+        new AABB[]{ Auxiliaries.getPixeledAABB(0,0,0,16,16, 16) }
       ),
       RedAntHive.RedAntHiveTileEntity::new,
       RedAntHive.RedAntHiveMenu::new
@@ -67,9 +63,16 @@ public class ModContent
     Registries.addBlock("trail",
       ()->new RedAntTrail.RedAntTrailBlock(
         StandardBlocks.CFG_TRANSLUCENT|StandardBlocks.CFG_HORIZIONTAL|StandardBlocks.CFG_LOOK_PLACEMENT,
-        BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BROWN).strength(0.1f, 3f).sound(SoundType.CROP).noCollission().noOcclusion().isValidSpawn((s,w,p,e)->false).jumpFactor(1.2f).randomTicks()
+        BlockBehaviour.Properties.of().strength(0.1f, 3f).sound(SoundType.CROP).noCollission().noOcclusion().isValidSpawn((s,w,p,e)->false).jumpFactor(1.2f).randomTicks()
       ),
       Registries.WITHOUT_ITEM
+    );
+    Registries.addBlock("queens_lair",
+      ()->new QueensLair.QueensLairBlock(
+        StandardBlocks.CFG_CUTOUT,
+        BlockBehaviour.Properties.of().strength(0.1f, 3f).sound(SoundType.CROP).noCollission().noOcclusion().isValidSpawn((s,w,p,e)->false).randomTicks(),
+        new AABB[]{Auxiliaries.getPixeledAABB(3.0, 0.0, 3.0, 13.0, 10.0, 13.0)}
+      )
     );
   }
 

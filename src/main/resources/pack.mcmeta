@@ -1,8 +1,6 @@
 {
   "pack": {
-    "description": "anthillinside resources",
-    "pack_format": 12,
-    "forge:resource_pack_format": 12,
-    "forge:data_pack_format": 10
+    "description": "${version_mod} resources",
+    "pack_format": ${version_pack_format}
   }
 }

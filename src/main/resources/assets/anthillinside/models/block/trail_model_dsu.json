@@ -1,0 +1,33 @@
+{
+	"parent": "block/cube",
+  "render_type": "minecraft:translucent",
+	"textures": {
+		"particle": "anthillinside:block/trail_texture_ds",
+		"ds": "anthillinside:block/trail_texture_ds",
+		"s": "anthillinside:block/trail_texture_s"
+	},
+	"elements": [
+		{
+			"from": [0, 0, 0],
+			"to": [16, 0.5, 16],
+			"faces": {
+				"north": {"uv": [0, 15.5, 16, 16], "texture": "#ds"},
+				"east": {"uv": [0, 15.5, 16, 16], "texture": "#ds"},
+				"south": {"uv": [0, 15.5, 16, 16], "texture": "#ds"},
+				"west": {"uv": [0, 15.5, 16, 16], "texture": "#ds"},
+				"up": {"uv": [0, 0, 16, 16], "texture": "#ds"},
+				"down": {"uv": [0, 0, 16, 16], "rotation": 180, "texture": "#ds"}
+			}
+		},
+		{
+			"from": [0, 0, 0],
+			"to": [16, 16, 0.2],
+			"faces": {
+				"north": {"uv": [0, 0, 16, 16], "texture": "#s"},
+				"south": {"uv": [0, 0, 16, 16], "texture": "#s"},
+				"up": {"uv": [0, 0, 16, 0.2], "texture": "#ds"},
+				"down": {"uv": [0, 15.8, 16, 16], "texture": "#ds"}
+			}
+		}
+	]
+}
