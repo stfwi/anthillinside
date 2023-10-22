@@ -4,6 +4,12 @@
 ----
 ## Version history
 
+    - v1.5.18     [F] Fixed disenchanting of Enchanted Books.
+                  [F] Fixed Hive-to-Trail insertion direction (Hopper).
+                  [F] Fixed Minecart loading/unloading start on empty input/output.
+                  [F] Fixed unintended Brewing potion pass-through.
+                  [A] Added crop fertilizing particle effects.
+
     - v1.5.17     [U] Initial Fabric port for mc1.20.2.
                   [B] Known issue: Config not implemented yet.
 

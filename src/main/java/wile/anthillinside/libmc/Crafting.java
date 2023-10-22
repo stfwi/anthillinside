@@ -336,6 +336,12 @@ public class Crafting
   // -------------------------------------------------------------------------------------------------------------------
 
   /**
+   * Returns true if the given stack is an enchanted item.
+   */
+  public static boolean isEnchanted(Level world, ItemStack stack)
+  { return !getEnchantmentsOnItem(world, stack).isEmpty(); }
+
+  /**
    * Returns the enchtments bound to the given stack.
    */
   public static Map<Enchantment, Integer> getEnchantmentsOnItem(Level world, ItemStack stack)

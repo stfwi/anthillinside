@@ -384,7 +384,7 @@ public class RedAntTrail
 
     public void itchEntity(BlockState state, Level world, BlockPos pos, Entity entity)
     {
-      if((world.getRandom().nextDouble() > 8e-3) || (!entity.isAlive()) || (!entity.onGround())
+      if((world.getRandom().nextDouble() > 4e-3) || (!entity.isAlive()) || (!entity.onGround())
          || (world.isClientSide()) || (entity.isShiftKeyDown()) || (!entity.canChangeDimensions()) || (entity.isInWaterOrRain()) || (entity.hasImpulse)
          || (!(entity instanceof LivingEntity))
       ) {
@@ -393,7 +393,7 @@ public class RedAntTrail
       if(entity instanceof Monster) {
         entity.hurt(entity.damageSources().cactus(), 2f);
       } else if(entity instanceof Player) {
-        if(world.getRandom().nextDouble() > 5e-2) return;
+        if(world.getRandom().nextDouble() > 8e-2) return;
         entity.hurt(entity.damageSources().cactus(), 0.1f);
       } else {
         entity.hurt(entity.damageSources().cactus(), 0.0f);

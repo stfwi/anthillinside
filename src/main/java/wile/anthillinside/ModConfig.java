@@ -185,18 +185,20 @@ public class ModConfig
       Auxiliaries.logInfo("Unknown items/invalid resource locations in config: [" + String.join(",", unknown_items) + "]");
     }
     RedAntTrail.on_config();
+    // @todo: Check if there is a unified/built-in config system for fabric.
     RedAntHive.on_config(
-      known_items,
-      3, // 0 .. 20
-      100, // 50 .. 150
-      5, // 1 .. 60
-      120, // 60 .. 600
-      100, 16, 3, // 0 .. 150
-      100, // 0 .. 150
-      100,
-      100,
-      100
+      known_items,      // HashMap<Item, HashSet<Item>> known_items
+      2,                // 0 .. 20,   int ore_mining_spawn_probability_percent
+      100,              // 50 .. 150, int ant_speed_scaler_percent
+      5,                // 1 .. 60,   int sugar_time_s
+      120,              // 60 .. 600, int growth_latency_s
+      100, 16, 3,       // 0 .. 150,  int feeding_speed_factor_percent, int feeding_entity_limit, int feeding_xz_radius
+      100,              // 0 .. 150,  int farming_speed_factor_percent
+      100,              // 0 .. 150   int block_breaking_speed_factor_percent
+      100,              // 0 .. 150   int tree_chopping_speed_factor_percent
+      100               // 0 .. 150   int tool_damage_factor_percent
     );
+    /// --- /TEMPORARY default config.
   }
 
   public static void log(String config_message)
