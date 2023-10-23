@@ -88,6 +88,7 @@ public class RedAntHive
   private static int block_breaking_speed_percent = 100;
   private static int tree_chopping_speed_percent = 100;
   private static final int brewing_fuel_efficiency_percent = 75;
+  private static final int book_disenchanting_processing_time = 200;
   private static final HashMap<Item, Object> processing_command_item_mapping = new HashMap<>();
   private static final HashMap<Item, HashSet<Item>> known_items_mapping = new HashMap<>();
 
@@ -838,6 +839,7 @@ public class RedAntHive
               boolean notify = output_side_redstone_pulse_time_left_<= 0;
               output_side_redstone_pulse_time_left_ = 15;
               if(notify) level.neighborChanged(getBlockPos().relative(output_facing), getBlockState().getBlock(), getBlockPos());
+              if(ih.owner() instanceof Entity entity) entity.addDeltaMovement(Vec3.atLowerCornerOf(output_facing.getNormal()).scale(1e-1));
             }
           }
         } else {
@@ -903,12 +905,13 @@ public class RedAntHive
               }
             }
           }
-          if(ih.owner() instanceof Entity) {
+          if(ih.owner() instanceof Entity entity) {
             // Nothing inserted from inventory entity eg minecart.
             if(ih.isStorageEmpty()) {
               boolean notify = input_side_redstone_pulse_time_left_ <= 0;
               input_side_redstone_pulse_time_left_ = 15;
               if(notify) level.neighborChanged(getBlockPos().relative(input_facing), getBlockState().getBlock(), getBlockPos());
+              entity.addDeltaMovement(Vec3.atLowerCornerOf(input_facing.getNormal()).scale(1e-1));
             }
           }
         }
@@ -1591,7 +1594,7 @@ public class RedAntHive
             for(ItemStack enchanted_book:enchanted_books) {
               if(input_slots.extract(new ItemStack(Items.BOOK,1)).isEmpty()) break;
               secondary_output_stacks.add(new ItemStack(Items.BOOK));
-              additional_processing_time += (Crafting.getEnchantmentRepairCost(level, Crafting.getEnchantmentsOnItem(level, enchanted_book))+1) * 160;
+              additional_processing_time += (Crafting.getEnchantmentRepairCost(level, Crafting.getEnchantmentsOnItem(level, enchanted_book))+1) * book_disenchanting_processing_time;
             }
           }
         }

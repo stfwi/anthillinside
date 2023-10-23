@@ -9,6 +9,7 @@
 package wile.anthillinside.libmc;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -33,7 +34,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.function.Supplier;
 
-
+@SuppressWarnings("deprecation")
 public class ToolActions
 {
   public static class Shearing
@@ -96,10 +97,7 @@ public class ToolActions
       final Block block = state.getBlock();
       if(!(block instanceof final CropBlock crop)) return Optional.empty();
       if(!crop.isMaxAge(state)) {
-        if((!bone_meal.isEmpty()) && (crop.isBonemealSuccess(world, world.getRandom(), pos, state))) {
-          bone_meal.shrink(1);
-          crop.performBonemeal(world, world.getRandom(), pos, state);
-        }
+        if((!bone_meal.isEmpty()) && fertilizePlant(world, pos, bone_meal, true, false)) bone_meal.shrink(1);
         return Optional.of(Collections.emptyList());
       } else {
         final List<ItemStack> drops = state.getDrops(
@@ -202,6 +200,18 @@ public class ToolActions
         }
         return Optional.empty();
       });
+    }
+
+    public static boolean fertilizePlant(ServerLevel world, BlockPos pos, ItemStack bone_meal, boolean always_succeed, boolean no_particles)
+    {
+      if(bone_meal.isEmpty() || (!bone_meal.is(Items.BONE_MEAL))) return false;
+      final BlockState state = world.getBlockState(pos);
+      if(!(state.getBlock() instanceof BonemealableBlock block)) return false;
+      if(!block.isValidBonemealTarget(world, pos, state, false)) return false;
+      if((!always_succeed) && (!block.isBonemealSuccess(world, world.getRandom(), pos, state))) return false;
+      block.performBonemeal(world, world.getRandom(), pos, state);
+      if(!no_particles) Auxiliaries.particles(world, pos, ParticleTypes.HAPPY_VILLAGER);
+      return true;
     }
   }
 

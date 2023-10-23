@@ -4,6 +4,10 @@
 ----
 ## Version history
 
+    - v1.4.18     [F] Fixed Minecart loading/unloading start on empty input/output.
+                  [A] Added crop fertilizing particle effects.
+                  [I] Note: Version v1.4.17 skipped (code base comapt with fabric releases).
+
     - v1.4.16     [U] Initial port to NeoForged 1.20.1.
 
     - v1.3.15     [U] Updated to mc1.19.3 forge.
