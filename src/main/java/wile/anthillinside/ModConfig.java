@@ -176,9 +176,14 @@ public class ModConfig
         known_items.get(Items.WHEAT).add(Items.CARROT);
       }
       {
-        // Bonemeal
+        // Bonemeal (fertilizing)
         known_items.putIfAbsent(Items.BONE_MEAL, new HashSet<>());
         known_items.get(Items.BONE_MEAL).add(Items.BONE_MEAL);
+      }
+      {
+        // Bucket (fluid collection)
+        known_items.putIfAbsent(Items.BUCKET, new HashSet<>());
+        known_items.get(Items.BUCKET).add(Items.BUCKET);
       }
     }
     if(!unknown_items.isEmpty()) {

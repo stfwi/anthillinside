@@ -39,6 +39,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TieredItem;
+import net.minecraft.world.item.alchemy.PotionUtils;
+import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.BlockGetter;
@@ -52,6 +54,7 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -130,6 +133,7 @@ public class RedAntHive
     if(known_items_mapping.get(Items.DISPENSER).isEmpty()) known_items_mapping.get(Items.DISPENSER).add(Items.DISPENSER); // At least one dispenser.
     if(known_items_mapping.get(Items.WHEAT).isEmpty()) known_items_mapping.get(Items.WHEAT).add(Items.WHEAT); // At least one animal food.
     if(known_items_mapping.get(Items.BONE_MEAL).isEmpty()) known_items_mapping.get(Items.BONE_MEAL).add(Items.BONE_MEAL);
+    if(known_items_mapping.get(Items.BUCKET).isEmpty()) known_items_mapping.get(Items.BUCKET).add(Items.BUCKET);
     //---------
     processing_command_item_mapping.clear();
     known_items_mapping.get(Items.CRAFTING_TABLE).forEach(item -> processing_command_item_mapping.put(item, RecipeType.CRAFTING));
@@ -146,6 +150,10 @@ public class RedAntHive
     known_items_mapping.get(Items.BREWING_STAND).forEach(item -> processing_command_item_mapping.put(item, common_brewing_process));
     final ProcessingHandler common_grinding_process = new ProcessingHandler(Items.GRINDSTONE, RedAntHiveTileEntity::processGrindstone, RedAntHiveTileEntity::itemPassThroughGrindstone);
     known_items_mapping.get(Items.GRINDSTONE).forEach(item -> processing_command_item_mapping.put(item, common_grinding_process));
+    final ProcessingHandler common_blockplace_process = new ProcessingHandler(Items.DISPENSER, RedAntHiveTileEntity::processDispenserBlockPlacement, RedAntHiveTileEntity::itemPassThroughDispenserBlockPlacement);
+    known_items_mapping.get(Items.DISPENSER).forEach(item -> processing_command_item_mapping.put(item, common_blockplace_process));
+    final ProcessingHandler common_fluidcollection_process = new ProcessingHandler(Items.BUCKET, RedAntHiveTileEntity::processBucketFluidCollection, RedAntHiveTileEntity::itemPassThroughBucketFluidCollection);
+    known_items_mapping.get(Items.BUCKET).forEach(item -> processing_command_item_mapping.put(item, common_fluidcollection_process));
     if(farming_speed_percent > 0) {
       known_items_mapping.get(Items.IRON_HOE).forEach(item -> processing_command_item_mapping.put(item, new ProcessingHandler(item, (te,done)->te.processFarming(item), (te)->te.itemPassThroughExcept(Items.BONE_MEAL))) );
     }
@@ -1649,6 +1657,146 @@ public class RedAntHive
       }
       return changed;
     }
+
+    private boolean processDispenserBlockPlacement(boolean is_done)
+    {
+      if(!(getLevel() instanceof final ServerLevel world)) return false;
+      final Direction output_facing = getBlockState().getValue(RedAntHiveBlock.FACING);
+      final BlockPos pos = getBlockPos().relative(output_facing);
+      final BlockState state = world.getBlockState(pos);
+      final List<Item> allowed = grid_storage_slot_range_.stream().filter(e->!e.isEmpty()).map(ItemStack::getItem).toList();
+      final List<Integer> matching_slots = left_storage_slot_range_.collect((slot,stack)->{
+        if(stack.isEmpty() || (stack.getItem()==RED_SUGAR_ITEM)) return Optional.empty();
+        if((!allowed.isEmpty()) && (!allowed.contains(stack.getItem()))) return Optional.empty();
+        if(!ToolActions.BlockPlacing.isPlaceable(stack.getItem())) return Optional.empty();
+        if(ToolActions.Farming.isPlantable(stack.getItem())) return Optional.empty();
+        return Optional.of(slot);
+      });
+      final float reluctance = (float) Math.min((1.0/Math.max(ant_speed_, 1e-1)), 6);
+      int place_time = Math.min(60, Math.max((int)(10*reluctance), 4));
+      if(matching_slots.isEmpty()) {
+        place_time = -40;
+      } else {
+        if(is_done) {
+          final int picked_slot = matching_slots.get(level.getRandom().nextInt(matching_slots.size()));
+          final ItemStack stack = left_storage_slot_range_.getItem(picked_slot);
+          var placeresult = ToolActions.BlockPlacing.place(world, pos, stack);
+          if(placeresult == ToolActions.BlockPlacing.PlacementResult.LOCATION_BLOCKED) {
+            // Try block above in case the block which the hive is pointing to is valid soil for a sapling.
+            // (Plant through the soil block).
+            if(ToolActions.BlockPlacing.isPlantable(stack.getItem()) && world.isEmptyBlock(pos.relative(Direction.UP))) {
+              placeresult = ToolActions.BlockPlacing.place(world, pos.relative(Direction.UP), stack);
+            }
+          }
+          if(placeresult == ToolActions.BlockPlacing.PlacementResult.SUCCESS) {
+            stack.shrink(1);
+            left_storage_slot_range_.setItem(picked_slot, stack);
+          } else {
+            place_time = -(2*place_time);
+          }
+        }
+      }
+      if(place_time >= 0) {
+        progress_ = 0;
+        max_progress_ = place_time;
+      } else {
+        progress_ = place_time;
+        max_progress_ = 0;
+      }
+      return itemPassThroughDispenserBlockPlacement();
+    }
+
+    private boolean itemPassThroughDispenserBlockPlacement()
+    {
+      final List<Item> allowed = grid_storage_slot_range_.stream().filter(e->!e.isEmpty()).map(ItemStack::getItem).toList();
+      final List<Integer> unmatching_slots = left_storage_slot_range_.collect((slot,stack)->{
+        if(stack.isEmpty() || (stack.getItem()==RED_SUGAR_ITEM)) return Optional.empty();
+        if(!ToolActions.BlockPlacing.isPlaceable(stack.getItem())) return Optional.of(slot);
+        if(ToolActions.Farming.isPlantable(stack.getItem())) return Optional.of(slot); // it's a crop, a Hoe is the right tool for that slot
+        if((allowed.isEmpty() || allowed.contains(stack.getItem()))) return Optional.empty();
+        return Optional.of(slot);
+      });
+      if(unmatching_slots.isEmpty()) return false;
+      final int picked_slot = unmatching_slots.get(level.getRandom().nextInt(unmatching_slots.size()));
+      return left_storage_slot_range_.move(picked_slot, right_storage_slot_range_);
+    }
+
+    private boolean processBucketFluidCollection(boolean is_done)
+    {
+      progress_ = -20;
+      max_progress_ = 0;
+      if(is_done) {
+        if(!getResultSlot().isEmpty()) {
+          ItemStack input_stack = cache_slot_range_.getItem(0);
+          cache_slot_range_.setItem(0, getResultSlot()); // replace input potion with result
+          setResultSlot(ItemStack.EMPTY);
+        }
+        cache_slot_range_.move(right_storage_slot_range_);
+        if(cache_slot_range_.isEmpty()) progress_ = 0;
+        return true;
+      } else {
+        if(!cache_slot_range_.isEmpty()) {
+          // Check if right inventory did overflow.
+          ItemStack pending_stack = cache_slot_range_.getItem(0);
+          if(pending_stack.is(Items.WATER_BUCKET) || pending_stack.is(Items.POTION) || pending_stack.is(Items.LAVA_BUCKET)) return false; // aka isResult(stack)
+        }
+        final float reluctance = (float) Math.min((1.0/Math.max(ant_speed_, 1e-1)), 6);
+        final int collection_time = Math.min(120, Math.max((int)(100*reluctance), 20));
+        final BlockPos target_pos = getBlockPos().relative(getBlockState().getValue(RedAntHiveBlock.FACING).getOpposite());
+        final BlockState bs = getLevel().getBlockState(target_pos);
+        final FluidState fs = bs.getFluidState();
+        ItemStack result_stack = ItemStack.EMPTY;
+        ItemStack source_stack = ItemStack.EMPTY;
+        {
+          // Initial simple impl, later maybe using map<fluid, tuple<itemstack, itemstack>
+          if(bs.is(Blocks.WATER) && fs.isSource()) {
+            if(left_storage_slot_range_.contains(new ItemStack(Items.BUCKET, 1))) {
+              result_stack = new ItemStack(Items.WATER_BUCKET, 1);
+              source_stack = new ItemStack(Items.BUCKET, 1);
+              getLevel().setBlock(target_pos, Blocks.AIR.defaultBlockState(), 1|2);
+            } else if(left_storage_slot_range_.contains(new ItemStack(Items.GLASS_BOTTLE, 1))) {
+              result_stack = new ItemStack(Items.POTION, 1);
+              PotionUtils.setPotion(result_stack, Potions.WATER);
+              source_stack = new ItemStack(Items.GLASS_BOTTLE, 1);
+              getLevel().setBlock(target_pos, Blocks.AIR.defaultBlockState(), 1|2);
+            }
+          } else if(bs.is(Blocks.LAVA) && fs.isSource()) {
+            if(left_storage_slot_range_.contains(new ItemStack(Items.BUCKET, 1))) {
+              result_stack = new ItemStack(Items.LAVA_BUCKET, 1);
+              source_stack = new ItemStack(Items.BUCKET, 1);
+              getLevel().setBlock(target_pos, Blocks.AIR.defaultBlockState(), 1|2);
+            }
+          }
+        }
+        if(!result_stack.isEmpty()) {
+          setResultSlot(result_stack);
+          left_storage_slot_range_.extract(source_stack);
+          cache_slot_range_.setItem(0, source_stack);
+          progress_ = 0;
+          max_progress_ = collection_time;
+          state_flags_.noingr(false);
+          return true;
+        } else {
+          state_flags_.noingr(true);
+          return itemPassThroughBucketFluidCollection();
+        }
+      }
+    }
+
+    private boolean itemPassThroughBucketFluidCollection()
+    {
+      boolean changed = false;
+      for(int i=0; i<left_storage_slot_range_.size(); ++i) {
+        final ItemStack stack = left_storage_slot_range_.getItem(i);
+        if(stack.isEmpty() || (stack.is(RED_SUGAR_ITEM)) || (stack.is(Items.BUCKET) || (stack.is(Items.GLASS_BOTTLE)))) continue;
+        if(left_storage_slot_range_.move(i, right_storage_slot_range_)) {
+          if(left_storage_slot_range_.getItem(i).isEmpty()) return true;
+          changed = true;
+        }
+      }
+      return changed;
+    }
+
   }
 
   //--------------------------------------------------------------------------------------------------------------------
@@ -1977,6 +2125,7 @@ public class RedAntHive
       Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.FURNACE).toArray(new Item[0]));
       Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.BLAST_FURNACE).toArray(new Item[0]));
       Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.SMOKER).toArray(new Item[0]));
+      Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.DISPENSER).toArray(new Item[0]));
       Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.COMPOSTER).toArray(new Item[0]));
       Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.BREWING_STAND).toArray(new Item[0]));
       Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.GRINDSTONE).toArray(new Item[0]));
@@ -1984,6 +2133,7 @@ public class RedAntHive
       Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.IRON_PICKAXE).toArray(new Item[0]));
       Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.IRON_AXE).toArray(new Item[0]));
       Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.WHEAT).toArray(new Item[0]));
+      Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.BUCKET).toArray(new Item[0]));
       // Command items with result visibility.
       Collections.addAll(command_items_result_visible, known_items_mapping.get(Items.CRAFTING_TABLE).toArray(new Item[0]));
       Collections.addAll(command_items_result_visible, known_items_mapping.get(Items.FURNACE).toArray(new Item[0]));
@@ -1992,11 +2142,13 @@ public class RedAntHive
       Collections.addAll(command_items_result_visible, known_items_mapping.get(Items.COMPOSTER).toArray(new Item[0]));
       Collections.addAll(command_items_result_visible, known_items_mapping.get(Items.BREWING_STAND).toArray(new Item[0]));
       Collections.addAll(command_items_result_visible, known_items_mapping.get(Items.GRINDSTONE).toArray(new Item[0]));
+      Collections.addAll(command_items_result_visible, known_items_mapping.get(Items.BUCKET).toArray(new Item[0]));
       // Command items with item grid visibility.
       Collections.addAll(command_items_grid_visible, known_items_mapping.get(Items.CRAFTING_TABLE).toArray(new Item[0]));
       Collections.addAll(command_items_grid_visible, known_items_mapping.get(Items.FURNACE).toArray(new Item[0]));
       Collections.addAll(command_items_grid_visible, known_items_mapping.get(Items.BLAST_FURNACE).toArray(new Item[0]));
       Collections.addAll(command_items_grid_visible, known_items_mapping.get(Items.SMOKER).toArray(new Item[0]));
+      Collections.addAll(command_items_grid_visible, known_items_mapping.get(Items.DISPENSER).toArray(new Item[0]));
     }
 
     private void update()

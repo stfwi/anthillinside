@@ -549,4 +549,12 @@ public class Auxiliaries
     );
   }
 
+  public static Optional<net.fabricmc.fabric.api.entity.FakePlayer> getFakePlayer(Level world)
+  {
+    if(world.isClientSide()) return Optional.empty();
+    //FORGE: var player = net.minecraftforge.common.util.FakePlayerFactory.getMinecraft((ServerLevel)world);
+    var player = net.fabricmc.fabric.api.entity.FakePlayer.get((ServerLevel)world); // fabric
+    return (player==null) ? Optional.empty() : Optional.of(player);
+  }
+
 }

@@ -15,6 +15,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Shearable;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -84,12 +85,11 @@ public class ToolActions
 
   public static class Farming
   {
+    public static boolean isPlantable(Item item)
+    { return isPlantable(Block.byItem(item)); }
+
     public static boolean isPlantable(Block block)
-    {
-      // @todo: That was: (block instanceof IPlantable) && (!(block instanceof StemBlock)),
-      // Also check MushroomBlock?
-      return (block instanceof CropBlock) || (block instanceof SaplingBlock);
-    }
+    { return (block instanceof CropBlock); } // @todo: That was: (block instanceof IPlantable) && (!(block instanceof StemBlock)),
 
     public static Optional<List<ItemStack>> harvestCrop(ServerLevel world, BlockPos pos, boolean try_replant, ItemStack bone_meal)
     {
@@ -275,4 +275,43 @@ public class ToolActions
       return Mth.clamp((int)(destroy_time * reluctance/speedup), minTime, maxTime);
     }
   }
+
+  public static class BlockPlacing
+  {
+    public enum PlacementResult {
+      SUCCESS,
+      FAILED,
+      INVALID_ITEM,
+      INVALID_LOCATION,
+      LOCATION_BLOCKED
+    }
+
+    public static boolean isPlaceable(Item item)
+    { return item instanceof BlockItem; }
+
+    public static boolean isPlantable(Item item)
+    { return (Block.byItem(item) instanceof BushBlock); }
+
+    public static PlacementResult place(Level world, BlockPos pos, ItemStack stack)
+    { return place(world, pos, stack, false); }
+
+    public static PlacementResult place(Level world, BlockPos pos, ItemStack stack, boolean simulate)
+    {
+      if(world.isClientSide()) return PlacementResult.FAILED;
+      if(!(stack.getItem() instanceof BlockItem item)) return PlacementResult.INVALID_ITEM;
+      if(!world.getBlockState(pos).canBeReplaced()) return PlacementResult.LOCATION_BLOCKED;
+      final Block bush = Block.byItem(item);
+      final BlockState bush_state = bush.defaultBlockState();
+      if(!bush_state.canSurvive(world, pos)) return PlacementResult.INVALID_LOCATION;
+      final var blocking_entities = world.getEntitiesOfClass(Entity.class, new AABB(pos), (e)->(!(e instanceof ItemEntity)));
+      if(!blocking_entities.isEmpty()) return PlacementResult.LOCATION_BLOCKED;
+      if(simulate) return PlacementResult.SUCCESS;
+      if(!world.setBlock(pos, bush_state, 1|2|512)) return PlacementResult.FAILED;
+      final SoundType sound = bush_state.getSoundType();
+      world.playSound(null, pos, sound.getPlaceSound(), SoundSource.BLOCKS, (sound.getVolume()+1f)/2f, sound.getPitch() * 0.8f);
+      return PlacementResult.SUCCESS;
+    }
+
+  }
+
 }

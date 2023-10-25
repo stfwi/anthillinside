@@ -4,6 +4,11 @@
 ----
 ## Version history
 
+    - v1.5.19     [A] Added block placing and sapling planting (Dispenser in
+                      command slot).
+                  [A] Added Fluid collection (water/lava to buckets/bottles.
+                      Bucket in command slot).
+
     - v1.5.18     [F] Fixed disenchanting of Enchanted Books.
                   [F] Fixed Hive-to-Trail insertion direction (Hopper).
                   [F] Fixed Minecart loading/unloading start on empty input/output.
