@@ -5,6 +5,8 @@
   "itemGroup.tabanthillinside": "Anthill Inside",
   "anthillinside.tooltip.hint.extended": "§6[§9shift§r More§6]§r",
   "anthillinside.tooltip.hint.help": "§6[§9ctrl-shift§r Help§6]§r",
+  "block.anthillinside.covered_trail": "Covered Red Ant Trail",
+  "block.anthillinside.covered_trail.tooltips.help": "A wood log with an ant trail inside. Used for item pass-through.",
   "block.anthillinside.hive": "Red Ant Hive",
   "block.anthillinside.hive.help": "A small colony of Red Ants, which can be put to minor automation work, or transport items as Red Ant Trails. The Hive can smelt, craft, handle composting, and the like.\n§oYou can find Red Ant Hives with a low chance when mining Redstone Ore.§r\nBy default the block is placed upright, sneak to place it in the direction you are looking. The block has an input side (big hole), and an output side (small hole). Hover the slots and the ?-info image at top-right of the GUI to get more info.",
   "block.anthillinside.hive.tooltips.antslots": "§6Ant Colony:§r Ants will slowly generate here until all three slots are full. More ants means higher crafting speed. You can also take some out to use them as Red Ant Trails for item transport.",

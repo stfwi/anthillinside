@@ -4,6 +4,10 @@
 ----
 ## Version history
 
+    - v1.5.20     [A] Hive emits particles after finishing recipe based processes.
+                  [A] Hive Fishing added (command slot Fishing Rod).
+                  [A] Covered Ant Trail added (Wood log like item pipe).
+
     - v1.5.19     [A] Added block placing and sapling planting (Dispenser in
                       command slot).
                   [A] Added Fluid collection (water/lava to buckets/bottles.

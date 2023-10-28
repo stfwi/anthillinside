@@ -185,6 +185,11 @@ public class ModConfig
         known_items.putIfAbsent(Items.BUCKET, new HashSet<>());
         known_items.get(Items.BUCKET).add(Items.BUCKET);
       }
+      {
+        // Fishing Rod (fishing)
+        known_items.putIfAbsent(Items.FISHING_ROD, new HashSet<>());
+        known_items.get(Items.FISHING_ROD).add(Items.FISHING_ROD);
+      }
     }
     if(!unknown_items.isEmpty()) {
       Auxiliaries.logInfo("Unknown items/invalid resource locations in config: [" + String.join(",", unknown_items) + "]");

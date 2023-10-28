@@ -16,6 +16,7 @@ import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.phys.AABB;
 import wile.anthillinside.blocks.QueensLair;
+import wile.anthillinside.blocks.RedAntCoveredTrail;
 import wile.anthillinside.blocks.RedAntHive;
 import wile.anthillinside.blocks.RedAntTrail;
 import wile.anthillinside.items.AntsItem;
@@ -64,6 +65,14 @@ public class ModContent
       ),
       Registries.WITHOUT_ITEM
     );
+    Registries.addBlock("covered_trail",
+      ()->new RedAntCoveredTrail.RedAntCoveredTrailBlock(
+        StandardBlocks.CFG_CUTOUT|StandardBlocks.CFG_FACING_PLACEMENT,
+        BlockBehaviour.Properties.of().strength(0.1f, 3f).sound(SoundType.WOOD).noCollission().isValidSpawn((s,w,p,e)->false),
+        new AABB[]{ Auxiliaries.getPixeledAABB(0,0,0,16,16, 16) }
+      ),
+      RedAntCoveredTrail.RedAntCoveredTrailTileEntity::new
+    );
     Registries.addBlock("queens_lair",
       ()->new QueensLair.QueensLairBlock(
         StandardBlocks.CFG_CUTOUT,
@@ -71,7 +80,6 @@ public class ModContent
         new AABB[]{Auxiliaries.getPixeledAABB(3.0, 0.0, 3.0, 13.0, 10.0, 13.0)}
       )
     );
-
   }
 
   public static void initItems()
@@ -87,6 +95,7 @@ public class ModContent
     references.RED_SUGAR_ITEM = (RedSugarItem)Registries.getItem("red_sugar");
     references.HIVE_BLOCK = (RedAntHive.RedAntHiveBlock)Registries.getBlock("hive");
     references.TRAIL_BLOCK = (RedAntTrail.RedAntTrailBlock)Registries.getBlock("trail");
+    references.COVERED_TRAIL_BLOCK = (RedAntCoveredTrail.RedAntCoveredTrailBlock)Registries.getBlock("covered_trail");
   }
 
   //--------------------------------------------------------------------------------------------------------------------
@@ -99,6 +108,7 @@ public class ModContent
     public static RedSugarItem RED_SUGAR_ITEM = null;
     public static RedAntHive.RedAntHiveBlock HIVE_BLOCK = null;
     public static RedAntTrail.RedAntTrailBlock TRAIL_BLOCK = null;
+    public static RedAntCoveredTrail.RedAntCoveredTrailBlock COVERED_TRAIL_BLOCK = null;
   }
 
   //--------------------------------------------------------------------------------------------------------------------

@@ -18,6 +18,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -35,10 +36,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.*;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.TieredItem;
+import net.minecraft.world.item.*;
 import net.minecraft.world.item.alchemy.PotionUtils;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -95,6 +93,7 @@ public class RedAntHive
   private static final int book_disenchanting_processing_time = 200;
   private static final HashMap<Item, Object> processing_command_item_mapping = new HashMap<>();
   private static final HashMap<Item, HashSet<Item>> known_items_mapping = new HashMap<>();
+  private static final HashSet<Item> known_smoke_particle_command_items = new HashSet<>();
 
   private static class ProcessingHandler
   {
@@ -134,6 +133,7 @@ public class RedAntHive
     if(known_items_mapping.get(Items.WHEAT).isEmpty()) known_items_mapping.get(Items.WHEAT).add(Items.WHEAT); // At least one animal food.
     if(known_items_mapping.get(Items.BONE_MEAL).isEmpty()) known_items_mapping.get(Items.BONE_MEAL).add(Items.BONE_MEAL);
     if(known_items_mapping.get(Items.BUCKET).isEmpty()) known_items_mapping.get(Items.BUCKET).add(Items.BUCKET);
+    if(known_items_mapping.get(Items.FISHING_ROD).isEmpty()) known_items_mapping.get(Items.FISHING_ROD).add(Items.FISHING_ROD);
     //---------
     processing_command_item_mapping.clear();
     known_items_mapping.get(Items.CRAFTING_TABLE).forEach(item -> processing_command_item_mapping.put(item, RecipeType.CRAFTING));
@@ -154,6 +154,8 @@ public class RedAntHive
     known_items_mapping.get(Items.DISPENSER).forEach(item -> processing_command_item_mapping.put(item, common_blockplace_process));
     final ProcessingHandler common_fluidcollection_process = new ProcessingHandler(Items.BUCKET, RedAntHiveTileEntity::processBucketFluidCollection, RedAntHiveTileEntity::itemPassThroughBucketFluidCollection);
     known_items_mapping.get(Items.BUCKET).forEach(item -> processing_command_item_mapping.put(item, common_fluidcollection_process));
+    final ProcessingHandler common_fishing_process = new ProcessingHandler(Items.FISHING_ROD, RedAntHiveTileEntity::processFishing, RedAntHiveTileEntity::itemPassThroughAll);
+    known_items_mapping.get(Items.FISHING_ROD).forEach(item -> processing_command_item_mapping.put(item, common_fishing_process));
     if(farming_speed_percent > 0) {
       known_items_mapping.get(Items.IRON_HOE).forEach(item -> processing_command_item_mapping.put(item, new ProcessingHandler(item, (te,done)->te.processFarming(item), (te)->te.itemPassThroughExcept(Items.BONE_MEAL))) );
     }
@@ -166,6 +168,14 @@ public class RedAntHive
     if(animal_feeding_speed_percent > 0) {
       known_items_mapping.get(Items.WHEAT).forEach(item -> processing_command_item_mapping.put(item, new ProcessingHandler(item, (te,done)->te.processAnimalFood(item), (te)->te.itemPassThroughExcept(item))) );
     }
+    //---------
+    known_smoke_particle_command_items.clear();
+    known_smoke_particle_command_items.add(Items.FURNACE);
+    known_smoke_particle_command_items.add(Items.BLAST_FURNACE);
+    known_smoke_particle_command_items.add(Items.SMOKER);
+    known_smoke_particle_command_items.add(Items.CRAFTING_TABLE);
+    known_smoke_particle_command_items.add(Items.BREWING_STAND);
+    known_smoke_particle_command_items.add(Items.COMPOSTER);
     //---------
     Auxiliaries.logDebug("Hive:" +
       "drop-probability:" + hive_drop_probability_percent + "%" +
@@ -844,6 +854,7 @@ public class RedAntHive
       if(known_items_mapping.get(Items.HOPPER).contains(control_item)) {
         final Inventories.ItemPort ih = Inventories.ItemPort.of(getLevel(), output_position, output_facing.getOpposite(), true);
         if(ih.allowsInsertion()) {
+          int n_inserted = 0;
           for(int slot=0; slot<right_storage_slot_range_.size(); ++slot) {
             ItemStack ostack = right_storage_slot_range_.getItem(slot);
             if(ostack.isEmpty()) continue;
@@ -851,11 +862,10 @@ public class RedAntHive
             if(stack.getCount() > outstack_size) stack.setCount(outstack_size);
             final ItemStack remaining = ih.insert(stack);
             if(remaining.getCount() == stack.getCount()) continue;
-            final int n_inserted = stack.getCount() - remaining.getCount();
+            n_inserted = stack.getCount() - remaining.getCount();
             right_storage_slot_range_.getItem(slot).shrink(n_inserted);
-            return true; // TE dirty.
           }
-          if(right_storage_slot_range_.isEmpty()) {
+          if(right_storage_slot_range_.isEmpty() || (n_inserted<=0)) {
             if(!(ih.owner() instanceof BlockEntity)) {
               // SimpleContainer entity eg minecart.
               boolean notify = output_side_redstone_pulse_time_left_<= 0;
@@ -864,6 +874,7 @@ public class RedAntHive
               if(ih.owner() instanceof Entity entity) entity.addDeltaMovement(Vec3.atLowerCornerOf(output_facing.getNormal()).scale(1e-1));
             }
           }
+          return n_inserted>0;
         } else {
           final BlockState trail_state = getLevel().getBlockState(output_position);
           if(!trail_state.is(TRAIL_BLOCK)) return false;
@@ -991,10 +1002,13 @@ public class RedAntHive
         if(inventoryManagement() || itemPassThrough(cat)) return true;
       } else {
         // processing by recipe type
-        boolean is_done = (progress_ >= max_progress_) && (max_progress_ > 0);
+        final boolean is_done = (progress_ >= max_progress_) && (max_progress_ > 0);
         state_flags_.mask(StateFlags.mask_nofuel|StateFlags.mask_norecipe|StateFlags.mask_noingr, 0);
         max_progress_ = 0;
         progress_ = 0;
+        if(is_done && known_smoke_particle_command_items.contains(getCommandSlot().getItem())) {
+          Auxiliaries.particles(getLevel(), getBlockPos(), ParticleTypes.SMOKE);
+        }
         if(cat instanceof RecipeType<?>) {
           if(cat == RecipeType.CRAFTING) {
             processCrafting((RecipeType<?>)cat, is_done);
@@ -1797,6 +1811,24 @@ public class RedAntHive
       return changed;
     }
 
+    private boolean processFishing(boolean done)
+    {
+      final double reluctance = Math.min((1.0/Math.max(ant_speed_, 1e-1)), 6);
+      final int collection_time = Math.min(120, Math.max((int)(30*reluctance), 20));
+      final BlockPos water_pos = getBlockPos().relative(getBlockState().getValue(RedAntHiveBlock.FACING).getOpposite());
+      if(!getLevel().getBlockState(water_pos).is(Blocks.WATER)) {
+        progress_ = -40;
+        max_progress_ = 0;
+      } else {
+        progress_ = 0;
+        max_progress_ = collection_time*20;
+        if(done) {
+          ToolActions.Fishing.fish((ServerLevel)getLevel(), getBlockPos(), getCommandSlot()).forEach(right_storage_slot_range_::insert);
+          return true;
+        }
+      }
+      return false;
+    }
   }
 
   //--------------------------------------------------------------------------------------------------------------------
@@ -2134,6 +2166,7 @@ public class RedAntHive
       Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.IRON_AXE).toArray(new Item[0]));
       Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.WHEAT).toArray(new Item[0]));
       Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.BUCKET).toArray(new Item[0]));
+      Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.FISHING_ROD).toArray(new Item[0]));
       // Command items with result visibility.
       Collections.addAll(command_items_result_visible, known_items_mapping.get(Items.CRAFTING_TABLE).toArray(new Item[0]));
       Collections.addAll(command_items_result_visible, known_items_mapping.get(Items.FURNACE).toArray(new Item[0]));

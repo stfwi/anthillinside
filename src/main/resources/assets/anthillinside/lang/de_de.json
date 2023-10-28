@@ -5,6 +5,8 @@
   "itemGroup.tabanthillinside": "Anthill Inside",
   "anthillinside.tooltip.hint.extended": "§6[§9shift§r Mehr§6]§r",
   "anthillinside.tooltip.hint.help": "§6[§9strg-shift§r Info§6]§r",
+  "block.anthillinside.covered_trail": "Verdeckte Rotameisen-Straße",
+  "block.anthillinside.covered_trail.tooltips.help": "Ein hohler Holzstamm mit einer Ameisenstraße. Gut, um Gegenstände durchzureichen.",
   "block.anthillinside.hive": "Rotameisen-Nest",
   "block.anthillinside.hive.help": "Eine kleine Kolonie von Rotameisen, die für kleinere Automatisierungsaufgaben im Nest, oder zum Transport als Ameisenstraße dienen kann. Im Nest kann gewerkelt, geschmolzen, gekocht, kompostiert, usw. werden.\n§oMit Glück kannst Du Ameisennester finden, wenn Du Redstone abbaust.§r\nNormalerweise wird der Block aufrecht gesetzt, ducke Dich beim Platzieren um ihn in die Richtung zu setzen, in die Du gerade schaust. Der Block hat eine Eingangsseite (große Öffnung) und eine Ausgangsseite (kleines Loch gegenüber). Für Details der Funktionen einfach in der GUI mit der Maus über die Slots gehen, bzw. auch über das '?'-Info-Feld oben rechts.",
   "block.anthillinside.hive.tooltips.antslots": "§6Kolonie:§r Hier kommen mit der Zeit Ameisen hinzu, bis alle drei Slots voll belegt Mehr Ameisen bedeutet schnelleres „Malochen“. Du kannst auch einige hier herausnehmen, um die als Ameisenstraße zum Transportieren zu verwenden.",

@@ -11,6 +11,7 @@ package wile.anthillinside.libmc;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
@@ -26,7 +27,10 @@ import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.block.state.properties.Property;
+import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -312,6 +316,20 @@ public class ToolActions
       return PlacementResult.SUCCESS;
     }
 
+  }
+
+  public static class Fishing
+  {
+    public static List<ItemStack> fish(ServerLevel world, BlockPos pos,  @Nullable ItemStack rod)
+    {
+      if(rod==null) rod = new ItemStack(Items.FISHING_ROD);
+      // .withParameter(LootContextParams.THIS_ENTITY, this).withLuck((float)this.luck + player.getLuck())
+      final LootParams params = new LootParams.Builder(world).withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(pos)).withParameter(LootContextParams.TOOL, rod).create(LootContextParamSets.FISHING);
+      final LootTable table = world.getServer().getLootData().getLootTable(BuiltInLootTables.FISHING);
+      var list = table.getRandomItems(params);
+      if(list==null) return Collections.emptyList();
+      return list;
+    }
   }
 
 }

@@ -1,6 +1,7 @@
 {
  "homepage": "https://www.curseforge.com/minecraft/mc-mods/anthill-inside/",
  "1.20.2": {
+  "1.5.20": "[A] Hive emits particles after finishing recipe based processes.\n[A] Hive Fishing added (command slot Fishing Rod).\n[A] Covered Ant Trail added (Wood log like item pipe).",
   "1.5.19": "[A] Added block placing and sapling planting (Dispenser in command slot).\n[A] Added Fluid collection (water/lava to buckets/bottles. Bucket in command slot).",
   "1.5.18": "[F] Fixed disenchanting of Enchanted Books.\n[F] Fixed Hive-to-Trail insertion direction (Hopper).\n[F] Fixed Minecart loading/unloading start on empty input/output.\n[F] Fixed unintended Brewing potion pass-through.\n[A] Added crop fertilizing particle effects.",
   "1.5.17": "[U] Initial Fabric port for mc1.20.2.\n[B] Known issue: Config not implemented yet.",
@@ -32,7 +33,7 @@
   "1.0.0-b1": "[U] Initial concept implementation."
  },
  "promos": {
-  "1.20.2-recommended": "1.5.19",
-  "1.20.2-latest": "1.5.19"
+  "1.20.2-recommended": "1.5.20",
+  "1.20.2-latest": "1.5.20"
  }
 }
