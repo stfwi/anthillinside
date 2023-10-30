@@ -11,7 +11,6 @@ package wile.anthillinside.libmc;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
@@ -210,6 +209,7 @@ public class ToolActions
     {
       if(bone_meal.isEmpty() || (!bone_meal.is(Items.BONE_MEAL))) return false;
       final BlockState state = world.getBlockState(pos);
+      if(!state.is(BlockTags.CROPS) && !state.is(BlockTags.SAPLINGS) && !state.is(BlockTags.FLOWERS) && !state.is(BlockTags.SMALL_FLOWERS)) return false;
       if(!(state.getBlock() instanceof BonemealableBlock block)) return false;
       if(!block.isValidBonemealTarget(world, pos, state)) return false;
       if((!always_succeed) && (!block.isBonemealSuccess(world, world.getRandom(), pos, state))) return false;
@@ -217,6 +217,15 @@ public class ToolActions
       if(!no_particles) Auxiliaries.particles(world, pos, ParticleTypes.HAPPY_VILLAGER);
       return true;
     }
+
+    public static boolean isFertilizableNonFoliage(Level world, BlockPos pos)
+    {
+      final BlockState state = world.getBlockState(pos);
+      if(!state.is(BlockTags.CROPS) && !state.is(BlockTags.SAPLINGS) && !state.is(BlockTags.FLOWERS) && !state.is(BlockTags.SMALL_FLOWERS)) return false;
+      if(!(state.getBlock() instanceof BonemealableBlock block)) return false;
+      return block.isValidBonemealTarget(world, pos, state);
+    }
+
   }
 
   public static class BlockBreaking

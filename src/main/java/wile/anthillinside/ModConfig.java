@@ -91,6 +91,7 @@ public class ModConfig
     */
 
     /// --- TEMPORARY
+    /// (Config overrides allow to disable features by assigning an empty list for the command slot item)
     {
       {
         // add_known_items.accept(Items.CRAFTING_TABLE, new ArrayList<>(List.of("minecraft:crafting_table")));

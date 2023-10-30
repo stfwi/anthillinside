@@ -4,6 +4,13 @@
 ----
 ## Version history
 
+    - v1.5.21     [M] Covered Ant Trail texture edited.
+                  [A] Ant Trail can be placed on Leaves.
+                  [A] Bone Meal fertilizing added (crops, saplings).
+                  [A] Tree chopping also breaks bee nests.
+                  [A] Tree chopping: Chopped items get slowly
+                      transported (thrown) towards the Ant Hive.
+
     - v1.5.20     [A] Hive emits particles after finishing recipe based processes.
                   [A] Hive Fishing added (command slot Fishing Rod).
                   [A] Covered Ant Trail added (Wood log like item pipe).

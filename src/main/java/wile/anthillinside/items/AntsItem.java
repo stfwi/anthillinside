@@ -6,13 +6,13 @@
  */
 package wile.anthillinside.items;
 
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Rotation;
@@ -56,4 +56,8 @@ public class AntsItem extends StandardItems.BaseBlockItem
     world.playSound(null, pos, SoundEvents.ITEM_FRAME_ROTATE_ITEM, SoundSource.BLOCKS, 0.7f,1.8f);
     return InteractionResult.sidedSuccess(world.isClientSide);
   }
+
+  @Override
+  public InteractionResult place(BlockPlaceContext context)
+  { return super.place(context); }
 }

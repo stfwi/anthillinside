@@ -11,15 +11,22 @@ package wile.anthillinside.libmc;
 import com.google.common.collect.ImmutableList;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.VineBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.function.Function;
 
 
 public class TreeCutting
@@ -67,13 +74,32 @@ public class TreeCutting
     return to_decay;
   }
 
-  private static void breakBlock(Level world, BlockPos pos)
+  private static void breakBlock(Level world, BlockPos pos, @Nullable Function<ItemEntity, ItemEntity> entity_converter)
   {
-    Block.dropResources(world.getBlockState(pos), world, pos);
+    if(!(world instanceof ServerLevel sworld)) return;
+    BlockState state = sworld.getBlockState(pos);
+    final List<ItemStack> drops = Block.getDrops(state, sworld, pos, null);
+    drops.forEach(stack -> {
+      double d = EntityType.ITEM.getHeight() / 2.0;
+      double e = pos.getX() + 0.5 + Mth.nextDouble(sworld.random, -0.15, 0.15);
+      double f = pos.getY() + 0.5 + Mth.nextDouble(sworld.random, -0.15, 0.15)-d;
+      double g = pos.getZ() + 0.5 + Mth.nextDouble(sworld.random, -0.15, 0.15);
+      ItemEntity ie = new ItemEntity(sworld, e, f, g, stack);
+      ie.setDefaultPickUpDelay();
+      if(entity_converter != null) ie = entity_converter.apply(ie);
+      sworld.addFreshEntity(ie);
+    });
+    state.spawnAfterBreak(sworld, pos, ItemStack.EMPTY, true);
     world.setBlock(pos, world.getFluidState(pos).createLegacyBlock(), 1|2|8);
   }
 
+  private static boolean alwaysBreak(BlockState state)
+  { return state.getBlock()==Blocks.BEE_NEST; }
+
   public static int chopTree(Level world, BlockState broken_state, BlockPos startPos, int max_blocks_to_break, boolean without_target_block)
+  { return chopTree(world, broken_state, startPos, max_blocks_to_break, without_target_block, null); }
+
+  public static int chopTree(Level world, BlockState broken_state, BlockPos startPos, int max_blocks_to_break, boolean without_target_block, @Nullable Function<ItemEntity, ItemEntity> entity_converter)
   {
     if(world.isClientSide || !isLog(broken_state)) return 0;
     final long ymin = startPos.getY();
@@ -97,7 +123,7 @@ public class TreeCutting
         final BlockState upstate = world.getBlockState(uppos);
         if(!checked.contains(uppos)) {
           checked.add(uppos);
-          if(isSameLog(upstate, broken_state)) {
+          if(isSameLog(upstate, broken_state) || alwaysBreak(upstate)) {
             // Up is log
             upqueue.add(uppos);
             to_break.add(uppos);
@@ -113,7 +139,7 @@ public class TreeCutting
                 checked.add(p);
                 final BlockState st = world.getBlockState(p);
                 final Block bl = st.getBlock();
-                if(isSameLog(st, broken_state)) {
+                if(isSameLog(st, broken_state) || alwaysBreak(st)) {
                   queue.add(p);
                   to_break.add(p);
                 } else if(isLeaves(st)) {
@@ -131,7 +157,7 @@ public class TreeCutting
           if(p.distSqr(new BlockPos(startPos.getX(), p.getY(), startPos.getZ())) > (cutlevel > 2 ? 256 : 9)) continue;
           final BlockState st = world.getBlockState(p);
           final Block bl = st.getBlock();
-          if(isSameLog(st, broken_state)) {
+          if(isSameLog(st, broken_state) || alwaysBreak(st)) {
             queue.add(p);
             to_break.add(p);
           } else if(isLeaves(st)) {
@@ -168,8 +194,8 @@ public class TreeCutting
     } else {
       to_break.add(startPos);
     }
-    for(BlockPos pos:to_break) breakBlock(world, pos);
-    for(BlockPos pos:to_decay) breakBlock(world, pos);
+    for(BlockPos pos:to_break) breakBlock(world, pos, entity_converter);
+    for(BlockPos pos:to_decay) breakBlock(world, pos, entity_converter);
     {
       // And now the bill.
       return Mth.clamp(((to_break.size()*6/5)+(to_decay.size()/10)-1), 1, 65535);

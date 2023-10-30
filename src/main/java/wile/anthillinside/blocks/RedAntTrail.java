@@ -11,6 +11,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -119,7 +120,7 @@ public class RedAntTrail
     {
       BlockState state = super.getStateForPlacement(context);
       if(state == null) return null;
-      if((!state.getValue(UP)) && (context.getClickedFace().getAxis().isVertical()) && (!Block.canSupportRigidBlock(context.getLevel(), context.getClickedPos().below()))) return null;
+      if((!state.getValue(UP)) && (context.getClickedFace().getAxis().isVertical()) && (!canSurvive(state, context.getLevel(), context.getClickedPos()))) return null;
       return updatedState(state.setValue(DROP, false), context.getLevel(), context.getClickedPos());
     }
 
@@ -155,7 +156,7 @@ public class RedAntTrail
     {
       if(state.getValue(DROP)) return true;
       final BlockState state_below = world.getBlockState(pos.below());
-      if(state_below.isFaceSturdy(world, pos.below(), Direction.UP, SupportType.RIGID)) return true;
+      if(state_below.is(BlockTags.LEAVES) || state_below.isFaceSturdy(world, pos.below(), Direction.UP, SupportType.RIGID)) return true;
       final Direction facing = state.getValue(HORIZONTAL_FACING);
       return state.getValue(UP)
         ? Block.isFaceFull(world.getBlockState(pos.relative(facing)).getShape(world, pos.relative(facing)), facing.getOpposite())

@@ -62,6 +62,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 import wile.anthillinside.ModAnthillInside;
 import wile.anthillinside.blocks.RedAntTrail.RedAntTrailBlock;
+import wile.anthillinside.entities.TransportedItemEntity;
 import wile.anthillinside.libmc.*;
 import wile.anthillinside.libmc.Containers;
 import wile.anthillinside.libmc.Containers.StorageSlot;
@@ -124,16 +125,24 @@ public class RedAntHive
     //---------
     known_items_mapping.clear();
     known_items_mapping.putAll(known_items);
-    if(known_items_mapping.get(Items.CRAFTING_TABLE).isEmpty()) known_items_mapping.get(Items.CRAFTING_TABLE).add(Items.CRAFTING_TABLE); // Crafting forced default.
-    if(known_items_mapping.get(Items.FURNACE).isEmpty()) known_items_mapping.get(Items.FURNACE).add(Items.FURNACE); // Smelting/cooking forced default.
-    if(known_items_mapping.get(Items.BLAST_FURNACE).isEmpty()) known_items_mapping.get(Items.BLAST_FURNACE).add(Items.BLAST_FURNACE); // Smelting/cooking forced default.
-    if(known_items_mapping.get(Items.HOPPER).isEmpty()) known_items_mapping.get(Items.HOPPER).add(Items.HOPPER); // At least one hopper.
-    if(known_items_mapping.get(Items.DROPPER).isEmpty()) known_items_mapping.get(Items.DROPPER).add(Items.DROPPER); // At least one dropper.
-    if(known_items_mapping.get(Items.DISPENSER).isEmpty()) known_items_mapping.get(Items.DISPENSER).add(Items.DISPENSER); // At least one dispenser.
-    if(known_items_mapping.get(Items.WHEAT).isEmpty()) known_items_mapping.get(Items.WHEAT).add(Items.WHEAT); // At least one animal food.
+    //---------
+    List.of(
+        Items.CRAFTING_TABLE, Items.BLAST_FURNACE, Items.SMOKER, Items.COMPOSTER, Items.BREWING_STAND, Items.GRINDSTONE,
+        Items.HOPPER, Items.DROPPER, Items.DISPENSER, Items.SHEARS, Items.IRON_HOE, Items.IRON_AXE, Items.IRON_PICKAXE,
+        Items.WHEAT, Items.BONE_MEAL, Items.BUCKET, Items.FISHING_ROD
+      ).forEach(item->known_items.putIfAbsent(item, new HashSet<>()));
+    //---------
+    // Enforced defaults (items that always work, independent of config)
+    if(known_items_mapping.get(Items.CRAFTING_TABLE).isEmpty()) known_items_mapping.get(Items.CRAFTING_TABLE).add(Items.CRAFTING_TABLE);
+    if(known_items_mapping.get(Items.FURNACE).isEmpty()) known_items_mapping.get(Items.FURNACE).add(Items.FURNACE);
+    if(known_items_mapping.get(Items.BLAST_FURNACE).isEmpty()) known_items_mapping.get(Items.BLAST_FURNACE).add(Items.BLAST_FURNACE);
+    if(known_items_mapping.get(Items.SMOKER).isEmpty()) known_items_mapping.get(Items.SMOKER).add(Items.SMOKER);
+    if(known_items_mapping.get(Items.HOPPER).isEmpty()) known_items_mapping.get(Items.HOPPER).add(Items.HOPPER);
+    if(known_items_mapping.get(Items.DROPPER).isEmpty()) known_items_mapping.get(Items.DROPPER).add(Items.DROPPER);
+    if(known_items_mapping.get(Items.DISPENSER).isEmpty()) known_items_mapping.get(Items.DISPENSER).add(Items.DISPENSER);
+    if(known_items_mapping.get(Items.WHEAT).isEmpty()) known_items_mapping.get(Items.WHEAT).add(Items.WHEAT);
     if(known_items_mapping.get(Items.BONE_MEAL).isEmpty()) known_items_mapping.get(Items.BONE_MEAL).add(Items.BONE_MEAL);
     if(known_items_mapping.get(Items.BUCKET).isEmpty()) known_items_mapping.get(Items.BUCKET).add(Items.BUCKET);
-    if(known_items_mapping.get(Items.FISHING_ROD).isEmpty()) known_items_mapping.get(Items.FISHING_ROD).add(Items.FISHING_ROD);
     //---------
     processing_command_item_mapping.clear();
     known_items_mapping.get(Items.CRAFTING_TABLE).forEach(item -> processing_command_item_mapping.put(item, RecipeType.CRAFTING));
@@ -156,6 +165,8 @@ public class RedAntHive
     known_items_mapping.get(Items.BUCKET).forEach(item -> processing_command_item_mapping.put(item, common_fluidcollection_process));
     final ProcessingHandler common_fishing_process = new ProcessingHandler(Items.FISHING_ROD, RedAntHiveTileEntity::processFishing, RedAntHiveTileEntity::itemPassThroughAll);
     known_items_mapping.get(Items.FISHING_ROD).forEach(item -> processing_command_item_mapping.put(item, common_fishing_process));
+    final ProcessingHandler common_fertilizing_process = new ProcessingHandler(Items.BONE_MEAL, RedAntHiveTileEntity::processFertilizing, (te)->te.itemPassThroughExcept(Items.BONE_MEAL));
+    known_items_mapping.get(Items.BONE_MEAL).forEach(item -> processing_command_item_mapping.put(item, common_fertilizing_process));
     if(farming_speed_percent > 0) {
       known_items_mapping.get(Items.IRON_HOE).forEach(item -> processing_command_item_mapping.put(item, new ProcessingHandler(item, (te,done)->te.processFarming(item), (te)->te.itemPassThroughExcept(Items.BONE_MEAL))) );
     }
@@ -1393,7 +1404,7 @@ public class RedAntHive
           final float reluctance = (float)(7.5/Math.max(ant_speed_, 1e-2));
           break_time = 10 * ToolActions.BlockBreaking.breakTime(state, pos, world, getCommandSlot(), 5, 20*90, reluctance);
         } else {
-          TreeCutting.chopTree(world, state, pos, 256, false);
+          TreeCutting.chopTree(world, state, pos, 256, false, (ie)->(TransportedItemEntity.of(ie).setTargetPosition(pos)));
           world.playSound(null, pos.getX(), pos.getY(), pos.getZ(), SoundEvents.WOOD_BREAK, SoundSource.BLOCKS, 1.0f, 1.0f);
         }
       }
@@ -1829,6 +1840,45 @@ public class RedAntHive
       }
       return false;
     }
+
+    private boolean processFertilizing(boolean done)
+    {
+      final double reluctance = Math.min((1.0/Math.max(ant_speed_, 1e-1)), 6);
+      max_progress_ = Math.min(1000, Math.max((int)(100*reluctance), 40));
+      progress_ = 0;
+      if(!done) return false;
+      final int bone_meal_slot = left_storage_slot_range_.indexOf(new ItemStack(Items.BONE_MEAL));
+      if(bone_meal_slot < 0) return false;
+      final int radius = 2; // "blocky" radius
+      final int max_simultaneously_fertilized = 8;
+      final ItemStack bone_meal = left_storage_slot_range_.getItem(bone_meal_slot).copy();
+      final Direction hive_facing = getBlockState().getValue(RedAntHiveBlock.FACING);
+      final int range = 1+2*radius;
+      final BlockPos center_pos = (hive_facing.getAxis() == Direction.Axis.Y) ? (getBlockPos().relative(Direction.UP)) : (getBlockPos().relative(hive_facing, 1+radius));
+      final List<BlockPos> fertilizable_positions = new ArrayList<>();
+      final int xmax = center_pos.getX()+radius, ymax=center_pos.getY()+radius, zmax=center_pos.getZ()+radius;
+      final ServerLevel world = (ServerLevel)getLevel();
+      for(int x=center_pos.getX()-radius; x<=xmax; ++x) {
+        for(int y=center_pos.getY()-1; y<=ymax; ++y) {
+          for(int z=center_pos.getZ()-radius; z<=zmax; ++z) {
+            BlockPos pos = new BlockPos(x,y,z);
+            if(ToolActions.Farming.isFertilizableNonFoliage(world, pos)) fertilizable_positions.add(pos.immutable());
+          }
+        }
+      }
+      if(fertilizable_positions.isEmpty()) return false;
+      final int max_fertilized = Math.min(max_simultaneously_fertilized, bone_meal.getCount());
+      if(fertilizable_positions.size() >= max_fertilized) {
+        Collections.shuffle(fertilizable_positions);
+        fertilizable_positions.subList(max_fertilized, fertilizable_positions.size()).clear();
+      }
+      for(var p:fertilizable_positions) {
+        boolean ignored = ToolActions.Farming.fertilizePlant(world, p, bone_meal, false, false);
+        bone_meal.shrink(1); // shring also when trying but not succeeding.
+      }
+      left_storage_slot_range_.setItem(bone_meal_slot, bone_meal.isEmpty() ? ItemStack.EMPTY : bone_meal);
+      return true;
+    }
   }
 
   //--------------------------------------------------------------------------------------------------------------------
@@ -2167,6 +2217,7 @@ public class RedAntHive
       Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.WHEAT).toArray(new Item[0]));
       Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.BUCKET).toArray(new Item[0]));
       Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.FISHING_ROD).toArray(new Item[0]));
+      Collections.addAll(command_items_with_process_bar, known_items_mapping.get(Items.BONE_MEAL).toArray(new Item[0]));
       // Command items with result visibility.
       Collections.addAll(command_items_result_visible, known_items_mapping.get(Items.CRAFTING_TABLE).toArray(new Item[0]));
       Collections.addAll(command_items_result_visible, known_items_mapping.get(Items.FURNACE).toArray(new Item[0]));
