@@ -877,7 +877,7 @@ public class RedAntHive
             right_storage_slot_range_.getItem(slot).shrink(n_inserted);
           }
           if(right_storage_slot_range_.isEmpty() || (n_inserted<=0)) {
-            if(!(ih.owner() instanceof BlockEntity)) {
+            if((!ih.isStorageEmpty()) && (!(ih.owner() instanceof BlockEntity))) {
               // SimpleContainer entity eg minecart.
               boolean notify = output_side_redstone_pulse_time_left_<= 0;
               output_side_redstone_pulse_time_left_ = 15;
@@ -1347,6 +1347,13 @@ public class RedAntHive
         AABB aabb = new AABB(getBlockPos().relative(input_facing));
         snipped = ToolActions.Shearing.shearEntities(getLevel(), aabb, 1);
       }
+      if(!snipped) {
+        final ItemStack stack = ToolActions.Beekeeping.harvest(getLevel(), getBlockPos().relative(input_facing), false);
+        if(!stack.isEmpty()) {
+          snipped = true;
+          right_storage_slot_range_.insert(stack);
+        }
+      }
       if(snipped) {
         progress_ = 0;
         max_progress_ = 120;
@@ -1770,6 +1777,7 @@ public class RedAntHive
         final BlockPos target_pos = getBlockPos().relative(getBlockState().getValue(RedAntHiveBlock.FACING).getOpposite());
         final BlockState bs = getLevel().getBlockState(target_pos);
         final FluidState fs = bs.getFluidState();
+        boolean no_fluid_container = false;
         ItemStack result_stack = ItemStack.EMPTY;
         ItemStack source_stack = ItemStack.EMPTY;
         {
@@ -1784,25 +1792,38 @@ public class RedAntHive
               PotionUtils.setPotion(result_stack, Potions.WATER);
               source_stack = new ItemStack(Items.GLASS_BOTTLE, 1);
               getLevel().setBlock(target_pos, Blocks.AIR.defaultBlockState(), 1|2);
+            } else {
+              no_fluid_container = true;
             }
           } else if(bs.is(Blocks.LAVA) && fs.isSource()) {
             if(left_storage_slot_range_.contains(new ItemStack(Items.BUCKET, 1))) {
               result_stack = new ItemStack(Items.LAVA_BUCKET, 1);
               source_stack = new ItemStack(Items.BUCKET, 1);
               getLevel().setBlock(target_pos, Blocks.AIR.defaultBlockState(), 1|2);
+            } else {
+              no_fluid_container = true;
+            }
+          } else if(bs.is(Blocks.BEEHIVE) || bs.is(Blocks.BEE_NEST)) {
+            if(left_storage_slot_range_.contains(new ItemStack(Items.GLASS_BOTTLE, 1))) {
+              final ItemStack honey_bottle = ToolActions.Beekeeping.harvest(getLevel(), target_pos, true);
+              if(!honey_bottle.isEmpty()) {
+                result_stack = new ItemStack(Items.HONEY_BOTTLE);
+                source_stack = new ItemStack(Items.GLASS_BOTTLE, 1);
+              }
+            } else {
+              no_fluid_container = true;
             }
           }
         }
+        state_flags_.noingr(no_fluid_container);
         if(!result_stack.isEmpty()) {
           setResultSlot(result_stack);
           left_storage_slot_range_.extract(source_stack);
           cache_slot_range_.setItem(0, source_stack);
           progress_ = 0;
           max_progress_ = collection_time;
-          state_flags_.noingr(false);
           return true;
         } else {
-          state_flags_.noingr(true);
           return itemPassThroughBucketFluidCollection();
         }
       }

@@ -4,6 +4,10 @@
 ----
 ## Version history
 
+    - v1.5.22     [M] Minecart loading does not send off empty Minecarts.
+                  [A] Added bee hive honey collection (Bucket in command slot).
+                  [A] Added bee hive comb collection (Shears in command slot).
+
     - v1.5.21     [M] Covered Ant Trail texture edited.
                   [A] Ant Trail can be placed on Leaves.
                   [A] Bone Meal fertilizing added (crops, saplings).

@@ -172,7 +172,7 @@ public class ToolActions
           } else {
             return Optional.of(Collections.singletonList(new ItemStack(Blocks.SUGAR_CANE.asItem(), n_harvested)));
           }
-        } else if(isPlantable(block)) {
+        } else if(isPlantable(block) || (block instanceof BushBlock)) {
           // Plantable blocks with age @todo: Note to self, this one is expensive, check the property bla can be circumvented.
           final Property<?> ager = state.getProperties().stream().filter(p -> p.getName().equals("age")).findFirst().orElse(null);
           if(ager instanceof IntegerProperty age) {
@@ -341,4 +341,16 @@ public class ToolActions
     }
   }
 
+  public static class Beekeeping
+  {
+    public static ItemStack harvest(Level world, BlockPos pos, boolean honey_not_comb)
+    {
+      final BlockState state = world.getBlockState(pos);
+      if(!(state.getBlock() instanceof BeehiveBlock beehive)) return ItemStack.EMPTY;
+      final int honey = state.getValue(BeehiveBlock.HONEY_LEVEL);
+      if(honey <= 0) return ItemStack.EMPTY;
+      world.setBlock(pos, state.setValue(BeehiveBlock.HONEY_LEVEL, honey-1), 1|2);
+      return new ItemStack(honey_not_comb ? Items.HONEY_BOTTLE : Items.HONEYCOMB);
+    }
+  }
 }
