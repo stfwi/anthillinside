@@ -10,6 +10,7 @@ import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -80,7 +81,7 @@ public class QueensLair {
     {
       if(world.isClientSide()) return InteractionResult.SUCCESS;
       final ItemStack red_sugar = player.getItemInHand(hand);
-      if(red_sugar.is(ModContent.RED_SUGAR_ITEM) && state.getValue(HEALTH) < MAX_HEALTH) {
+      if(red_sugar.is(ModContent.references.RED_SUGAR_ITEM) && state.getValue(HEALTH) < MAX_HEALTH) {
         if(!player.isCreative()) red_sugar.shrink(1);
         if(red_sugar.isEmpty()) player.setItemInHand(hand, ItemStack.EMPTY);
         if(world.getRandom().nextInt(0, 100) < QueensLair.use_health_restore_probability_percent) {
@@ -91,7 +92,7 @@ public class QueensLair {
           Auxiliaries.particles(world, pos, ParticleTypes.SMOKE);
         }
       }
-      Overlay.show(player, Auxiliaries.localizable("block." + Auxiliaries.modid() + ".queens_lair.health" + state.getValue(HEALTH)));
+      Overlay.show((ServerPlayer)player, Auxiliaries.localizable("block." + Auxiliaries.modid() + ".queens_lair.health" + state.getValue(HEALTH)));
       return InteractionResult.CONSUME;
     }
 
@@ -116,7 +117,7 @@ public class QueensLair {
         final int growth_chance = QueensLair.rndtick_growth_probability_percent * health / MAX_HEALTH;
         if(rand.nextInt(0, 100) < growth_chance) {
           if(growth >= MAX_GROWTH) {
-            world.setBlock(pos, ModContent.HIVE_BLOCK.defaultBlockState(), 11);
+            world.setBlock(pos, ModContent.references.HIVE_BLOCK.defaultBlockState(), 11);
             world.playSound(null, pos, SoundEvents.ARMOR_EQUIP_GENERIC, SoundSource.BLOCKS, 1.0F, 1.1F);
             Auxiliaries.particles(world, Vec3.atCenterOf(pos), ParticleTypes.INSTANT_EFFECT, 10);
           } else {

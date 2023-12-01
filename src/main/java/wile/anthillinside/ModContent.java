@@ -19,6 +19,7 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.registries.ObjectHolder;
 import org.slf4j.Logger;
 import wile.anthillinside.blocks.QueensLair;
+import wile.anthillinside.blocks.RedAntCoveredTrail;
 import wile.anthillinside.blocks.RedAntHive;
 import wile.anthillinside.blocks.RedAntTrail;
 import wile.anthillinside.items.AntsItem;
@@ -67,6 +68,14 @@ public class ModContent
       ),
       Registries.WITHOUT_ITEM
     );
+    Registries.addBlock("covered_trail",
+      ()->new RedAntCoveredTrail.RedAntCoveredTrailBlock(
+        StandardBlocks.CFG_CUTOUT|StandardBlocks.CFG_FACING_PLACEMENT,
+        BlockBehaviour.Properties.of().strength(0.1f, 3f).sound(SoundType.WOOD).noCollission().isValidSpawn((s,w,p,e)->false),
+        new AABB[]{ Auxiliaries.getPixeledAABB(0,0,0,16,16, 16) }
+      ),
+      RedAntCoveredTrail.RedAntCoveredTrailTileEntity::new
+    );
     Registries.addBlock("queens_lair",
       ()->new QueensLair.QueensLairBlock(
         StandardBlocks.CFG_CUTOUT,
@@ -86,17 +95,23 @@ public class ModContent
   // Holders for performance critical reference accesses.
   //--------------------------------------------------------------------------------------------------------------------
 
-  @ObjectHolder(registryName="item", value="anthillinside:ants")
-  public static final AntsItem ANTS_ITEM = null;
+  public static final class references
+  {
+    @ObjectHolder(registryName="block", value="anthillinside:covered_trail")
+    public static RedAntCoveredTrail.RedAntCoveredTrailBlock COVERED_TRAIL_BLOCK = null;
 
-  @ObjectHolder(registryName="item", value="anthillinside:red_sugar")
-  public static final RedSugarItem RED_SUGAR_ITEM = null;
+    @ObjectHolder(registryName="item", value="anthillinside:ants")
+    public static final AntsItem ANTS_ITEM = null;
 
-  @ObjectHolder(registryName="block", value="anthillinside:hive")
-  public static final RedAntHive.RedAntHiveBlock HIVE_BLOCK = null;
+    @ObjectHolder(registryName="item", value="anthillinside:red_sugar")
+    public static final RedSugarItem RED_SUGAR_ITEM = null;
 
-  @ObjectHolder(registryName="block", value="anthillinside:trail")
-  public static final RedAntTrail.RedAntTrailBlock TRAIL_BLOCK = null;
+    @ObjectHolder(registryName="block", value="anthillinside:hive")
+    public static final RedAntHive.RedAntHiveBlock HIVE_BLOCK = null;
+
+    @ObjectHolder(registryName="block", value="anthillinside:trail")
+    public static final RedAntTrail.RedAntTrailBlock TRAIL_BLOCK = null;
+  }
 
   //--------------------------------------------------------------------------------------------------------------------
   // Initialisation events

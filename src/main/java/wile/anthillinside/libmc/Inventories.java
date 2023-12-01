@@ -119,7 +119,7 @@ public class Inventories
   }
 
   public static boolean areItemStacksIdentical(ItemStack a, ItemStack b)
-  { return (a.getItem()==b.getItem()) && ItemStack.isSameItemSameTags(a, b); }
+  { return (a.isEmpty() && b.isEmpty()) || ((a.getItem()==b.getItem()) && ItemStack.isSameItemSameTags(a, b)); }
 
   public static boolean areItemStacksDifferent(ItemStack a, ItemStack b)
   { return (a.getItem()!=b.getItem()) || (!ItemStack.isSameItemSameTags(a, b)); }

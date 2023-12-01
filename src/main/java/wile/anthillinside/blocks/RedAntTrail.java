@@ -11,6 +11,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -100,7 +101,7 @@ public class RedAntTrail
 
     @Override
     public Item asItem()
-    { return ModContent.ANTS_ITEM; }
+    { return ModContent.references.ANTS_ITEM; }
 
     @Override
     public List<ItemStack> dropList(BlockState state, Level world, final BlockEntity te, boolean explosion)
@@ -116,7 +117,7 @@ public class RedAntTrail
     {
       BlockState state = super.getStateForPlacement(context);
       if(state == null) return null;
-      if((!state.getValue(UP)) && (context.getClickedFace().getAxis().isVertical()) && (!Block.canSupportRigidBlock(context.getLevel(), context.getClickedPos().below()))) return null;
+      if((!state.getValue(UP)) && (context.getClickedFace().getAxis().isVertical()) && (!canSurvive(state, context.getLevel(), context.getClickedPos()))) return null;
       return updatedState(state.setValue(DROP, false), context.getLevel(), context.getClickedPos());
     }
 
@@ -152,7 +153,7 @@ public class RedAntTrail
     {
       if(state.getValue(DROP)) return true;
       final BlockState state_below = world.getBlockState(pos.below());
-      if(state_below.isFaceSturdy(world, pos.below(), Direction.UP, SupportType.RIGID)) return true;
+      if(state_below.is(BlockTags.LEAVES) || state_below.isFaceSturdy(world, pos.below(), Direction.UP, SupportType.RIGID)) return true;
       final Direction facing = state.getValue(HORIZONTAL_FACING);
       return state.getValue(UP)
         ? Block.isFaceFull(world.getBlockState(pos.relative(facing)).getShape(world, pos.relative(facing)), facing.getOpposite())
@@ -264,7 +265,7 @@ public class RedAntTrail
     public void moveEntity(BlockState state, Level world, BlockPos pos, Entity any_entity)
     {
       if((!any_entity.isAlive()) || (!(any_entity instanceof final ItemEntity entity))) return;
-      if(entity.getItem().isEmpty() || entity.getItem().getItem() == ModContent.ANTS_ITEM) return;
+      if(entity.getItem().isEmpty() || entity.getItem().getItem() == ModContent.references.ANTS_ITEM) return;
       final boolean up = state.getValue(UP);
       if(!up && !entity.onGround()) return;
       final Direction block_facing = state.getValue(HORIZONTAL_FACING);
@@ -381,7 +382,7 @@ public class RedAntTrail
 
     public void itchEntity(BlockState state, Level world, BlockPos pos, Entity entity)
     {
-      if((world.getRandom().nextDouble() > 8e-3) || (!entity.isAlive()) || (!entity.onGround())
+      if((world.getRandom().nextDouble() > 4e-3) || (!entity.isAlive()) || (!entity.onGround())
          || (world.isClientSide()) || (entity.isShiftKeyDown()) || (!entity.canChangeDimensions()) || (entity.isInWaterOrRain()) || (entity.hasImpulse)
          || (!(entity instanceof LivingEntity))
       ) {
@@ -390,7 +391,7 @@ public class RedAntTrail
       if(entity instanceof Monster) {
         entity.hurt(entity.damageSources().cactus(), 2f);
       } else if(entity instanceof Player) {
-        if(world.getRandom().nextDouble() > 5e-2) return;
+        if(world.getRandom().nextDouble() > 8e-2) return;
         entity.hurt(entity.damageSources().cactus(), 0.1f);
       } else {
         entity.hurt(entity.damageSources().cactus(), 0.0f);

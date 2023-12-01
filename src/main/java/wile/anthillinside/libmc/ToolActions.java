@@ -15,6 +15,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Shearable;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -25,7 +26,10 @@ import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.block.state.properties.Property;
+import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -33,6 +37,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.Supplier;
+
 
 @SuppressWarnings("deprecation")
 public class ToolActions
@@ -68,8 +73,8 @@ public class ToolActions
       final Block block = state.getBlock();
       // replace with tag?
       if((!state.is(BlockTags.LEAVES)) && (block != Blocks.COBWEB) && (block != Blocks.GRASS) & (block != Blocks.TALL_GRASS)
-              && (block != Blocks.FERN) && (block != Blocks.DEAD_BUSH) && (block != Blocks.VINE) && (block != Blocks.TRIPWIRE)
-              && (!state.is(BlockTags.WOOL))
+        && (block != Blocks.FERN) && (block != Blocks.DEAD_BUSH) && (block != Blocks.VINE) && (block != Blocks.TRIPWIRE)
+        && (!state.is(BlockTags.WOOL))
       ) return false;
       ItemEntity ie = new ItemEntity(world, pos.getX()+.5, pos.getY()+.5, pos.getZ()+.5, new ItemStack(block.asItem()));
       ie.setDefaultPickUpDelay();
@@ -84,12 +89,11 @@ public class ToolActions
 
   public static class Farming
   {
+    public static boolean isPlantable(Item item)
+    { return isPlantable(Block.byItem(item)); }
+
     public static boolean isPlantable(Block block)
-    {
-      // @todo: That was: (block instanceof IPlantable) && (!(block instanceof StemBlock)),
-      // Also check MushroomBlock?
-      return (block instanceof CropBlock) || (block instanceof SaplingBlock);
-    }
+    { return (block instanceof CropBlock); } // @todo: That was: (block instanceof IPlantable) && (!(block instanceof StemBlock)),
 
     public static Optional<List<ItemStack>> harvestCrop(ServerLevel world, BlockPos pos, boolean try_replant, ItemStack bone_meal)
     {
@@ -101,12 +105,12 @@ public class ToolActions
         return Optional.of(Collections.emptyList());
       } else {
         final List<ItemStack> drops = state.getDrops(
-                (new LootParams.Builder(world))
-                        .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(pos))
-                        .withParameter(LootContextParams.BLOCK_STATE, state)
-                        .withOptionalParameter(LootContextParams.BLOCK_ENTITY, world.getBlockEntity(pos))
-                        .withOptionalParameter(LootContextParams.THIS_ENTITY, null)
-                        .withParameter(LootContextParams.TOOL, ItemStack.EMPTY)
+          (new LootParams.Builder(world))
+            .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(pos))
+            .withParameter(LootContextParams.BLOCK_STATE, state)
+            .withOptionalParameter(LootContextParams.BLOCK_ENTITY, world.getBlockEntity(pos))
+            .withOptionalParameter(LootContextParams.THIS_ENTITY, null)
+            .withParameter(LootContextParams.TOOL, ItemStack.EMPTY)
         );
         world.destroyBlock(pos, false);
         if(try_replant) {
@@ -137,12 +141,12 @@ public class ToolActions
         if(state.isAir()) return Optional.empty();
         final Block block = state.getBlock();
         final Supplier<List<ItemStack>> dropgen = ()->state.getDrops(
-                (new LootParams.Builder(world))
-                        .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(pos))
-                        .withParameter(LootContextParams.BLOCK_STATE, state)
-                        .withOptionalParameter(LootContextParams.BLOCK_ENTITY, world.getBlockEntity(pos))
-                        .withOptionalParameter(LootContextParams.THIS_ENTITY, null)
-                        .withParameter(LootContextParams.TOOL, ItemStack.EMPTY)
+          (new LootParams.Builder(world))
+            .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(pos))
+            .withParameter(LootContextParams.BLOCK_STATE, state)
+            .withOptionalParameter(LootContextParams.BLOCK_ENTITY, world.getBlockEntity(pos))
+            .withOptionalParameter(LootContextParams.THIS_ENTITY, null)
+            .withParameter(LootContextParams.TOOL, ItemStack.EMPTY)
         );
         if(block instanceof StemGrownBlock) {
           // Pumpkin/Melon
@@ -169,7 +173,7 @@ public class ToolActions
           } else {
             return Optional.of(Collections.singletonList(new ItemStack(Blocks.SUGAR_CANE.asItem(), n_harvested)));
           }
-        } else if(isPlantable(block)) {
+        } else if(isPlantable(block) || (block instanceof BushBlock)) {
           // Plantable blocks with age @todo: Note to self, this one is expensive, check the property bla can be circumvented.
           final Property<?> ager = state.getProperties().stream().filter(p -> p.getName().equals("age")).findFirst().orElse(null);
           if(ager instanceof IntegerProperty age) {
@@ -206,25 +210,34 @@ public class ToolActions
     {
       if(bone_meal.isEmpty() || (!bone_meal.is(Items.BONE_MEAL))) return false;
       final BlockState state = world.getBlockState(pos);
+      if(!state.is(BlockTags.CROPS) && !state.is(BlockTags.SAPLINGS) && !state.is(BlockTags.FLOWERS) && !state.is(BlockTags.SMALL_FLOWERS)) return false;
       if(!(state.getBlock() instanceof BonemealableBlock block)) return false;
-      if(!block.isValidBonemealTarget(world, pos, state, false)) return false;
+      if(!block.isValidBonemealTarget(world, pos, state, world.isClientSide())) return false;
       if((!always_succeed) && (!block.isBonemealSuccess(world, world.getRandom(), pos, state))) return false;
       block.performBonemeal(world, world.getRandom(), pos, state);
       if(!no_particles) Auxiliaries.particles(world, pos, ParticleTypes.HAPPY_VILLAGER);
       return true;
     }
+
+    public static boolean isFertilizableNonFoliage(Level world, BlockPos pos)
+    {
+      final BlockState state = world.getBlockState(pos);
+      if(!state.is(BlockTags.CROPS) && !state.is(BlockTags.SAPLINGS) && !state.is(BlockTags.FLOWERS) && !state.is(BlockTags.SMALL_FLOWERS)) return false;
+      if(!(state.getBlock() instanceof BonemealableBlock block)) return false;
+      return block.isValidBonemealTarget(world, pos, state, world.isClientSide());
+    }
+
   }
 
   public static class BlockBreaking
   {
-    @SuppressWarnings("deprecation")
     public static boolean isBreakable(BlockState state, BlockPos pos, Level world)
     {
       if((state.isAir()) || state.liquid()) return false;
       final Block block = state.getBlock();
       if( // Manual never-break-whatever-functions-return-blocks.
-              (block==Blocks.BEDROCK) || (block==Blocks.FIRE) || (block==Blocks.END_PORTAL) || (block==Blocks.END_GATEWAY)
-                      || (block==Blocks.END_PORTAL_FRAME) || (block==Blocks.NETHER_PORTAL) || (block==Blocks.BARRIER) || (block==Blocks.AIR)
+        (block==Blocks.BEDROCK) || (block==Blocks.FIRE) || (block==Blocks.END_PORTAL) || (block==Blocks.END_GATEWAY)
+          || (block==Blocks.END_PORTAL_FRAME) || (block==Blocks.NETHER_PORTAL) || (block==Blocks.BARRIER) || (block==Blocks.AIR)
       ) return false;
       float bh = state.getDestroySpeed(world, pos);
       return !((bh<0) || (bh>55));
@@ -233,10 +246,10 @@ public class ToolActions
     public static void dropOnGround(ItemStack stack, BlockPos pos, Level world)
     {
       ItemEntity e = new ItemEntity(world,
-              ((world.random.nextFloat()*0.1)+0.5) + pos.getX(),
-              ((world.random.nextFloat()*0.1)+0.5) + pos.getY(),
-              ((world.random.nextFloat()*0.1)+0.5) + pos.getZ(),
-              stack
+        ((world.random.nextFloat()*0.1)+0.5) + pos.getX(),
+        ((world.random.nextFloat()*0.1)+0.5) + pos.getY(),
+        ((world.random.nextFloat()*0.1)+0.5) + pos.getZ(),
+        stack
       );
       e.setDefaultPickUpDelay();
       e.setDeltaMovement((world.random.nextFloat()*0.1-0.05), (world.random.nextFloat()*0.1-0.03), (world.random.nextFloat()*0.1-0.05));
@@ -273,6 +286,71 @@ public class ToolActions
       final float destroy_time = state.getDestroySpeed(world, pos) * 20;
       if(destroy_time <= 0) return minTime;
       return Mth.clamp((int)(destroy_time * reluctance/speedup), minTime, maxTime);
+    }
+  }
+
+  public static class BlockPlacing
+  {
+    public enum PlacementResult {
+      SUCCESS,
+      FAILED,
+      INVALID_ITEM,
+      INVALID_LOCATION,
+      LOCATION_BLOCKED
+    }
+
+    public static boolean isPlaceable(Item item)
+    { return item instanceof BlockItem; }
+
+    public static boolean isPlantable(Item item)
+    { return (Block.byItem(item) instanceof BushBlock); }
+
+    public static PlacementResult place(Level world, BlockPos pos, ItemStack stack)
+    { return place(world, pos, stack, false); }
+
+    public static PlacementResult place(Level world, BlockPos pos, ItemStack stack, boolean simulate)
+    {
+      if(world.isClientSide()) return PlacementResult.FAILED;
+      if(!(stack.getItem() instanceof BlockItem item)) return PlacementResult.INVALID_ITEM;
+      if(!world.getBlockState(pos).canBeReplaced()) return PlacementResult.LOCATION_BLOCKED;
+      final Block bush = Block.byItem(item);
+      final BlockState bush_state = bush.defaultBlockState();
+      if(!bush_state.canSurvive(world, pos)) return PlacementResult.INVALID_LOCATION;
+      final var blocking_entities = world.getEntitiesOfClass(Entity.class, new AABB(pos), (e)->(!(e instanceof ItemEntity)));
+      if(!blocking_entities.isEmpty()) return PlacementResult.LOCATION_BLOCKED;
+      if(simulate) return PlacementResult.SUCCESS;
+      if(!world.setBlock(pos, bush_state, 1|2|512)) return PlacementResult.FAILED;
+      final SoundType sound = bush_state.getSoundType();
+      world.playSound(null, pos, sound.getPlaceSound(), SoundSource.BLOCKS, (sound.getVolume()+1f)/2f, sound.getPitch() * 0.8f);
+      return PlacementResult.SUCCESS;
+    }
+
+  }
+
+  public static class Fishing
+  {
+    public static List<ItemStack> fish(ServerLevel world, BlockPos pos,  @Nullable ItemStack rod)
+    {
+      if(rod==null) rod = new ItemStack(Items.FISHING_ROD);
+      // .withParameter(LootContextParams.THIS_ENTITY, this).withLuck((float)this.luck + player.getLuck())
+      final LootParams params = new LootParams.Builder(world).withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(pos)).withParameter(LootContextParams.TOOL, rod).create(LootContextParamSets.FISHING);
+      final LootTable table = world.getServer().getLootData().getLootTable(BuiltInLootTables.FISHING);
+      var list = table.getRandomItems(params);
+      if(list==null) return Collections.emptyList();
+      return list;
+    }
+  }
+
+  public static class Beekeeping
+  {
+    public static ItemStack harvest(Level world, BlockPos pos, boolean honey_not_comb)
+    {
+      final BlockState state = world.getBlockState(pos);
+      if(!(state.getBlock() instanceof BeehiveBlock beehive)) return ItemStack.EMPTY;
+      final int honey = state.getValue(BeehiveBlock.HONEY_LEVEL);
+      if(honey <= 0) return ItemStack.EMPTY;
+      world.setBlock(pos, state.setValue(BeehiveBlock.HONEY_LEVEL, honey-1), 1|2);
+      return new ItemStack(honey_not_comb ? Items.HONEY_BOTTLE : Items.HONEYCOMB);
     }
   }
 }

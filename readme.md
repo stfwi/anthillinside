@@ -4,6 +4,22 @@
 ----
 ## Version history
 
+    - v1.4.22     [F] Fixed disenchanting of Enchanted Books.
+                  [F] Fixed unintended Brewing potion pass-through.
+                  [A] Ant Trail can be placed on Leaves.
+                  [A] Bone Meal fertilizing added (crops, saplings).
+                  [A] Tree chopping also breaks bee nests.
+                  [A] Tree chopping: Chopped items get slowly transported (thrown) towards the Ant Hive.
+                  [A] Hive emits particles after finishing recipe based processes.
+                  [A] Hive Fishing added (command slot Fishing Rod).
+                  [A] Covered Ant Trail added (Wood log like item pipe).
+                  [A] Added block placing and sapling planting (Dispenser in command slot).
+                  [A] Added Fluid collection (water/lava to buckets/bottles, Bucket in command slot).
+                  [A] Added bee hive honey collection (Bucket in command slot).
+                  [A] Added bee hive comb collection (Shears in command slot).
+                  [M] Minecart loading does not send off empty Minecarts.
+                  [M] Covered Ant Trail texture edited.
+
     - v1.4.18     [F] Fixed Minecart loading/unloading start on empty input/output.
                   [A] Added crop fertilizing particle effects.
                   [I] Note: Version v1.4.17 skipped (code base comapt with fabric releases).

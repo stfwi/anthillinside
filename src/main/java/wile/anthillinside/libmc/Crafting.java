@@ -44,13 +44,10 @@ public class Crafting
     private static final CraftingGrid instance3x3 = new CraftingGrid(3,3);
 
     private CraftingGrid(int width, int height)
-    { super(
-            new AbstractContainerMenu(null,0) {
-              public boolean stillValid(Player player) { return false; }
-              public ItemStack quickMoveStack(Player player, int slot) {return ItemStack.EMPTY; }
-            }
-            , width, height
-    );
+    { super(new AbstractContainerMenu(null,0) {
+        public boolean stillValid(Player player) { return false; }
+        public ItemStack quickMoveStack(Player player, int slot) {return ItemStack.EMPTY; }
+      }, width, height);
     }
 
     private void fill(Container grid)
