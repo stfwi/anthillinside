@@ -2,7 +2,6 @@
   "schemaVersion": 1,
   "id": "anthillinside",
   "version": "${version}",
-
   "name": "Anthill Inside",
   "description": "Adds 'natural' automation with Redstone Ants. Pratchett Readers know the term.",
   "authors": [ "wilechaote" ],
@@ -27,7 +26,7 @@
   "depends": {
     "fabricloader": ">=0.14.6",
     "fabric": "*",
-    "minecraft": "~1.20.1",
+    "minecraft": ">=1.20.3",
     "java": ">=17"
   },
   "suggests": {

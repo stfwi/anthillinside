@@ -4,6 +4,8 @@
 ----
 ## Version history
 
+    - v1.6.22     [U] Updated to mc1.20.3 fabric.
+
     - v1.5.22     [M] Minecart loading does not send off empty Minecarts.
                   [A] Added bee hive honey collection (Bucket in command slot).
                   [A] Added bee hive comb collection (Shears in command slot).

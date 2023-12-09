@@ -71,7 +71,7 @@ public class ToolActions
       final BlockState state = world.getBlockState(pos);
       final Block block = state.getBlock();
       // replace with tag?
-      if((!state.is(BlockTags.LEAVES)) && (block != Blocks.COBWEB) && (block != Blocks.GRASS) & (block != Blocks.TALL_GRASS)
+      if((!state.is(BlockTags.LEAVES)) && (block != Blocks.COBWEB) && (block != Blocks.SHORT_GRASS) & (block != Blocks.TALL_GRASS)
         && (block != Blocks.FERN) && (block != Blocks.DEAD_BUSH) && (block != Blocks.VINE) && (block != Blocks.TRIPWIRE)
         && (!state.is(BlockTags.WOOL))
       ) return false;
@@ -147,7 +147,7 @@ public class ToolActions
             .withOptionalParameter(LootContextParams.THIS_ENTITY, null)
             .withParameter(LootContextParams.TOOL, ItemStack.EMPTY)
         );
-        if(block instanceof StemGrownBlock) {
+        if(state.is(Blocks.MELON) || state.is(Blocks.PUMPKIN)) { // @todo currently no Block tag or class found to generalize that
           // Pumpkin/Melon
           final List<ItemStack> drops = dropgen.get();
           if(!drops.isEmpty()) {
