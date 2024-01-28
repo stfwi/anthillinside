@@ -71,7 +71,7 @@ public class ToolActions
       final BlockState state = world.getBlockState(pos);
       final Block block = state.getBlock();
       // replace with tag?
-      if((!state.is(BlockTags.LEAVES)) && (block != Blocks.COBWEB) && (block != Blocks.SHORT_GRASS) & (block != Blocks.TALL_GRASS)
+      if((!state.is(BlockTags.LEAVES)) && (block != Blocks.COBWEB) && (block != Blocks.GRASS) & (block != Blocks.TALL_GRASS)
         && (block != Blocks.FERN) && (block != Blocks.DEAD_BUSH) && (block != Blocks.VINE) && (block != Blocks.TRIPWIRE)
         && (!state.is(BlockTags.WOOL))
       ) return false;
@@ -211,7 +211,7 @@ public class ToolActions
       final BlockState state = world.getBlockState(pos);
       if(!state.is(BlockTags.CROPS) && !state.is(BlockTags.SAPLINGS) && !state.is(BlockTags.FLOWERS) && !state.is(BlockTags.SMALL_FLOWERS)) return false;
       if(!(state.getBlock() instanceof BonemealableBlock block)) return false;
-      if(!block.isValidBonemealTarget(world, pos, state)) return false;
+      if(!block.isValidBonemealTarget(world, pos, state, world.isClientSide())) return false;
       if((!always_succeed) && (!block.isBonemealSuccess(world, world.getRandom(), pos, state))) return false;
       block.performBonemeal(world, world.getRandom(), pos, state);
       if(!no_particles) Auxiliaries.particles(world, pos, ParticleTypes.HAPPY_VILLAGER);
@@ -223,7 +223,7 @@ public class ToolActions
       final BlockState state = world.getBlockState(pos);
       if(!state.is(BlockTags.CROPS) && !state.is(BlockTags.SAPLINGS) && !state.is(BlockTags.FLOWERS) && !state.is(BlockTags.SMALL_FLOWERS)) return false;
       if(!(state.getBlock() instanceof BonemealableBlock block)) return false;
-      return block.isValidBonemealTarget(world, pos, state);
+      return block.isValidBonemealTarget(world, pos, state, world.isClientSide());
     }
 
   }

@@ -4,38 +4,25 @@
 ----
 ## Version history
 
-    - v1.7.22     [U] Updated to mc1.20.4 fabric.
-
-    - v1.6.22     [U] Updated to mc1.20.3 fabric.
-
-    - v1.5.22     [M] Minecart loading does not send off empty Minecarts.
+    - v1.4.22     [U] Back-ported v1.20.4-1.7.22 to mc1.20.1.
+                  [M] Minecart loading does not send off empty Minecarts.
                   [A] Added bee hive honey collection (Bucket in command slot).
                   [A] Added bee hive comb collection (Shears in command slot).
-
-    - v1.5.21     [M] Covered Ant Trail texture edited.
+                  [M] Covered Ant Trail texture edited.
                   [A] Ant Trail can be placed on Leaves.
                   [A] Bone Meal fertilizing added (crops, saplings).
                   [A] Tree chopping also breaks bee nests.
-                  [A] Tree chopping: Chopped items get slowly
-                      transported (thrown) towards the Ant Hive.
-
-    - v1.5.20     [A] Hive emits particles after finishing recipe based processes.
+                  [A] Tree chopping: Chopped items get slowly transported (thrown) towards the Ant Hive.
+                  [A] Hive emits particles after finishing recipe based processes.
                   [A] Hive Fishing added (command slot Fishing Rod).
                   [A] Covered Ant Trail added (Wood log like item pipe).
-
-    - v1.5.19     [A] Added block placing and sapling planting (Dispenser in
-                      command slot).
-                  [A] Added Fluid collection (water/lava to buckets/bottles.
-                      Bucket in command slot).
-
-    - v1.5.18     [F] Fixed disenchanting of Enchanted Books.
+                  [A] Added block placing and sapling planting (Dispenser in command slot).
+                  [A] Added Fluid collection (water/lava to buckets/bottles. Bucket in command slot).
+                  [F] Fixed disenchanting of Enchanted Books.
                   [F] Fixed Hive-to-Trail insertion direction (Hopper).
                   [F] Fixed Minecart loading/unloading start on empty input/output.
                   [F] Fixed unintended Brewing potion pass-through.
                   [A] Added crop fertilizing particle effects.
-
-    - v1.5.17     [U] Initial Fabric port for mc1.20.2.
-                  [B] Known issue: Config not implemented yet.
 
     - v1.4.16     [U] Initial Fabric port for mc1.20.1.
                   [B] Known issue: Config not implemented yet.

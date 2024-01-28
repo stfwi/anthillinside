@@ -58,11 +58,7 @@ public class Crafting
     { for(int i=0; i<getContainerSize(); ++i) setItem(i, i>=grid.getContainerSize() ? ItemStack.EMPTY : grid.getItem(i)); }
 
     public List<CraftingRecipe> getRecipes(Level world, Container grid)
-    {
-      fill(grid);
-      List<RecipeHolder<CraftingRecipe>> rh = world.getRecipeManager().getRecipesFor(RecipeType.CRAFTING, this, world);
-      return rh.stream().map(RecipeHolder::value).collect(Collectors.toList());
-    }
+    { fill(grid); return world.getRecipeManager().getRecipesFor(RecipeType.CRAFTING, this, world); }
 
     public List<ItemStack> getRemainingItems(Level world, Container grid, CraftingRecipe recipe)
     { fill(grid); return recipe.getRemainingItems(this); }
@@ -75,19 +71,14 @@ public class Crafting
    * Returns the registry name of a recipe.
    */
   public static Optional<ResourceLocation> getRecipeId(Level world, Recipe<?> recipe)
-  {
-    for(var rh: world.getRecipeManager().getRecipes()) {
-      if(rh.value() == recipe) return Optional.of(rh.id());
-    }
-    return Optional.empty();
-  }
+  { return Optional.of(recipe.getId()); }
 
   /**
    * Returns a Crafting recipe by registry name.
    */
   public static Optional<CraftingRecipe> getCraftingRecipe(Level world, ResourceLocation recipe_id)
   {
-    Recipe<?> recipe = world.getRecipeManager().byKey(recipe_id).map(RecipeHolder::value).orElse(null);
+    Recipe<?> recipe = world.getRecipeManager().byKey(recipe_id).orElse(null);
     return (recipe instanceof CraftingRecipe) ? Optional.of((CraftingRecipe)recipe) : Optional.empty();
   }
 
@@ -176,18 +167,18 @@ public class Crafting
     } else if(recipe_type == RecipeType.SMELTING) {
       SimpleContainer inventory = new SimpleContainer(3);
       inventory.setItem(0, input_stack);
-      RecipeHolder<SmeltingRecipe> recipe = world.getRecipeManager().getRecipeFor(RecipeType.SMELTING, inventory, world).orElse(null);
-      return (recipe==null) ? Optional.empty() : Optional.of(recipe.value());
+      SmeltingRecipe recipe = world.getRecipeManager().getRecipeFor(RecipeType.SMELTING, inventory, world).orElse(null);
+      return (recipe==null) ? Optional.empty() : Optional.of(recipe);
     } else if(recipe_type == RecipeType.BLASTING) {
       SimpleContainer inventory = new SimpleContainer(3);
       inventory.setItem(0, input_stack);
-      RecipeHolder<BlastingRecipe> recipe = world.getRecipeManager().getRecipeFor(RecipeType.BLASTING, inventory, world).orElse(null);
-      return (recipe==null) ? Optional.empty() : Optional.of(recipe.value());
+      BlastingRecipe recipe = world.getRecipeManager().getRecipeFor(RecipeType.BLASTING, inventory, world).orElse(null);
+      return (recipe==null) ? Optional.empty() : Optional.of(recipe);
     } else if(recipe_type == RecipeType.SMOKING) {
       SimpleContainer inventory = new SimpleContainer(3);
       inventory.setItem(0, input_stack);
-      RecipeHolder<SmokingRecipe> recipe = world.getRecipeManager().getRecipeFor(RecipeType.SMOKING, inventory, world).orElse(null);
-      return (recipe==null) ? Optional.empty() : Optional.of(recipe.value());
+      SmokingRecipe recipe = world.getRecipeManager().getRecipeFor(RecipeType.SMOKING, inventory, world).orElse(null);
+      return (recipe==null) ? Optional.empty() : Optional.of(recipe);
     } else {
       return Optional.empty();
     }
