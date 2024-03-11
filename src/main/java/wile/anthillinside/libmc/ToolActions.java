@@ -92,12 +92,13 @@ public class ToolActions
     { return isPlantable(Block.byItem(item)); }
 
     public static boolean isPlantable(Block block)
-    { return (block instanceof CropBlock); } // @todo: That was: (block instanceof IPlantable) && (!(block instanceof StemBlock)),
+    { return (block instanceof CropBlock) && (!(block instanceof StemBlock)); }
 
     public static Optional<List<ItemStack>> harvestCrop(ServerLevel world, BlockPos pos, boolean try_replant, ItemStack bone_meal)
     {
       final BlockState state = world.getBlockState(pos);
       final Block block = state.getBlock();
+      if(!isPlantable(block)) return Optional.empty();
       if(!(block instanceof final CropBlock crop)) return Optional.empty();
       if(!crop.isMaxAge(state)) {
         if((!bone_meal.isEmpty()) && fertilizePlant(world, pos, bone_meal, true, false)) bone_meal.shrink(1);
@@ -139,6 +140,7 @@ public class ToolActions
         final BlockState state = world.getBlockState(pos);
         if(state.isAir()) return Optional.empty();
         final Block block = state.getBlock();
+        if(block instanceof StemBlock) return Optional.empty();
         final Supplier<List<ItemStack>> dropgen = ()->state.getDrops(
           (new LootParams.Builder(world))
             .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(pos))

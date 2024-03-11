@@ -4,6 +4,8 @@
 ----
 ## Version history
 
+    - v1.7.23     [F] Fixed Hive farming melon/pumkin stem age reset (ty @gonzoo).
+
     - v1.7.22     [U] Updated to mc1.20.4 fabric.
 
     - v1.6.22     [U] Updated to mc1.20.3 fabric.
