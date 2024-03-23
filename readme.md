@@ -4,6 +4,10 @@
 ----
 ## Version history
 
+    - v1.7.24     [M] Added Hive wood styled texture.
+                  [M] Supported/Dropping Trail texture edited.
+                  [F] Fixed Brewing result transfer issue.
+
     - v1.7.23     [F] Fixed Hive farming melon/pumkin stem age reset (ty @gonzoo).
 
     - v1.7.22     [U] Updated to mc1.20.4 fabric.

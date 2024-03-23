@@ -1,0 +1,10 @@
+{
+  "parent": "anthillinside:block/hive_model",
+  "render_type": "cutout",
+  "textures": {
+		"o": "anthillinside:block/hive_texture_wood_out",
+		"i": "anthillinside:block/hive_texture_wood_in",
+    "s": "anthillinside:block/hive_texture_wood",
+		"particle": "anthillinside:block/hive_texture_wood"
+  }
+}

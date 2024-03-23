@@ -61,6 +61,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 import wile.anthillinside.ModAnthillInside;
+import wile.anthillinside.ModContent;
 import wile.anthillinside.blocks.RedAntTrail.RedAntTrailBlock;
 import wile.anthillinside.entities.TransportedItemEntity;
 import wile.anthillinside.libmc.*;
@@ -227,7 +228,7 @@ public class RedAntHive
 
   public static class RedAntHiveBlock extends StandardBlocks.DirectedWaterLoggable implements StandardEntityBlocks.IStandardEntityBlock<RedAntHiveTileEntity>
   {
-    public static final IntegerProperty VARIANT = IntegerProperty.create("variant", 0, 2);
+    public static final IntegerProperty VARIANT = IntegerProperty.create("variant", 0, 3);
 
     public RedAntHiveBlock(long config, BlockBehaviour.Properties props, AABB[] aabbs)
     {
@@ -264,13 +265,17 @@ public class RedAntHive
             if(x==0 && y==0 && z==0) continue;
             Vec3i dirv = new Vec3i(x,y,z);
             BlockPos adj_pos = placement_pos.offset(dirv);
-            final double adj_scaler = ((Math.abs(x)+Math.abs(y)+Math.abs(z))==1) ? 1.3 : 1.0;
+            final double adj_scaler = ((Math.abs(x)+Math.abs(y)+Math.abs(z))<=1.1) ? 1.3 : 1.0;
             final double weight = ((x==0)?1.7:1) * ((y==0)?1.7:1) * ((z==0)?1.7:1) * adj_scaler;
             final BlockState adj_state = world.getBlockState(adj_pos);
-            if(!adj_state.isSolidRender(world, adj_pos)) continue;
+            final VoxelShape adj_shape = adj_state.getShape(world, adj_pos);
+            final double block_volume = adj_shape.isEmpty() ? 0 : adj_shape.bounds().getSize();
+            if(block_volume < 0.75) continue;
             reference_weight += weight;
             final String name = Auxiliaries.getResourceLocation(adj_state.getBlock()).getPath();
-            if(name.contains("sand")) {
+            if(name.contains("_log") || name.contains("_wood") || name.contains("planks") || name.contains("leaves") || adj_state.is(ModContent.references.COVERED_TRAIL_BLOCK)) {
+              variant_votes[3] += weight;
+            } else if(name.contains("sand")) {
               variant_votes[2] += weight;
             } else if(name.contains("dirt") || name.contains("grass")) {
               variant_votes[1] += weight;
@@ -1514,6 +1519,10 @@ public class RedAntHive
         state_flags_.nofuel(false);
         state_flags_.noingr(false);
         return true;
+      } else if((progress_ <= 0) && (!cache_slot_range_.isEmpty())) {
+        cache_slot_range_.move(right_storage_slot_range_);
+        if(cache_slot_range_.isEmpty()) progress_ = 0;
+        return false;
       } else {
         final Inventories.InventoryRange input_slots = left_storage_slot_range_;
         Crafting.BrewingOutput brewing_output = Crafting.BrewingOutput.find(level, input_slots, input_slots);

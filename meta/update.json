@@ -1,6 +1,7 @@
 {
  "homepage": "https://github.com/stfwi/anthillinside/",
  "1.20.4": {
+  "1.7.24": "[M] Added Hive wood styled texture.\n[M] Supported/Dropping Trail texture edited.\n[F] Fixed Brewing result transfer issue.",
   "1.7.23": "[F] Fixed Hive farming melon/pumkin stem age reset (ty @gonzoo).",
   "1.7.22": "[U] Updated to mc1.20.4 fabric.",
   "1.6.22": "[U] Updated to mc1.20.3 fabric.",
@@ -38,7 +39,7 @@
   "1.0.0-b1": "[U] Initial concept implementation."
  },
  "promos": {
-  "1.20.4-recommended": "1.7.23",
-  "1.20.4-latest": "1.7.23"
+  "1.20.4-recommended": "1.7.24",
+  "1.20.4-latest": "1.7.24"
  }
 }
