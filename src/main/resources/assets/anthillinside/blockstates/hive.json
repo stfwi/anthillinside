@@ -19,6 +19,13 @@
     "facing=west,variant=2":  { "model": "anthillinside:block/hive_model_sand", "y":270 },
     "facing=east,variant=2":  { "model": "anthillinside:block/hive_model_sand", "y":90  },
     "facing=up,variant=2":    { "model": "anthillinside:block/hive_model_sand", "x":270 },
-    "facing=down,variant=2":  { "model": "anthillinside:block/hive_model_sand", "x":90  }
+    "facing=down,variant=2":  { "model": "anthillinside:block/hive_model_sand", "x":90  },
+
+    "facing=north,variant=3": { "model": "anthillinside:block/hive_model_wood"          },
+    "facing=south,variant=3": { "model": "anthillinside:block/hive_model_wood", "y":180 },
+    "facing=west,variant=3":  { "model": "anthillinside:block/hive_model_wood", "y":270 },
+    "facing=east,variant=3":  { "model": "anthillinside:block/hive_model_wood", "y":90  },
+    "facing=up,variant=3":    { "model": "anthillinside:block/hive_model_wood", "x":270 },
+    "facing=down,variant=3":  { "model": "anthillinside:block/hive_model_wood", "x":90  }
   }
 }

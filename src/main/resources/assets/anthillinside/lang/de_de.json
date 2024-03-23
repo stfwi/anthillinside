@@ -38,5 +38,6 @@
   "item.anthillinside.ants": "Rotameisen",
   "item.anthillinside.ants.help": "Eine Handvoll Rotameisen, die in Nestern arbeiten oder draußen in Form von Ameisenstraßen als Transportmittel dienen können. Rotameisen können sich eigentümlicherweise Gegenstände zuwerfen, deshalb werden Gegenstände etwas schneller befördert als die Ameisen selbst laufen. Von der Seite oder von unten legen sie Dinge auch in Kisten.\n Mit einem Redstone-Signal kannst Du Gegenstände auf eine nach rechts oder links abgehende Straße umleiten.\nWenn Du einen Rahmen direkt an (auf) einer Straße plazierst, so werden passende vorbeilaufende Objekte umgelenkt (sortiert). Zeigt der Rahmen nach unten, so werden die Objekte direkt in den Block unter der Straße (z.b. Fass) hineingelegt.\n§6Klicke mit einem Gerüst§r, dann versuchen die Ameisen den Gegenstand in einen Behälter unter ihnen einzusortieren. Mit dem Gerüst können auch eine Strecke durch Luft überbrückt werden.",
   "item.anthillinside.red_sugar": "Rotzucker",
-  "item.anthillinside.red_sugar.help": "Rotameisen lieben das Zeug. Kann sehr nützlich sein um die Arbeit und das Wachstum Rotameisen-Nestern zu beschleunigen. Lege den Zucker in die linken Slots, damit die Ameisten auf Trapp bzw. Trip kommen."
+  "item.anthillinside.red_sugar.help": "Rotameisen lieben das Zeug. Kann sehr nützlich sein um die Arbeit und das Wachstum Rotameisen-Nestern zu beschleunigen. Lege den Zucker in die linken Slots, damit die Ameisten auf Trapp bzw. Trip kommen.",
+  "anthillinside.hints.use_ladder": "Das ist jetzt mit einer Leiter statt Gerüst."
 }

@@ -46,6 +46,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 import wile.anthillinside.ModContent;
+import wile.anthillinside.libmc.Overlay;
 import wile.anthillinside.libmc.StandardBlocks;
 import wile.anthillinside.libmc.Auxiliaries;
 import wile.anthillinside.libmc.Inventories;
@@ -105,7 +106,7 @@ public class RedAntTrail
 
     @Override
     public List<ItemStack> dropList(BlockState state, Level world, final BlockEntity te, boolean explosion)
-    { return !state.getValue(DROP) ? Collections.singletonList(new ItemStack(asItem())) : List.of(new ItemStack(asItem()), new ItemStack(Items.SCAFFOLDING)); }
+    { return !state.getValue(DROP) ? Collections.singletonList(new ItemStack(asItem())) : List.of(new ItemStack(asItem()), new ItemStack(Items.LADDER)); }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder)
@@ -169,13 +170,17 @@ public class RedAntTrail
       Direction facing = rtr.getDirection().getOpposite();
       ItemStack stack = player.getItemInHand(hand);
       if(facing == Direction.DOWN && !stack.isEmpty() && stack.is(Items.SCAFFOLDING)) {
+        if(world.isClientSide()) return InteractionResult.SUCCESS;
+        Overlay.TextOverlayGui.show(Auxiliaries.localizable("hints.use_ladder"), 1000);
+        return InteractionResult.CONSUME;
+      } else if(facing == Direction.DOWN && !stack.isEmpty() && stack.is(Items.LADDER)) {
         if(world.isClientSide()) {
           return InteractionResult.SUCCESS;
         } else {
           if(state.getValue(DROP)) {
             world.setBlock(pos, state.setValue(DROP, false), 10);
             world.playSound(null, player.getX(), player.getY() + 0.5, player.getZ(), SoundEvents.PAINTING_PLACE, SoundSource.PLAYERS, 0.2f, 1.0f);
-            Inventories.give(player, new ItemStack(Items.SCAFFOLDING, 1));
+            Inventories.give(player, new ItemStack(Items.LADDER, 1));
           } else {
             world.setBlock(pos, state.setValue(DROP, true), 10);
             world.playSound(null, player.getX(), player.getY() + 0.5, player.getZ(), SoundEvents.PAINTING_PLACE, SoundSource.PLAYERS, 0.2f, 1.0f);

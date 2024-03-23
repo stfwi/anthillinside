@@ -4,6 +4,12 @@
 ----
 ## Version history
 
+    - v1.4.24     [M] Added Hive wood styled texture.
+                  [M] Supported/Dropping Trail texture edited.
+                  [F] Fixed Brewing result transfer issue.
+
+    - v1.4.23     [/] Version skipped to synchronize with Fabric.
+
     - v1.4.22     [F] Fixed disenchanting of Enchanted Books.
                   [F] Fixed unintended Brewing potion pass-through.
                   [A] Ant Trail can be placed on Leaves.
