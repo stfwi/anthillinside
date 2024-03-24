@@ -1,6 +1,8 @@
 {
- "homepage": "https://www.curseforge.com/minecraft/mc-mods/anthill-inside/",
+ "homepage": "https://github.com/stfwi/anthillinside/",
  "1.20.1": {
+  "1.4.24": "[M] Added Hive wood styled texture.\n[M] Supported/Dropping Trail texture edited.\n[F] Fixed Brewing result transfer issue.",
+  "1.4.23": "[/] Version skipped to synchronize with Fabric.",
   "1.4.22": "[F] Fixed disenchanting of Enchanted Books.\n[F] Fixed unintended Brewing potion pass-through.\n[A] Ant Trail can be placed on Leaves.\n[A] Bone Meal fertilizing added (crops, saplings).\n[A] Tree chopping also breaks bee nests.\n[A] Tree chopping: Chopped items get slowly transported (thrown) towards the Ant Hive.\n[A] Hive emits particles after finishing recipe based processes.\n[A] Hive Fishing added (command slot Fishing Rod).\n[A] Covered Ant Trail added (Wood log like item pipe).\n[A] Added block placing and sapling planting (Dispenser in command slot).\n[A] Added Fluid collection (water/lava to buckets/bottles, Bucket in command slot).\n[A] Added bee hive honey collection (Bucket in command slot).\n[A] Added bee hive comb collection (Shears in command slot).\n[M] Minecart loading does not send off empty Minecarts.\n[M] Covered Ant Trail texture edited.",
   "1.4.18": "[F] Fixed Minecart loading/unloading start on empty input/output.\n[A] Added crop fertilizing particle effects.\n[I] Note: Version v1.4.17 skipped (code base comapt with fabric releases).",
   "1.4.16": "[U] Initial port to NeoForged 1.20.1.",
@@ -31,7 +33,7 @@
   "1.0.0-b1": "[U] Initial concept implementation."
  },
  "promos": {
-  "1.20.1-recommended": "1.4.22",
-  "1.20.1-latest": "1.4.22"
+  "1.20.1-recommended": "1.4.24",
+  "1.20.1-latest": "1.4.24"
  }
 }
