@@ -4,6 +4,13 @@
 ----
 ## Version history
 
+    - v1.4.24     [M] Added Hive wood styled texture.
+                  [M] Supported/Dropping Trail texture edited.
+                  [F] Fixed Brewing result transfer issue.
+
+    - v1.4.23     [/] Version skipped to keep features/fixes in sync with
+                      1.20.4 mod version.
+
     - v1.4.22     [U] Back-ported v1.20.4-1.7.22 to mc1.20.1.
                   [M] Minecart loading does not send off empty Minecarts.
                   [A] Added bee hive honey collection (Bucket in command slot).
