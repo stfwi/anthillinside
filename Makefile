@@ -94,6 +94,7 @@ dist-files: clean-all init mod
 	@$(TASK) dist
 
 dist: sanitize dist-check dist-files
+	@$(TASK) dist-sign
 
 run:
 	@$(GRADLE) runClient

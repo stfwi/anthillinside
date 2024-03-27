@@ -4,6 +4,8 @@
 ----
 ## Version history
 
+    - v1.7.25     [F] Brewing processes 3 potions (like vanilla Brewing Stand).
+
     - v1.7.24     [M] Added Hive wood styled texture.
                   [M] Supported/Dropping Trail texture edited.
                   [F] Fixed Brewing result transfer issue.

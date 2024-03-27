@@ -1510,8 +1510,10 @@ public class RedAntHive
       progress_ = -40;
       if(is_done) {
         if(!getResultSlot().isEmpty()) {
-          cache_slot_range_.setItem(0, getResultSlot()); // replace input potion with result
-          cache_slot_range_.setItem(1, ItemStack.EMPTY); // consume ingredient
+          cache_slot_range_.setItem(0, ItemStack.EMPTY); // consume ingredient
+          if(!cache_slot_range_.getItem(1).isEmpty()) cache_slot_range_.setItem(1, getResultSlot()); // replace input potion with result
+          if(!cache_slot_range_.getItem(2).isEmpty()) cache_slot_range_.setItem(2, getResultSlot()); // up to ...
+          if(!cache_slot_range_.getItem(3).isEmpty()) cache_slot_range_.setItem(3, getResultSlot()); // 3 potions as vanilla brewing stand.
           setResultSlot(ItemStack.EMPTY);
         }
         cache_slot_range_.move(right_storage_slot_range_);
@@ -1537,7 +1539,7 @@ public class RedAntHive
           final int initial_fuel_left = fuel_left_;
           final boolean enough_fuel = input_slots.iterate((slot,stack)->{
             if(fuel_left_ >= fuel_time_needed) return true;
-            if((slot == brewing_output.ingredientSlot) || (slot == brewing_output.potionSlot) || (stack.isEmpty())) return false;
+            if((slot == brewing_output.ingredientSlot) || (brewing_output.potionSlots.contains(slot)) || (stack.isEmpty())) return false;
             int t = Crafting.getBrewingFuelBurntime(level, stack) * brewing_fuel_efficiency_percent / 100;
             if(t <= 0) return false;
             while((stack.getCount() > 0) && (fuel_left_ < fuel_time_needed)) {
@@ -1574,8 +1576,12 @@ public class RedAntHive
           fuel_left_ -= fuel_time_needed;
           max_progress_ = brewing_output.brewTime;
           progress_ = 0;
-          cache_slot_range_.setItem(0, input_slots.getItem(brewing_output.potionSlot).split(1));
-          cache_slot_range_.setItem(1, input_slots.getItem(brewing_output.ingredientSlot).split(1));
+          cache_slot_range_.setItem(0, input_slots.getItem(brewing_output.ingredientSlot).split(1));
+          final int offset = 1;
+          for(int i=0; i<brewing_output.potionSlots.size(); ++i) {
+            if(i >= cache_slot_range_.size()-2) break;
+            cache_slot_range_.setItem(offset+i, input_slots.getItem(brewing_output.potionSlots.get(i)).split(1));
+          }
           return true;
         }
       }

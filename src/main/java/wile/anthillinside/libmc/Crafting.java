@@ -281,27 +281,27 @@ public class Crafting
   public static final class BrewingOutput
   {
     public static final int DEFAULT_BREWING_TIME = 400;
-    public static final BrewingOutput EMPTY = new BrewingOutput(ItemStack.EMPTY, new SimpleContainer(1), new SimpleContainer(1), 0,0, DEFAULT_BREWING_TIME);
+    public static final BrewingOutput EMPTY = new BrewingOutput(ItemStack.EMPTY, new SimpleContainer(1), new SimpleContainer(1), Collections.emptyList(),0, DEFAULT_BREWING_TIME);
     public final ItemStack item;
     public final Container potionInventory;
     public final Container ingredientInventory;
-    public final int potionSlot;
+    public final List<Integer> potionSlots;
     public final int ingredientSlot;
     public final int brewTime;
 
-    public BrewingOutput(ItemStack output_potion, Container potion_inventory, Container ingredient_inventory, int potion_slot, int  ingredient_slot, int time_needed)
+    public BrewingOutput(ItemStack output_potion, Container potion_inventory, Container ingredient_inventory, List<Integer> potion_slots, int ingredient_slot, int time_needed)
     {
       item = output_potion;
       potionInventory = potion_inventory;
       ingredientInventory = ingredient_inventory;
-      potionSlot = potion_slot;
+      potionSlots = potion_slots;
       ingredientSlot = ingredient_slot;
       brewTime = time_needed;
     }
 
     public static BrewingOutput find(Level world, Container potion_inventory, Container ingredient_inventory)
     {
-      for(int potion_slot = 0; potion_slot<potion_inventory.getContainerSize(); ++potion_slot) {
+      for(int potion_slot = 0; potion_slot < potion_inventory.getContainerSize(); ++potion_slot) {
         final ItemStack pstack = potion_inventory.getItem(potion_slot);
         if(!isBrewingPotion(world, pstack)) continue;
         for(int ingredient_slot = 0; ingredient_slot<ingredient_inventory.getContainerSize(); ++ingredient_slot) {
@@ -310,7 +310,13 @@ public class Crafting
           if(!PotionBrewing.hasMix(pstack, istack)) continue;
           final ItemStack result = PotionBrewing.mix(istack, pstack);
           if(result.isEmpty() || (Inventories.areItemStacksIdentical(result, pstack))) continue; // mix may return the stack itself without changes.
-          return new BrewingOutput(result, potion_inventory, ingredient_inventory, potion_slot, ingredient_slot, DEFAULT_BREWING_TIME);
+          final List<Integer> potion_slots = new ArrayList<>();
+          potion_slots.add(potion_slot);
+          for(int additional_slot = potion_slot+1; (additional_slot < potion_inventory.getContainerSize()) && (potion_slots.size() < 3); ++additional_slot) {
+            if(!Inventories.areItemStacksIdentical(pstack, potion_inventory.getItem(additional_slot))) continue;
+            potion_slots.add(additional_slot);
+          }
+          return new BrewingOutput(result, potion_inventory, ingredient_inventory, potion_slots, ingredient_slot, DEFAULT_BREWING_TIME);
         }
       }
       return BrewingOutput.EMPTY;
