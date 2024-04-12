@@ -24,7 +24,7 @@ import java.util.List;
 
 public class ModConfig
 {
-  private static final String MODID = ModAnthillInside.MODID;
+  private static final String MODID = ModConstants.MODID;
 
   //--------------------------------------------------------------------------------------------------------------------
   // Optout checks

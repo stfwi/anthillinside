@@ -5,7 +5,7 @@
     { "item": "anthillinside:ants" }
   ],
   "result": {
-    "item": "anthillinside:covered_trail",
+    "id": "anthillinside:covered_trail",
     "count": 1
   }
 }

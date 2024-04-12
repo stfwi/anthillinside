@@ -5,7 +5,7 @@
     { "item": "minecraft:sugar" }
   ],
   "result": {
-    "item": "anthillinside:red_sugar",
+    "id": "anthillinside:red_sugar",
     "count": 2
   }
 }

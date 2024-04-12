@@ -29,22 +29,6 @@ public class AntsItem extends StandardItems.BaseBlockItem
   { return getOrCreateDescriptionId(); }
 
   @Override
-  public int getEnchantmentValue()
-  { return 0; }
-
-  @Override
-  public boolean isValidRepairItem(ItemStack toRepair, ItemStack repair)
-  { return false; }
-
-  @Override
-  public boolean canBeDepleted()
-  { return false; }
-
-  @Override
-  public boolean isEnchantable(ItemStack stack)
-  { return false; }
-
-  @Override
   public InteractionResult onItemUseFirst(ItemStack stack, UseOnContext context)
   {
     if(!context.getPlayer().isCrouching()) return InteractionResult.PASS;
@@ -57,7 +41,4 @@ public class AntsItem extends StandardItems.BaseBlockItem
     return InteractionResult.sidedSuccess(world.isClientSide);
   }
 
-  @Override
-  public InteractionResult place(BlockPlaceContext context)
-  { return super.place(context); }
 }

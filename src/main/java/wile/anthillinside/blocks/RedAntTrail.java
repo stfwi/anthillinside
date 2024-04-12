@@ -14,7 +14,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.Animal;
@@ -28,7 +28,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
@@ -59,6 +58,7 @@ import java.util.*;
 import java.util.stream.Stream;
 
 
+@SuppressWarnings("deprecation")
 public class RedAntTrail
 {
   public static void on_config()
@@ -152,7 +152,6 @@ public class RedAntTrail
     }
 
     @Override
-    @SuppressWarnings("deprecation")
     public boolean canSurvive(BlockState state, LevelReader world, BlockPos pos)
     {
       if(state.getValue(DROP)) return true;
@@ -167,18 +166,16 @@ public class RedAntTrail
     }
 
     @Override
-    @SuppressWarnings("deprecation")
-    public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult rtr)
+    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult rtr)
     {
-      Direction facing = rtr.getDirection().getOpposite();
-      ItemStack stack = player.getItemInHand(hand);
+      final Direction facing = rtr.getDirection().getOpposite();
       if(facing == Direction.DOWN && !stack.isEmpty() && stack.is(Items.SCAFFOLDING)) {
-        if(world.isClientSide()) return InteractionResult.SUCCESS;
+        if(world.isClientSide()) return ItemInteractionResult.SUCCESS;
         Overlay.TextOverlayGui.show(Auxiliaries.localizable("hints.use_ladder"), 1000);
-        return InteractionResult.CONSUME;
+        return ItemInteractionResult.CONSUME;
       } else if(facing == Direction.DOWN && !stack.isEmpty() && stack.is(Items.LADDER)) {
         if(world.isClientSide()) {
-          return InteractionResult.SUCCESS;
+          return ItemInteractionResult.SUCCESS;
         } else {
           if(state.getValue(DROP)) {
             world.setBlock(pos, state.setValue(DROP, false), 10);
@@ -189,17 +186,16 @@ public class RedAntTrail
             world.playSound(null, player.getX(), player.getY() + 0.5, player.getZ(), SoundEvents.PAINTING_PLACE, SoundSource.PLAYERS, 0.2f, 1.0f);
             stack.shrink(1);
           }
-          return InteractionResult.CONSUME;
+          return ItemInteractionResult.CONSUME;
         }
       } else {
-        return world.getBlockState(pos.relative(facing)).use(world, player, hand, new BlockHitResult(
+        return world.getBlockState(pos.relative(facing)).useItemOn(stack, world, player, hand, new BlockHitResult(
           rtr.getLocation(), rtr.getDirection(), pos.relative(facing), false)
         );
       }
     }
 
     @Override
-    @SuppressWarnings("deprecation")
     public void entityInside(BlockState state, Level world, BlockPos pos, Entity entity)
     {
       if(entity instanceof ItemEntity) {
@@ -213,7 +209,6 @@ public class RedAntTrail
     }
 
     @Override
-    @SuppressWarnings("deprecation")
     public void tick(BlockState state, ServerLevel world, BlockPos pos, RandomSource rand)
     {
       if(!state.getValue(UP)) return;
@@ -225,7 +220,6 @@ public class RedAntTrail
     }
 
     @Override
-    @SuppressWarnings("deprecation")
     public void neighborChanged(BlockState state, Level world, BlockPos pos, Block block, BlockPos fromPos, boolean unused)
     { world.setBlock(pos, updatedState(state, world, pos), 2); }
 
@@ -234,8 +228,8 @@ public class RedAntTrail
     { return false; }
 
     @Override
-    public boolean isPathfindable(BlockState state, BlockGetter world, BlockPos pos, PathComputationType type)
-    { return (!state.getValue(UP)) || super.isPathfindable(state, world, pos, type); }
+    public boolean isPathfindable(BlockState state, PathComputationType type)
+    { return (!state.getValue(UP)) || super.isPathfindable(state, type); }
 
     //------------------------------------------------------------------------------------------------------
 

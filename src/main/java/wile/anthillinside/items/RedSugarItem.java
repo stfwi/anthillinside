@@ -15,20 +15,4 @@ public class RedSugarItem extends StandardItems.BaseItem
 {
   public RedSugarItem(Item.Properties properties)
   { super(properties); }
-
-  @Override
-  public int getEnchantmentValue()
-  { return 0; }
-
-  @Override
-  public boolean isValidRepairItem(ItemStack toRepair, ItemStack repair)
-  { return false; }
-
-  @Override
-  public boolean canBeDepleted()
-  { return false; }
-
-  @Override
-  public boolean isEnchantable(ItemStack stack)
-  { return false; }
 }

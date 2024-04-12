@@ -9,15 +9,12 @@ package wile.anthillinside.blocks;
 import com.google.common.collect.ImmutableList;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.fabricmc.fabric.api.transfer.v1.item.InventoryStorage;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SidedStorageBlockEntity;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Vec3i;
+import net.minecraft.core.*;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -37,7 +34,6 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.*;
 import net.minecraft.world.item.*;
-import net.minecraft.world.item.alchemy.PotionUtils;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.crafting.*;
@@ -60,7 +56,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
-import wile.anthillinside.ModAnthillInside;
+import wile.anthillinside.ModConstants;
 import wile.anthillinside.ModContent;
 import wile.anthillinside.blocks.RedAntTrail.RedAntTrailBlock;
 import wile.anthillinside.entities.TransportedItemEntity;
@@ -79,6 +75,7 @@ import java.util.stream.Collectors;
 import static wile.anthillinside.ModContent.references.*;
 
 
+@SuppressWarnings("deprecation")
 public class RedAntHive
 {
   private static int hive_drop_probability_percent = 3;
@@ -219,7 +216,7 @@ public class RedAntHive
     if((!state.is(Blocks.REDSTONE_ORE) && (!state.is(Blocks.DEEPSLATE_REDSTONE_ORE))) || (iworld.isClientSide()) || !(iworld instanceof Level world)) return;
     if(iworld.getRandom().nextInt(100) >= hive_drop_probability_percent) return;
     Inventories.dropStack(world, Vec3.atCenterOf(pos), new ItemStack(HIVE_BLOCK.asItem()));
-    world.playSound(null, pos, SoundEvents.ARMOR_EQUIP_CHAIN, SoundSource.BLOCKS, 1f,1.4f);
+    Auxiliaries.playSound(world, pos, SoundEvents.ARMOR_EQUIP_CHAIN, SoundSource.BLOCKS, 1f, 1.4f);
   }
 
   //--------------------------------------------------------------------------------------------------------------------
@@ -301,12 +298,10 @@ public class RedAntHive
     }
 
     @Override
-    @SuppressWarnings("deprecation")
     public boolean hasAnalogOutputSignal(BlockState state)
     { return true; }
 
     @Override
-    @SuppressWarnings("deprecation")
     public int getAnalogOutputSignal(BlockState blockState, Level world, BlockPos pos)
     { BlockEntity te = world.getBlockEntity(pos); return (te instanceof RedAntHiveTileEntity) ? ((RedAntHiveTileEntity)te).comparatorValue() : 0; }
 
@@ -316,13 +311,12 @@ public class RedAntHive
 
     @Nullable
     @Override
-    @SuppressWarnings("deprecation")
     public MenuProvider getMenuProvider(BlockState state, Level world, BlockPos pos) {
       final BlockEntity ate = world.getBlockEntity(pos);
       if(!(ate instanceof RedAntHiveTileEntity te)) return null;
       return new SimpleMenuProvider(
         (int menu_id, Inventory inventory, Player player) -> new RedAntHiveMenu(menu_id, inventory, te.main_inventory_, ContainerLevelAccess.create(world, pos), te.fields),
-        Component.translatable("container." + ModAnthillInside.MODID + ".hive")
+        Component.translatable("container." + ModConstants.MODID + ".hive")
       );
     }
 
@@ -330,12 +324,11 @@ public class RedAntHive
     public void setPlacedBy(Level world, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack)
     {
       if(world.isClientSide()) return;
-      if((!stack.hasTag()) || (!stack.getOrCreateTag().contains("tedata"))) return;
-      CompoundTag te_nbt = stack.getOrCreateTag().getCompound("tedata");
-      if(te_nbt.isEmpty()) return;
+      final CompoundTag nbt = Auxiliaries.getItemStackNbt(stack, "tedata");
+      if(nbt.isEmpty()) return;
       final BlockEntity te = world.getBlockEntity(pos);
-      if(!(te instanceof RedAntHiveTileEntity)) return;
-      ((RedAntHiveTileEntity)te).readnbt(te_nbt, false);
+      if(!(te instanceof RedAntHiveTileEntity rte)) return;
+      rte.readnbt(world.registryAccess(), nbt);
       te.setChanged();
     }
 
@@ -346,30 +339,26 @@ public class RedAntHive
     @Override
     public List<ItemStack> dropList(BlockState state, Level world, final BlockEntity te, boolean explosion)
     {
-      if(world.isClientSide() || (!(te instanceof RedAntHiveTileEntity))) return Collections.emptyList();
-      final CompoundTag te_nbt = ((RedAntHiveTileEntity)te).clear_getnbt();
-      ItemStack stack = new ItemStack(asItem());
+      if(world.isClientSide() || (!(te instanceof RedAntHiveTileEntity rte))) return Collections.emptyList();
+      final CompoundTag te_nbt = rte.clear_getnbt();
+      final ItemStack stack = new ItemStack(asItem());
       if(!te_nbt.isEmpty()) {
-        final CompoundTag nbt = new CompoundTag();
-        nbt.put("tedata", te_nbt);
-        stack.setTag(nbt);
+        Auxiliaries.setItemStackNbt(stack, "tedata", te_nbt);
       }
       return Collections.singletonList(stack);
     }
 
     @Override
-    @SuppressWarnings("deprecation")
-    public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult rayTraceResult)
+    protected InteractionResult useWithoutItem(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult rtr)
     {
       if(world.isClientSide()) return InteractionResult.SUCCESS;
       final BlockEntity te = world.getBlockEntity(pos);
-      if((!(te instanceof RedAntHiveTileEntity)) || ((player instanceof FakePlayer))) return InteractionResult.FAIL;
-      player.openMenu((RedAntHiveTileEntity)te);
+      if(!(te instanceof RedAntHiveTileEntity hte)) return InteractionResult.FAIL;
+      player.openMenu(hte);
       return InteractionResult.CONSUME;
     }
 
     @Override
-    @SuppressWarnings("deprecation")
     public void neighborChanged(BlockState state, Level world, BlockPos pos, Block block, BlockPos fromPos, boolean unused)
     {
       if(world.isClientSide) return;
@@ -387,12 +376,10 @@ public class RedAntHive
     { return true; }
 
     @Override
-    @SuppressWarnings("deprecation")
     public boolean isSignalSource(BlockState state)
     { return true; }
 
     @Override
-    @SuppressWarnings("deprecation")
     public int getSignal(BlockState state, BlockGetter world, BlockPos pos, Direction side)
     {
       final BlockEntity te = world.getBlockEntity(pos);
@@ -400,7 +387,6 @@ public class RedAntHive
     }
 
     @Override
-    @SuppressWarnings("deprecation")
     public int getDirectSignal(BlockState state, BlockGetter world, BlockPos pos, Direction side)
     {
       final BlockEntity te = world.getBlockEntity(pos);
@@ -572,18 +558,18 @@ public class RedAntHive
 
     public CompoundTag clear_getnbt()
     {
-      CompoundTag nbt = new CompoundTag();
       if(!main_inventory_.isEmpty()) {
-        writenbt(nbt, false);
+        return writenbt(getLevel().registryAccess(), new CompoundTag(), false);
       } else {
         main_inventory_.clearContent();
+        return new CompoundTag();
       }
-      return nbt;
     }
 
-    public void readnbt(CompoundTag nbt, boolean update_packet)
+    @Override
+    public CompoundTag readnbt(HolderLookup.Provider hlp, CompoundTag nbt)
     {
-      main_inventory_.load(nbt);
+      main_inventory_.load(nbt, hlp);
       state_flags_.value(nbt.getLong("state_flags"));
       progress_ = nbt.getDouble("progress");
       max_progress_ = nbt.getInt("max_progress");
@@ -592,11 +578,13 @@ public class RedAntHive
       fuel_left_ = nbt.getInt("fuel_left");
       last_recipe_ = nbt.getString("last_recipe");
       if(!ResourceLocation.isValidResourceLocation(last_recipe_)) last_recipe_ = "";
+      return nbt;
     }
 
-    protected void writenbt(CompoundTag nbt, boolean update_packet)
+    @Override
+    public CompoundTag writenbt(HolderLookup.Provider hlp, CompoundTag nbt, boolean sync_packet)
     {
-      main_inventory_.save(nbt);
+      main_inventory_.save(nbt, hlp);
       nbt.putLong("state_flags", state_flags_.value());
       nbt.putDouble("progress", progress_);
       nbt.putInt("max_progress", max_progress_);
@@ -604,6 +592,7 @@ public class RedAntHive
       nbt.putInt("sugar_ticks", sugar_ticks_);
       nbt.putInt("fuel_left", fuel_left_);
       nbt.putString("last_recipe", last_recipe_);
+      return nbt;
     }
 
     public void block_updated()
@@ -611,20 +600,6 @@ public class RedAntHive
 
     public int comparatorValue()
     { return 0; }
-
-    // BlockEntity --------------------------------------------------------------------------------------------
-
-    @Override
-    public void load(CompoundTag nbt)
-    { super.load(nbt); readnbt(nbt, false); }
-
-    @Override
-    protected void saveAdditional(CompoundTag nbt)
-    { super.saveAdditional(nbt); writenbt(nbt, false); }
-
-    @Override
-    public void setRemoved()
-    { super.setRemoved(); }
 
     // Namable ------------------------------------------------------------------------------------------------
 
@@ -1469,7 +1444,7 @@ public class RedAntHive
       progress_ = 0;
       max_progress_ = 300 * 100/farming_speed_percent;
       boolean dirty = false;
-      final int range_ref = Mth.clamp(((hoe instanceof TieredItem) ? (((TieredItem)hoe).getTier().getLevel()):0), 0, 4);
+      final int range_ref = Mth.clamp(((hoe instanceof TieredItem) ? (((TieredItem)hoe).getTier().getEnchantmentValue()):0), 0, 4);
       final int range_rad = range_ref+1;
       final Auxiliaries.BlockPosRange range = Auxiliaries.BlockPosRange.of(workingRange(range_rad, 1, 0));
       final int[] step_sizes = {5,13,31,47,71};
@@ -1803,8 +1778,7 @@ public class RedAntHive
               source_stack = new ItemStack(Items.BUCKET, 1);
               getLevel().setBlock(target_pos, Blocks.AIR.defaultBlockState(), 1|2);
             } else if(left_storage_slot_range_.contains(new ItemStack(Items.GLASS_BOTTLE, 1))) {
-              result_stack = new ItemStack(Items.POTION, 1);
-              PotionUtils.setPotion(result_stack, Potions.WATER);
+              result_stack = Crafting.getPotionBottle(Potions.WATER);
               source_stack = new ItemStack(Items.GLASS_BOTTLE, 1);
               getLevel().setBlock(target_pos, Blocks.AIR.defaultBlockState(), 1|2);
             } else {

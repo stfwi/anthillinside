@@ -30,7 +30,7 @@ public class ModAnthillInsideClient implements ClientModInitializer
   @Override
   public void onInitializeClient()
   {
-    NetworkingClient.clientInit(ModAnthillInside.MODID);
+    NetworkingClient.clientInit(ModConstants.MODID);
     Overlay.register();
     registerMenuGuis();
     Overlay.TextOverlayGui.on_config(

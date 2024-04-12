@@ -27,15 +27,10 @@ import wile.anthillinside.libmc.Registries;
 
 public class ModContent
 {
-  private static final String MODID = ModAnthillInside.MODID;
+  private static final String MODID = ModConstants.MODID;
 
-  private static class detail {
-    public static String MODID = "";
-  }
-
-  public static void init(String modid)
+  public static void init()
   {
-    detail.MODID = modid;
     initTags();
     initBlocks();
     initItems();
