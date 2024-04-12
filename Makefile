@@ -8,6 +8,8 @@
 #
 MOD_JAR_PREFIX=anthillinside-
 MOD_JAR=$(filter-out %-sources.jar,$(wildcard build/libs/${MOD_JAR_PREFIX}*.jar))
+export JAVA_HOME=$(JDK_HOME_21_0)
+export JDK_HOME=$(JDK_HOME_21_0)
 
 ifeq ($(OS),Windows_NT)
 GRADLE=gradlew.bat --no-daemon
@@ -67,6 +69,7 @@ mrproper: clean-all
 
 init:
 	@echo "[1.20] Initialising workspace using gradle ..."
+	@echo "[info] Java used is JAVA_HOME=$(JAVA_HOME), JDK_HOME=$(JDK_HOME);"
 	@$(GRADLE) genSources
 
 sanitize:

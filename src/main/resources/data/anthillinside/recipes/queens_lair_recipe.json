@@ -11,7 +11,7 @@
     "R": { "item": "minecraft:redstone_block" }
   },
   "result": {
-    "item": "anthillinside:queens_lair",
+    "id": "anthillinside:queens_lair",
     "count": 1
   }
 }

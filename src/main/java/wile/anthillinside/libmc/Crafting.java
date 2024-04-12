@@ -9,6 +9,7 @@
 package wile.anthillinside.libmc;
 
 import net.fabricmc.fabric.api.registry.FuelRegistry;
+import net.minecraft.core.Holder;
 import net.minecraft.core.NonNullList;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
@@ -22,11 +23,10 @@ import net.minecraft.world.item.EnchantedBookItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.PotionItem;
-import net.minecraft.world.item.alchemy.PotionBrewing;
+import net.minecraft.world.item.alchemy.Potion;
+import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.crafting.*;
-import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.item.enchantment.EnchantmentInstance;
+import net.minecraft.world.item.enchantment.*;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.ComposterBlock;
 import org.jetbrains.annotations.Nullable;
@@ -247,13 +247,19 @@ public class Crafting
    * Returns true if the item can be used as brewing ingredient.
    */
   public static boolean isBrewingIngredient(Level world, ItemStack stack)
-  { return (!isBrewingPotion(world, stack)) && PotionBrewing.isIngredient(stack); }
+  { return (!isBrewingPotion(world, stack)) && world.potionBrewing().isIngredient(stack); }
 
   /**
    * Returns true if the given item is a potion (or water bottle).
    */
   public static boolean isBrewingPotion(Level world, ItemStack stack)
   { return (stack.getItem() instanceof PotionItem); }
+
+  /**
+   * Returns a newly created bottle of the given potion.
+   */
+  public static ItemStack getPotionBottle(Holder<Potion> potion)
+  { return PotionContents.createItemStack(Items.POTION, potion); }
 
   /**
    * Returns the burn time for brewing of the given stack.
@@ -307,8 +313,8 @@ public class Crafting
         for(int ingredient_slot = 0; ingredient_slot<ingredient_inventory.getContainerSize(); ++ingredient_slot) {
           final ItemStack istack = ingredient_inventory.getItem(ingredient_slot);
           if((ingredient_slot == potion_slot) || (!isBrewingIngredient(world, istack)) || (isBrewingFuel(world, istack))) continue;
-          if(!PotionBrewing.hasMix(pstack, istack)) continue;
-          final ItemStack result = PotionBrewing.mix(istack, pstack);
+          if(!world.potionBrewing().hasMix(pstack, istack)) continue;
+          final ItemStack result = world.potionBrewing().mix(istack, pstack);
           if(result.isEmpty() || (Inventories.areItemStacksIdentical(result, pstack))) continue; // mix may return the stack itself without changes.
           final List<Integer> potion_slots = new ArrayList<>();
           potion_slots.add(potion_slot);
@@ -321,17 +327,6 @@ public class Crafting
       }
       return BrewingOutput.EMPTY;
     }
-
-    private static class BrewingAdapter extends PotionBrewing
-    {
-      // For checking, unfortunately the detailed functions are protected in PotionBrewing, hence this adapter.
-      public static boolean isConainerIngredient(ItemStack stack) { return PotionBrewing.isContainerIngredient(stack); }
-      public static boolean isPotionIngredient(ItemStack stack) { return PotionBrewing.isPotionIngredient(stack); }
-      public static boolean hasPotionMix(ItemStack source, ItemStack ingredient) { return PotionBrewing.hasPotionMix(source, ingredient); }
-      public static boolean hasContainerMix(ItemStack source, ItemStack ingredient) { return PotionBrewing.hasContainerMix(source, ingredient); }
-      public static boolean hasMix(ItemStack source, ItemStack ingredient) { return PotionBrewing.hasMix(source, ingredient); }
-    }
-
   }
 
   // -------------------------------------------------------------------------------------------------------------------
@@ -351,7 +346,12 @@ public class Crafting
    * Returns the enchtments bound to the given stack.
    */
   public static Map<Enchantment, Integer> getEnchantmentsOnItem(Level world, ItemStack stack)
-  { return (stack.isEmpty() || (stack.getTag()==null)) ? Collections.emptyMap() : EnchantmentHelper.getEnchantments(stack); }
+  {
+    if(stack.isEmpty()) return Collections.emptyMap();
+    final Map<Enchantment, Integer> enchantments = new HashMap<>();
+    stack.getEnchantments().entrySet().forEach(eh->enchantments.put(eh.getKey().value(), eh.getIntValue()));
+    return enchantments;
+  }
 
   /**
    * Returns an enchanted book with the given enchantment, emtpy stack if not applicable.
@@ -375,15 +375,15 @@ public class Crafting
   public static boolean addEnchantmentOnItem(Level world, ItemStack stack, Enchantment enchantment, int level)
   {
     if(stack.isEmpty() || (level <= 0) || (!stack.isEnchantable()) || (level >= enchantment.getMaxLevel())) return false;
-    final Map<Enchantment, Integer> on_item = getEnchantmentsOnItem(world, stack);
-    if(on_item.keySet().stream().anyMatch(ench-> ench.isCompatibleWith(enchantment))) return false;
+    final ItemEnchantments.Mutable on_item = new ItemEnchantments.Mutable(stack.getEnchantments());
+    if(on_item.keySet().stream().anyMatch(ench-> ench.value().isCompatibleWith(enchantment))) return false;
     final ItemStack book = EnchantedBookItem.createForEnchantment(new EnchantmentInstance(enchantment, level));
     if(!enchantment.canEnchant(stack)) return false;
-    final int existing_level = on_item.getOrDefault(enchantment, 0);
+    final int existing_level = on_item.getLevel(enchantment);
     if(existing_level > 0) level = Mth.clamp(level+existing_level, 1, enchantment.getMaxLevel());
-    on_item.put(enchantment, level);
-    EnchantmentHelper.setEnchantments(on_item, stack);
-    stack.setRepairCost(getEnchantmentRepairCost(world, on_item));
+    on_item.set(enchantment, level);
+    EnchantmentHelper.setEnchantments(stack, on_item.toImmutable());
+    //stack.setRepairCost(getEnchantmentRepairCost(world, on_item));
     return true;
   }
 
@@ -393,18 +393,16 @@ public class Crafting
   public static Map<Enchantment, Integer> removeEnchantmentsOnItem(Level world, ItemStack stack, BiPredicate<Enchantment,Integer> filter)
   {
     if(stack.isEmpty()) return Collections.emptyMap();
-    final Map<Enchantment, Integer> on_item = getEnchantmentsOnItem(world, stack);
+    final ItemEnchantments.Mutable on_item = new ItemEnchantments.Mutable(stack.getEnchantments());
     final Map<Enchantment, Integer> removed = new HashMap<>();
-    for(Map.Entry<Enchantment, Integer> e:on_item.entrySet()) {
-      if(filter.test(e.getKey(), e.getValue())) {
-        removed.put(e.getKey(), e.getValue());
-      }
+    for(var e:on_item.keySet()) {
+      var enh = e.value();
+      var lvl = EnchantmentHelper.getItemEnchantmentLevel(enh, stack);
+      if(filter.test(enh, lvl)) removed.put(enh, lvl);
     }
-    for(Enchantment e:removed.keySet()) {
-      on_item.remove(e);
-    }
-    EnchantmentHelper.setEnchantments(on_item, stack);
-    stack.setRepairCost(getEnchantmentRepairCost(world, on_item));
+    on_item.removeIf(eh->removed.containsKey(eh.value()));
+    EnchantmentHelper.setEnchantments(stack, on_item.toImmutable());
+    //stack.setRepairCost(getEnchantmentRepairCost(world, on_item));
     return removed;
   }
 

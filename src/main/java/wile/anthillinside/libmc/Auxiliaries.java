@@ -16,20 +16,29 @@ import net.minecraft.SharedConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentUtils;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
+import net.minecraft.util.StringUtil;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -44,38 +53,32 @@ import org.slf4j.Logger;
 import org.lwjgl.glfw.GLFW;
 
 import org.jetbrains.annotations.Nullable;
+import wile.anthillinside.ModConstants;
+
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 
+@SuppressWarnings("deprecation")
 public class Auxiliaries
 {
-  private static String modid;
-  private static Logger logger;
-  private static Supplier<CompoundTag> server_config_supplier = CompoundTag::new;
+  private static final Logger logger = com.mojang.logging.LogUtils.getLogger();
 
-  public static void init(String modid, Supplier<CompoundTag> server_config_supplier)
-  {
-    Auxiliaries.modid = modid;
-    Auxiliaries.logger = com.mojang.logging.LogUtils.getLogger();
-    Auxiliaries.server_config_supplier = server_config_supplier;
-  }
+  public static void init()
+  {}
 
   // -------------------------------------------------------------------------------------------------------------------
   // Mod specific exports
   // -------------------------------------------------------------------------------------------------------------------
 
   public static String modid()
-  { return modid; }
+  { return ModConstants.MODID; }
 
   public static Logger logger()
   { return logger; }
@@ -130,7 +133,7 @@ public class Auxiliaries
   { logger.error(msg); }
 
   public static void logDebug(final String msg)
-  { logger.debug(msg); }
+  {}
 
   // -------------------------------------------------------------------------------------------------------------------
   // Localization, text formatting
@@ -141,11 +144,11 @@ public class Auxiliaries
    * translation keys. Forces formatting argument, nullable if no special formatting shall be applied..
    */
   public static MutableComponent localizable(String modtrkey, Object... args)
-  { return Component.translatable((modtrkey.startsWith("block.") || (modtrkey.startsWith("item."))) ? (modtrkey) : (modid+"."+modtrkey), args); }
+  { return Component.translatable((modtrkey.startsWith("block.") || (modtrkey.startsWith("item."))) ? (modtrkey) : (modid()+"."+modtrkey), args); }
 
   public static MutableComponent localizable(String modtrkey, @Nullable ChatFormatting color, Object... args)
   {
-    final MutableComponent tr = Component.translatable(modid+"."+modtrkey, args);
+    final MutableComponent tr = Component.translatable(modid()+"."+modtrkey, args);
     if(color!=null) tr.getStyle().applyFormat(color);
     return tr;
   }
@@ -154,42 +157,14 @@ public class Auxiliaries
   { return localizable(modtrkey, new Object[]{}); }
 
   public static MutableComponent localizable_block_key(String blocksubkey)
-  { return Component.translatable("block."+modid+"."+blocksubkey); }
+  { return Component.translatable("block."+modid()+"."+blocksubkey); }
 
   @Environment(EnvType.CLIENT)
   public static String localize(String translationKey, Object... args)
   {
-    Component tr = Component.translatable(translationKey, args);
+    final Component tr = Component.translatable(translationKey, args);
     tr.getStyle().applyFormat(ChatFormatting.RESET);
-    final String ft = tr.getString().trim();
-    if(ft.contains("${")) {
-      // Non-recursive, non-argument lang file entry cross referencing.
-      Pattern pt = Pattern.compile("\\$\\{([^}]+)\\}");
-      Matcher mt = pt.matcher(ft);
-      StringBuffer sb = new StringBuffer();
-      while(mt.find()) {
-        String m = mt.group(1);
-        if(m.contains("?")) {
-          String[] kv = m.split("\\?", 2);
-          String key = kv[0].trim();
-          boolean not = key.startsWith("!");
-          if(not) key = key.replaceFirst("!", "");
-          m = kv[1].trim();
-          if(!server_config_supplier.get().contains(key)) {
-            m = "";
-          } else {
-            boolean r = server_config_supplier.get().getBoolean(key);
-            if(not) r = !r;
-            if(!r) m = "";
-          }
-        }
-        mt.appendReplacement(sb, Matcher.quoteReplacement((Component.translatable(m)).getString().trim()));
-      }
-      mt.appendTail(sb);
-      return sb.toString();
-    } else {
-      return ft;
-    }
+    return tr.getString().trim();
   }
 
   @Environment(EnvType.CLIENT)
@@ -218,7 +193,7 @@ public class Auxiliaries
   {
     @Environment(EnvType.CLIENT)
     public static boolean extendedTipCondition()
-    { return isShiftDown(); }
+    { return isShiftDown() && !isCtrlDown(); }
 
     @Environment(EnvType.CLIENT)
     public static boolean helpCondition()
@@ -237,8 +212,8 @@ public class Auxiliaries
       } else if(extendedTipCondition()) {
         if(tip_available) tip_text = Component.literal(localize(advancedTooltipTranslationKey + ".tip"));
       } else if(addAdvancedTooltipHints) {
-        if(tip_available) tip_text = Component.literal(localize(modid + ".tooltip.hint.extended") + (help_available ? " " : ""));
-        if(help_available) tip_text.append(Component.literal(localize(modid + ".tooltip.hint.help")));
+        if(tip_available) tip_text = Component.literal(localize(modid() + ".tooltip.hint.extended") + (help_available ? " " : ""));
+        if(help_available) tip_text.append(Component.literal(localize(modid() + ".tooltip.hint.help")));
       }
       if(isEmpty(tip_text)) return false;
       tooltip.addAll(wrapText(tip_text, 50));
@@ -246,7 +221,7 @@ public class Auxiliaries
     }
 
     @Environment(EnvType.CLIENT)
-    public static boolean addInformation(ItemStack stack, @Nullable BlockGetter world, List<Component> tooltip, TooltipFlag flag, boolean addAdvancedTooltipHints)
+    public static boolean addInformation(ItemStack stack, Item.TooltipContext ctx, List<Component> tooltip, TooltipFlag flag, boolean addAdvancedTooltipHints)
     { return addInformation(stack.getDescriptionId(), stack.getDescriptionId(), tooltip, flag, addAdvancedTooltipHints); }
   }
 
@@ -254,11 +229,11 @@ public class Auxiliaries
   public static void playerChatMessage(final Player player, final String message)
   { player.displayClientMessage(Component.translatable(message.trim()), true); }
 
-  public static @Nullable Component unserializeTextComponent(String serialized)
-  { return Component.Serializer.fromJson(serialized); }
+  public static @Nullable Component unserializeTextComponent(String serialized, HolderLookup.Provider ra)
+  { return Component.Serializer.fromJson(serialized, ra); }
 
-  public static String serializeTextComponent(Component tc)
-  { return (tc==null) ? ("") : (Component.Serializer.toJson(tc)); }
+  public static String serializeTextComponent(Component tc, HolderLookup.Provider ra)
+  { return (tc==null) ? ("") : (Component.Serializer.toJson(tc, ra)); }
 
   // -------------------------------------------------------------------------------------------------------------------
   // Tag Handling
@@ -274,31 +249,54 @@ public class Auxiliaries
   // Item NBT data
   // -------------------------------------------------------------------------------------------------------------------
 
+  public static boolean hasItemStackNbt(ItemStack stack, String key)
+  {
+    final CompoundTag nbt = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).getUnsafe();
+    return (nbt != null) && (nbt.contains(key, CompoundTag.TAG_COMPOUND));
+  }
+
+  /**
+   * Returns a *copy* of the custom data compound NBT entry selected via `key`,
+   * or an empty CompoundTag if not existing.
+   */
+  public static CompoundTag getItemStackNbt(ItemStack stack, String key)
+  {
+    final CompoundTag nbt = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).getUnsafe();
+    if(nbt==null) return new CompoundTag();
+    final Tag data = nbt.get(key);
+    if((data==null) || (data.getId() != CompoundTag.TAG_COMPOUND)) return new CompoundTag();
+    return (CompoundTag)data.copy();
+  }
+
+  public static void setItemStackNbt(ItemStack stack, String key, CompoundTag nbt)
+  {
+    if(key.isEmpty()) return;
+    final CustomData cd = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.of(new CompoundTag()));
+    final CompoundTag cdt = cd.copyTag();
+    if((nbt==null) || (nbt.isEmpty())) {
+      cdt.remove(key);
+    } else {
+      cdt.put(key, nbt);
+    }
+    CustomData.set(DataComponents.CUSTOM_DATA, stack, cdt);
+  }
+
   /**
    * Equivalent to getDisplayName(), returns null if no custom name is set.
    */
   public static @Nullable Component getItemLabel(ItemStack stack)
   {
-    CompoundTag nbt = stack.getTagElement("display");
-    if(nbt != null && nbt.contains("Name", 8)) {
-      try {
-        Component tc = unserializeTextComponent(nbt.getString("Name"));
-        if(tc != null) return tc;
-        nbt.remove("Name");
-      } catch(Exception e) {
-        nbt.remove("Name");
-      }
-    }
-    return null;
+    return stack.getComponents().getOrDefault(DataComponents.CUSTOM_NAME, Component.empty());
   }
 
   public static ItemStack setItemLabel(ItemStack stack, @Nullable Component name)
   {
-    if(name != null) {
-      CompoundTag nbt = stack.getOrCreateTagElement("display");
-      nbt.putString("Name", serializeTextComponent(name));
+    if((name==null) || StringUtil.isBlank(name.getString())) {
+      if(stack.has(DataComponents.CUSTOM_NAME)) {
+        stack.remove(DataComponents.CUSTOM_NAME);
+      }
     } else {
-      if(stack.hasTag()) stack.removeTagKey("display");
+      stack.set(DataComponents.CUSTOM_NAME, name.copy());
     }
     return stack;
   }
@@ -520,17 +518,20 @@ public class Auxiliaries
   public static String loadResourceText(String path)
   { return loadResourceText(Auxiliaries.class.getResourceAsStream(path)); }
 
-  public static void logGitVersion(String mod_name)
+  public static void logGitVersion()
   {
     try {
       // Done during construction to have an exact version in case of a crash while registering.
-      String version = Auxiliaries.loadResourceText("/.gitversion-" + modid).trim();
-      logInfo(mod_name+((version.isEmpty())?(" (dev build)"):(" GIT id #"+version)) + ".");
+      String version = Auxiliaries.loadResourceText("/.gitversion-" + ModConstants.MODID).trim();
+      logInfo(ModConstants.MODNAME+((version.isEmpty())?(" (dev build)"):(" GIT id #"+version)) + ".");
     } catch(Throwable e) {
       // (void)e; well, then not. Priority is not to get unneeded crashes because of version logging.
     }
   }
 
+  // -------------------------------------------------------------------------------------------------------------------
+  // Particle spawning
+  // -------------------------------------------------------------------------------------------------------------------
 
   public static void particles(Level world, BlockPos pos, ParticleOptions type)
   { particles(world, Vec3.atCenterOf(pos).add(0.0, 0.4, 0.0), type, 1); }
@@ -555,6 +556,20 @@ public class Auxiliaries
     //FORGE: var player = net.minecraftforge.common.util.FakePlayerFactory.getMinecraft((ServerLevel)world);
     var player = net.fabricmc.fabric.api.entity.FakePlayer.get((ServerLevel)world); // fabric
     return (player==null) ? Optional.empty() : Optional.of(player);
+  }
+
+  // -------------------------------------------------------------------------------------------------------------------
+  // Sound
+  // -------------------------------------------------------------------------------------------------------------------
+
+  public static void playSound(Level world, BlockPos pos, Holder<SoundEvent> event, SoundSource source, double volume, double pitch)
+  { playSound(world, null, pos, event, source, volume, pitch); }
+
+  public static void playSound(Level world, @Nullable Entity entity, BlockPos pos, Holder<SoundEvent> event, SoundSource source, double volume, double pitch)
+  {
+    if(event.isBound()) {
+      world.playSound(entity, pos, event.value(), source, (float)volume, (float)pitch);
+    }
   }
 
 }

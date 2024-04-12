@@ -263,7 +263,7 @@ public class ToolActions
       if(!world.getGameRules().getBoolean(GameRules.RULE_DOBLOCKDROPS)) return Collections.emptyList();
       if(tool != null) {
         if(!(tool.getItem() instanceof DiggerItem pick)) return Collections.emptyList();
-        final boolean candrop = pick.isCorrectToolForDrops(state);
+        final boolean candrop = pick.isCorrectToolForDrops(tool, state);
         if(!candrop) return Collections.emptyList();
       }
       return Block.getDrops(state, world, pos, world.getBlockEntity(pos));
@@ -336,7 +336,7 @@ public class ToolActions
       if(rod==null) rod = new ItemStack(Items.FISHING_ROD);
       // .withParameter(LootContextParams.THIS_ENTITY, this).withLuck((float)this.luck + player.getLuck())
       final LootParams params = new LootParams.Builder(world).withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(pos)).withParameter(LootContextParams.TOOL, rod).create(LootContextParamSets.FISHING);
-      final LootTable table = world.getServer().getLootData().getLootTable(BuiltInLootTables.FISHING);
+      final LootTable table = world.getServer().reloadableRegistries().getLootTable(BuiltInLootTables.FISHING);
       var list = table.getRandomItems(params);
       if(list==null) return Collections.emptyList();
       return list;

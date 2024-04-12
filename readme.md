@@ -4,6 +4,8 @@
 ----
 ## Version history
 
+    - v1.8.25     [U] Updated to 1.20.5-pre1 fabric.
+
     - v1.7.25     [F] Brewing processes 3 potions (like vanilla Brewing Stand).
 
     - v1.7.24     [M] Added Hive wood styled texture.

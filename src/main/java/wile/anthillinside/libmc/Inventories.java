@@ -17,7 +17,10 @@ import net.fabricmc.fabric.api.transfer.v1.storage.base.ResourceAmount;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.component.DataComponentMap;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.util.Mth;
@@ -136,13 +139,25 @@ public class Inventories
   }
 
   public static boolean areItemStacksIdentical(ItemStack a, ItemStack b)
-  { return (a.isEmpty() && b.isEmpty()) || ((a.getItem()==b.getItem()) && ItemStack.isSameItemSameTags(a, b)); }
+  { return (a.getItem()==b.getItem()) && ItemStack.isSameItemSameComponents(a, b); }
 
   public static boolean areItemStacksDifferent(ItemStack a, ItemStack b)
-  { return (a.getItem()!=b.getItem()) || (!ItemStack.isSameItemSameTags(a, b)); }
+  { return (a.getItem()!=b.getItem()) || (!ItemStack.isSameItemSameComponents(a, b)); }
+
+  public static boolean areItemStacksIdenticalIgnoreDamage(ItemStack a, ItemStack b)
+  {
+    if(a.getItem() != b.getItem()) return false;
+    if(!a.isDamageableItem()) return ItemStack.isSameItemSameComponents(a, b);
+    final DataComponentMap bc = b.getComponents();
+    return a.getComponents().stream().allMatch(a_tdc->{
+      if(!bc.has(a_tdc.type())) return false;
+      if(a_tdc.value().equals(bc.get(a_tdc.type()))) return true;
+      return a_tdc.type().equals(DataComponents.DAMAGE);
+    });
+  }
 
   public static boolean isItemStackableOn(ItemStack a, ItemStack b)
-  { return (!a.isEmpty()) && (ItemStack.isSameItem(a,b)) && (a.hasTag() == b.hasTag()) && (!a.hasTag() || a.getTag().equals(b.getTag())); }
+  { return (!a.isEmpty()) && (a.isStackable()) && (ItemStack.isSameItem(a,b)); }
 
   private static ItemStack checked(ItemStack stack)
   { return stack.isEmpty() ? ItemStack.EMPTY : stack; }
@@ -623,15 +638,7 @@ public class Inventories
       for(int i=0; i<size_; ++i) {
         final ItemStack stack = getItem(i);
         if(!pred.test(i, stack)) continue;
-        if((!stack.isEmpty()) && (areItemStacksIdentical(stack, request_stack))) {
-          if(stack.hasTag()) {
-            final CompoundTag nbt = stack.getOrCreateTag();
-            int n = nbt.size();
-            if((n > 0) && (nbt.contains("Damage"))) --n;
-            if(n > 0) continue;
-          }
-          matches.add(stack);
-        }
+        if((!stack.isEmpty()) && (areItemStacksIdenticalIgnoreDamage(stack, request_stack))) matches.add(stack);
       }
       matches.sort(Comparator.comparingInt(ItemStack::getCount));
       if(matches.isEmpty()) return ItemStack.EMPTY;
@@ -732,30 +739,34 @@ public class Inventories
       stacks_ = NonNullList.withSize(size_, ItemStack.EMPTY);
       num_rows_ = Mth.clamp(num_rows, 1, size_);
     }
-    public CompoundTag save(CompoundTag nbt, String key)
-    { nbt.put(key, save(new CompoundTag(), false)); return nbt; }
+    public CompoundTag save(CompoundTag nbt, String key, HolderLookup.Provider ra)
+    { nbt.put(key, save(new CompoundTag(), ra, false)); return nbt; }
 
-    public CompoundTag save(CompoundTag nbt)
-    { return ContainerHelper.saveAllItems(nbt, stacks_); }
+    public CompoundTag save(CompoundTag nbt, HolderLookup.Provider ra)
+    {
+      return ContainerHelper.saveAllItems(nbt, stacks_, ra);
+    }
 
-    public CompoundTag save(CompoundTag nbt, boolean save_empty)
-    { return ContainerHelper.saveAllItems(nbt, stacks_, save_empty); }
+    public CompoundTag save(CompoundTag nbt, HolderLookup.Provider ra, boolean save_empty)
+    {
+      return ContainerHelper.saveAllItems(nbt, stacks_, save_empty, ra);
+    }
 
-    public CompoundTag save(boolean save_empty)
-    { return save(new CompoundTag(), save_empty); }
+    public CompoundTag save(HolderLookup.Provider ra, boolean save_empty)
+    { return save(new CompoundTag(), ra, save_empty); }
 
-    public StorageInventory load(CompoundTag nbt, String key)
+    public StorageInventory load(CompoundTag nbt, String key, HolderLookup.Provider ra)
     {
       if(!nbt.contains("key", Tag.TAG_COMPOUND)) {
         stacks_.clear();
         return this;
       } else {
-        return load(nbt.getCompound(key));
+        return load(nbt.getCompound(key), ra);
       }
     }
 
-    public StorageInventory load(CompoundTag nbt)
-    { stacks_.clear(); ContainerHelper.loadAllItems(nbt, stacks_); return this; }
+    public StorageInventory load(CompoundTag nbt, HolderLookup.Provider ra)
+    { stacks_.clear(); ContainerHelper.loadAllItems(nbt, stacks_, ra); return this; }
 
     public List<ItemStack> stacks()
     { return stacks_; }

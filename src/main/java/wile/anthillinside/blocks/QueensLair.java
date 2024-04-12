@@ -16,7 +16,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -36,7 +36,10 @@ import wile.anthillinside.libmc.Auxiliaries;
 import wile.anthillinside.libmc.Overlay;
 import wile.anthillinside.libmc.StandardBlocks;
 
-public class QueensLair {
+
+@SuppressWarnings("deprecation")
+public class QueensLair
+{
   private static int use_health_restore_probability_percent = 50;
   private static int rndtick_health_loss_probability_percent = 30;
   private static int rndtick_growth_probability_percent = 30;
@@ -76,10 +79,9 @@ public class QueensLair {
     { return super.getStateForPlacement(context); }
 
     @Override
-    @SuppressWarnings("deprecation")
-    public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult rtr)
+    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult rtr)
     {
-      if(world.isClientSide()) return InteractionResult.SUCCESS;
+      if(world.isClientSide()) return ItemInteractionResult.SUCCESS;
       final ItemStack red_sugar = player.getItemInHand(hand);
       if(red_sugar.is(ModContent.references.RED_SUGAR_ITEM) && state.getValue(HEALTH) < MAX_HEALTH) {
         if(!player.isCreative()) red_sugar.shrink(1);
@@ -93,11 +95,10 @@ public class QueensLair {
         }
       }
       Overlay.show((ServerPlayer)player, Auxiliaries.localizable("block." + Auxiliaries.modid() + ".queens_lair.health" + state.getValue(HEALTH)));
-      return InteractionResult.CONSUME;
+      return ItemInteractionResult.CONSUME;
     }
 
     @Override
-    @SuppressWarnings("deprecation")
     public void randomTick(BlockState state, ServerLevel world, BlockPos pos, RandomSource rand)
     {
       if(world.isClientSide()) return;
@@ -118,7 +119,7 @@ public class QueensLair {
         if(rand.nextInt(0, 100) < growth_chance) {
           if(growth >= MAX_GROWTH) {
             world.setBlock(pos, ModContent.references.HIVE_BLOCK.defaultBlockState(), 11);
-            world.playSound(null, pos, SoundEvents.ARMOR_EQUIP_GENERIC, SoundSource.BLOCKS, 1.0F, 1.1F);
+            Auxiliaries.playSound(world, null, pos, SoundEvents.ARMOR_EQUIP_GENERIC, SoundSource.BLOCKS, 1.0, 1.1);
             Auxiliaries.particles(world, Vec3.atCenterOf(pos), ParticleTypes.INSTANT_EFFECT, 10);
           } else {
             state = state.setValue(GROWTH, growth + 1);

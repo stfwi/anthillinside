@@ -29,7 +29,7 @@ import java.util.List;
 
 public class StandardItems
 {
-  public interface IStandardItem
+  public interface IStandardItem //extends IForgeItem
   {
   }
 
@@ -51,7 +51,6 @@ public class StandardItems
     { return InteractionResult.PASS; }
   }
 
-
   public static class BaseBlockItem extends BlockItem
   {
     public BaseBlockItem(Block block, Item.Properties properties)
@@ -59,8 +58,8 @@ public class StandardItems
 
     @Override
     @Environment(EnvType.CLIENT)
-    public void appendHoverText(ItemStack stack, @Nullable Level world, List<Component> tooltip, TooltipFlag flag)
-    { Auxiliaries.Tooltip.addInformation(stack, world, tooltip, flag, true); }
+    public void appendHoverText(ItemStack stack, Item.TooltipContext ctx, List<Component> tooltip, TooltipFlag flag)
+    { Auxiliaries.Tooltip.addInformation(stack, ctx, tooltip, flag, true); }
 
     public InteractionResult useOn(UseOnContext context)
     {

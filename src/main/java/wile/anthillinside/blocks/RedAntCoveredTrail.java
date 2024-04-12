@@ -6,19 +6,19 @@
  */
 package wile.anthillinside.blocks;
 
-import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.fabricmc.fabric.api.transfer.v1.item.InventoryStorage;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SidedStorageBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.*;
@@ -45,6 +45,7 @@ import java.util.*;
 import static wile.anthillinside.ModContent.references.*;
 
 
+@SuppressWarnings("deprecation")
 public class RedAntCoveredTrail
 {
   private static final int max_transfer_stack_size = 8;
@@ -105,12 +106,10 @@ public class RedAntCoveredTrail
     }
 
     @Override
-    @SuppressWarnings("deprecation")
     public boolean hasAnalogOutputSignal(BlockState state)
     { return true; }
 
     @Override
-    @SuppressWarnings("deprecation")
     public int getAnalogOutputSignal(BlockState blockState, Level world, BlockPos pos)
     { BlockEntity te = world.getBlockEntity(pos); return (te instanceof RedAntCoveredTrailTileEntity) ? ((RedAntCoveredTrailTileEntity)te).comparatorValue() : 0; }
 
@@ -122,12 +121,11 @@ public class RedAntCoveredTrail
     public void setPlacedBy(Level world, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack)
     {
       if(world.isClientSide()) return;
-      if((!stack.hasTag()) || (!stack.getOrCreateTag().contains("tedata"))) return;
-      CompoundTag te_nbt = stack.getOrCreateTag().getCompound("tedata");
-      if(te_nbt.isEmpty()) return;
+      final CompoundTag nbt = Auxiliaries.getItemStackNbt(stack, "tedata");
+      if(nbt.isEmpty()) return;
       final BlockEntity te = world.getBlockEntity(pos);
-      if(!(te instanceof RedAntCoveredTrailTileEntity)) return;
-      ((RedAntCoveredTrailTileEntity)te).readnbt(te_nbt, false);
+      if(!(te instanceof RedAntCoveredTrailTileEntity rte)) return;
+      rte.readnbt(world.registryAccess(), nbt);
       te.setChanged();
     }
 
@@ -151,10 +149,8 @@ public class RedAntCoveredTrail
     { return false; }
 
     @Override
-    @SuppressWarnings("deprecation")
-    public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult rayTraceResult)
+    protected InteractionResult useWithoutItem(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult rtr)
     {
-      if(!player.getItemInHand(hand).isEmpty()) return InteractionResult.PASS;
       if(world.isClientSide()) return InteractionResult.SUCCESS;
       final int co = this.getAnalogOutputSignal(state, world, pos);
       float min=0.9f, max=1.4f;
@@ -163,6 +159,9 @@ public class RedAntCoveredTrail
       world.playSound(null, pos, SoundEvents.BAMBOO_WOOD_PLACE, SoundSource.BLOCKS, 1f, pitch);
       return InteractionResult.CONSUME;
     }
+
+    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult rtr)
+    { return stack.is(COVERED_TRAIL_BLOCK.asItem()) ? ItemInteractionResult.SKIP_DEFAULT_BLOCK_INTERACTION : ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION; }
   }
 
   //--------------------------------------------------------------------------------------------------------------------
@@ -207,18 +206,20 @@ public class RedAntCoveredTrail
     {
       CompoundTag nbt = new CompoundTag();
       if(!main_inventory_.isEmpty()) {
-        writenbt(nbt, false);
+        writenbt(getLevel().registryAccess(), nbt, false);
       } else {
         main_inventory_.clearContent();
       }
       return nbt;
     }
 
-    public void readnbt(CompoundTag nbt, boolean update_packet)
-    { main_inventory_.load(nbt); }
+    @Override
+    public CompoundTag readnbt(HolderLookup.Provider hlp, CompoundTag nbt)
+    { main_inventory_.load(nbt, hlp); return nbt; }
 
-    protected void writenbt(CompoundTag nbt, boolean update_packet)
-    { main_inventory_.save(nbt); }
+    @Override
+    public CompoundTag writenbt(HolderLookup.Provider hlp, CompoundTag nbt, boolean sync_packet)
+    { main_inventory_.save(nbt, hlp); return nbt; }
 
     public int comparatorValue()
     {
@@ -229,16 +230,6 @@ public class RedAntCoveredTrail
       if(use == max) return 15;
       return 1 + (14 * use / max);
     }
-
-    // BlockEntity --------------------------------------------------------------------------------------------
-
-    @Override
-    public void load(CompoundTag nbt)
-    { super.load(nbt); readnbt(nbt, false); }
-
-    @Override
-    protected void saveAdditional(CompoundTag nbt)
-    { super.saveAdditional(nbt); writenbt(nbt, false); }
 
     // Tick -------------------------------------------------------------------------------------------------
 
