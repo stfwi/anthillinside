@@ -1,6 +1,8 @@
 {
  "homepage": "https://www.curseforge.com/minecraft/mc-mods/anthill-inside/",
  "1.20.1": {
+  "1.4.24": "[M] Added Hive wood styled texture.\n[M] Supported/Dropping Trail texture edited.\n[F] Fixed Brewing result transfer issue.",
+  "1.4.23": "[/] Version skipped to keep features/fixes in sync with 1.20.4 mod version.",
   "1.4.22": "[U] Back-ported v1.20.4-1.7.22 to mc1.20.1.\n[M] Minecart loading does not send off empty Minecarts.\n[A] Added bee hive honey collection (Bucket in command slot).\n[A] Added bee hive comb collection (Shears in command slot).\n[M] Covered Ant Trail texture edited.\n[A] Ant Trail can be placed on Leaves.\n[A] Bone Meal fertilizing added (crops, saplings).\n[A] Tree chopping also breaks bee nests.\n[A] Tree chopping: Chopped items get slowly transported (thrown) towards the Ant Hive.\n[A] Hive emits particles after finishing recipe based processes.\n[A] Hive Fishing added (command slot Fishing Rod).\n[A] Covered Ant Trail added (Wood log like item pipe).\n[A] Added block placing and sapling planting (Dispenser in command slot).\n[A] Added Fluid collection (water/lava to buckets/bottles. Bucket in command slot).\n[F] Fixed disenchanting of Enchanted Books.\n[F] Fixed Hive-to-Trail insertion direction (Hopper).\n[F] Fixed Minecart loading/unloading start on empty input/output.\n[F] Fixed unintended Brewing potion pass-through.\n[A] Added crop fertilizing particle effects.",
   "1.4.16": "[U] Initial Fabric port for mc1.20.1.\n[B] Known issue: Config not implemented yet.",
   "1.3.15": "[U] Updated to mc1.19.3 forge.\n[A] Added possibility to disable Hive drops from Redstone mining.\n[A] Added tool selection config options.\n[E] Known issues: No dedicated Mod Creative Tab yet, no JEI integration yet.",
@@ -30,7 +32,7 @@
   "1.0.0-b1": "[U] Initial concept implementation."
  },
  "promos": {
-  "1.20.1-recommended": "1.4.22",
-  "1.20.1-latest": "1.4.22"
+  "1.20.1-recommended": "1.4.24",
+  "1.20.1-latest": "1.4.24"
  }
 }
